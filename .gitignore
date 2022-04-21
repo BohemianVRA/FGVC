@@ -127,3 +127,14 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# Metadata and Checkpoints
+*.pth
+*.csv
+
+
+# WandB
+
+wandb
+wandb-debug.log
