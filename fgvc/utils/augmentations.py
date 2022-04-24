@@ -46,3 +46,13 @@ def light_transforms_rcrop(*, data, image_size, mean, std):
             Normalize(mean=mean, std=std),
             ToTensorV2(),
         ])
+    
+    
+    elif data == 'valid-center-crop':
+        return Compose([
+            PadIfNeeded(WIDTH, HEIGHT),
+            CenterCrop(WIDTH, HEIGHT),
+            #Resize(WIDTH, HEIGHT),
+            Normalize(mean=model_mean, std=model_std),
+            ToTensorV2(),
+        ])
