@@ -119,5 +119,4 @@ def test_transforms(*, data, image_size, mean, std):
             HorizontalFlip(p=1.0),
             VerticalFlip(p=1.0),
             Normalize(mean=mean, std=std),
-            ToTensorV2(),
         ])
