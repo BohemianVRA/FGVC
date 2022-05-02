@@ -1,7 +1,9 @@
 import numpy as np
 
 from PIL import Image, ImageFile
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
+
+from fgvc.utils.augmentations import test_transforms
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -33,3 +35,12 @@ class TrainDataset(Dataset):
             image = augmented['image']
         
         return image, label, file_path
+    
+
+def get_dataloader(metadata, run_config, model_mean, model_std):
+    
+    augmentations = test_transforms(data='vanilla', image_size=run_config['image_size'], mean=model_mean, std=model_std)    
+    dataset = TrainDataset(metadata, transform=augmentations)
+    data_loader = DataLoader(dataset, batch_size=run_config['batch_size'], shuffle=False, num_workers=run_config['workers'])
+    
+    return data_loader
