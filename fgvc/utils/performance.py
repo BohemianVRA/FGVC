@@ -94,14 +94,36 @@ def observation_performance(test_metadata):
 
     return {'acc': accuracy, 'max_logits_acc': max_logits_accuracy, 'mean_logits_acc': mean_logits_accuracy, 'max_softmax_acc': max_softmax_accuracy, 'mean_softmax_acc': mean_softmax_accuracy}
 
-
-def test_loop(test_metadata, test_loader, model, device):
+def test_loop(test_metadata, test_loader, model, device, disable_tqdm=False):
     
     preds = np.zeros((len(test_metadata)))
     preds_raw = []
     wrong_paths = []
+    
+    for i, (images, _, _) in tqdm.tqdm(enumerate(test_loader), total=len(test_loader), disable=disable_tqdm):
 
-    for i, (images, _, _) in tqdm.tqdm(enumerate(test_loader), total=len(test_loader)):
+        images = images.to(device)
+
+        with torch.no_grad():
+            y_preds = model(images)
+        preds[i * len(images): (i+1) * len(images)] = y_preds.argmax(1).to('cpu').numpy()
+        preds_raw.extend(y_preds.to('cpu').numpy())
+
+    
+    test_metadata['logits'] = preds_raw
+    test_metadata['preds'] = preds
+    test_metadata['softmax'] = [softmax(row) for row in test_metadata['logits']]
+    
+    return test_metadata
+
+
+def test_loop_performance(test_metadata, test_loader, model, device, disable_tqdm=False):
+    
+    preds = np.zeros((len(test_metadata)))
+    preds_raw = []
+    wrong_paths = []
+    
+    for i, (images, _, _) in tqdm.tqdm(enumerate(test_loader), total=len(test_loader), disable=disable_tqdm):
 
         images = images.to(device)
 
@@ -120,13 +142,13 @@ def test_loop(test_metadata, test_loader, model, device):
     return performance
 
 
-def test_loop_insights(test_metadata, test_loader, model, device):
+def test_loop_insights(test_metadata, test_loader, model, device, disable_tqdm=False):
     
     preds = np.zeros((len(test_metadata)))
     preds_raw = []
     wrong_paths = []
-
-    for i, (images, _, _) in tqdm.tqdm(enumerate(test_loader), total=len(test_loader)):
+    
+    for i, (images, _, _) in tqdm.tqdm(enumerate(test_loader), total=len(test_loader), disable=disable_tqdm):
 
         images = images.to(device)
 
@@ -141,4 +163,4 @@ def test_loop_insights(test_metadata, test_loader, model, device):
 
     performance = observation_performance(test_metadata)
     
-    return performance, test_metadata
+    return performance, preds, preds_raw
