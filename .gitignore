@@ -142,3 +142,4 @@ wandb-debug.log
 # Metacentrum
 
 scripts/JupyterLabJob.*
+JupyterLabJob.*

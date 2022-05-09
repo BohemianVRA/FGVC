@@ -1,8 +1,8 @@
 #!/bin/bash
 #PBS -N JupyterLabJob
 #PBS -q gpu_long
-#PBS -l select=1:ncpus=4:mem=16gb:scratch_local=100gb:ngpus=2:cluster=galdor
-#PBS -l walltime=330:00:00
+#PBS -l select=1:ncpus=12:mem=32gb:scratch_local=50gb:ngpus=1:cluster=galdor
+#PBS -l walltime=336:00:00
 #PBS -m ae
 # The 4 lines above are options for scheduling system: job will run 1 hour at maximum, 1 machine with 4 processors + 4gb RAM memory + 10gb scratch memory are requested, email notification will be sent when the job aborts (a) or ends (e)
 
@@ -74,10 +74,7 @@ $PASS_MESSAGE
 You can reset password by deleting file .jupyter/jupyter_notebook_config.json and run job again with this script.
 EOFmail
 
-# Copy Data to Scratch
-DATA_TAR="/storage/plzen4-ntis/home/picekl/Datasets.tar.gz"
-tar -xf $DATA_TAR -C $SCRATCHDIR
-
+# TenzorFlow20.30.simg  is prepared singularity image form NGC, prepare your own :-)
 
 BIND=""
 if [[ -d /auto ]]; then
