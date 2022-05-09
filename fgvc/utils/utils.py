@@ -37,6 +37,7 @@ def init_logger(log_file='train.log'):
     
     return logger
 
+
 def seed_everything(seed=777):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
@@ -45,10 +46,24 @@ def seed_everything(seed=777):
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     
+    
 def getModel(architecture_name, target_size, pretrained = False):
     net = timm.create_model(architecture_name, pretrained=pretrained)
     net_cfg = net.default_cfg
     last_layer = net_cfg['classifier']
     num_ftrs = getattr(net, last_layer).in_features
     setattr(net, last_layer, nn.Linear(num_ftrs, target_size))
+    return net
+    
+    
+def load_fgvc_model(architecture_name, target_size, ckpt_path):
+    
+    net = timm.create_model(architecture_name, pretrained=True)
+    net_cfg = net.default_cfg
+    last_layer = net_cfg['classifier']
+    num_ftrs = getattr(net, last_layer).in_features
+    setattr(net, last_layer, nn.Linear(num_ftrs, target_size))
+    
+    net.load_state_dict(torch.load(ckpt_path))
+    
     return net
