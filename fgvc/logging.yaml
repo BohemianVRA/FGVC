@@ -1,0 +1,31 @@
+version: 1
+disable_existing_loggers: true
+
+formatters:
+  standard:
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: standard
+    stream: ext://sys.stdout
+
+  file_handler:
+    class: logging.handlers.FileHandler
+    level: DEBUG
+    formatter: standard
+    filename: fgvc_train.log
+    encoding: utf8
+
+loggers:
+  fgvc:
+    level: DEBUG
+    handlers: [console, file_handler]
+    propagate: no
+
+root:
+  level: INFO
+  handlers: [console, file_handler]
+  propagate: no
