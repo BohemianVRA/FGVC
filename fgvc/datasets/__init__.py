@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset, DataLoader
 
-from fgvc.utils.augmentations import tta_transforms
+from fgvc.core.augmentations import tta_transforms
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
