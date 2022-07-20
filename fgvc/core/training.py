@@ -11,9 +11,8 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
+from fgvc.core.metrics import classification_scores
 from fgvc.utils.wandb import log_progress
-
-from .metrics import classification_scores
 
 logger = logging.getLogger("fgvc")
 
