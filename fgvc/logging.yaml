@@ -3,6 +3,9 @@ disable_existing_loggers: true
 
 formatters:
   standard:
+    format: "(%(name)s) %(levelname)s: %(message)s"
+
+  training:
     format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 handlers:
@@ -12,8 +15,8 @@ handlers:
     formatter: standard
     stream: ext://sys.stdout
 
-  file_handler:
-    class: logging.handlers.FileHandler
+  training_file_handler:
+    class: logging.FileHandler
     level: DEBUG
     formatter: standard
     filename: fgvc_train.log
@@ -22,7 +25,12 @@ handlers:
 loggers:
   fgvc:
     level: DEBUG
-    handlers: [ console, file_handler ]
+    handlers: [ console ]
+    propagate: no
+
+  fgvc-training:
+    level: INFO
+    handlers: [ console, training_file_handler ]
     propagate: no
 
 root:

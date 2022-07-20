@@ -1,5 +1,5 @@
 import logging
-from copy import deepcopy
+import time
 from typing import Tuple
 
 import numpy as np
@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from fgvc.core.metrics import classification_scores
+from fgvc.utils.log import setup_logging
 from fgvc.utils.wandb import log_progress
 
 logger = logging.getLogger("fgvc")
@@ -108,6 +109,7 @@ def predict(
 
 
 def train(
+    run_name: str,
     model: nn.Module,
     trainloader: DataLoader,
     criterion: nn.Module,
@@ -117,7 +119,6 @@ def train(
     scheduler=None,
     num_epochs: int = 1,
     accumulation_steps: int = 1,
-    model_filename: str = None,
     device: torch.device = None,
 ):
     """Train neural network."""
@@ -126,10 +127,13 @@ def train(
             scheduler, (ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR)
         )
 
+    setup_logging(training_log_file=f"{run_name}.log")
+
     # apply training loop
-    best_loss = np.inf
-    best_scores = None
-    best_state_dict = None
+    best_loss, best_acc = np.inf, 0
+    best_scores_loss, best_scores_acc = {}, {}
+    logger.info(f"Training of run '{run_name}' started.")
+    start_time = time.time()
     for epoch in range(0, num_epochs):
         # apply training and validation on one epoch
         train_preds, train_targs, train_loss = train_epoch(
@@ -169,10 +173,13 @@ def train(
                 train_preds, train_targs, top_k=None, prefix="Train."
             ),
         }
+        val_acc = None
         if valid_preds is not None and valid_targs is not None:
-            scores.update(
-                classification_scores(valid_preds, valid_targs, top_k=3, prefix="Val.")
+            val_scores = classification_scores(
+                valid_preds, valid_targs, top_k=3, prefix="Val."
             )
+            val_acc = val_scores["Val. Accuracy"]
+            scores.update(val_scores)
         scores["Learning Rate"] = optimizer.param_groups[0]["lr"]
 
         # log progress
@@ -183,17 +190,29 @@ def train(
         # save model checkpoint
         if valid_loss is not None and valid_loss < best_loss:
             best_loss = valid_loss
-            best_scores = scores
-            best_state_dict = deepcopy(model.state_dict())
-            if model_filename is not None:
-                logger.info(
-                    f"Epoch {epoch} - "
-                    f"Save checkpoint with best valid loss: {best_loss:.6f}"
-                )
-                torch.save(model.state_dict(), model_filename)
+            best_scores_loss = scores
+            logger.info(
+                f"Epoch {epoch} - "
+                f"Save checkpoint with best valid loss: {best_loss:.6f}"
+            )
+            torch.save(model.state_dict(), f"{run_name}_best_loss.pth")
+
+        if val_acc is not None and val_acc > best_acc:
+            best_acc = val_acc
+            best_scores_acc = scores
+            logger.info(
+                f"Epoch {epoch} - "
+                f"Save checkpoint with best valid loss: {best_loss:.6f}"
+            )
+            torch.save(model.state_dict(), f"{run_name}_best_accuracy.pth")
 
     logger.info(
-        "Best scores:", " - ".join([f"{k}={v}" for k, v in best_scores.items()])
+        "Best scores (Val. loss):",
+        " - ".join([f"{k}={v}" for k, v in best_scores_loss.items()]),
     )
-    if best_state_dict is not None:
-        model.load_state_dict(best_state_dict)
+    logger.info(
+        "Best scores (Val. Accuracy):",
+        " - ".join([f"{k}={v}" for k, v in best_scores_acc.items()]),
+    )
+    elapsed_time = time.time() - start_time
+    logger.info(f"Training done in {elapsed_time}s.")
