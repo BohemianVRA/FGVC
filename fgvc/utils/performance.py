@@ -1,9 +1,6 @@
-import tqdm
-import torch
-
 import numpy as np
-
-from scipy import stats
+import torch
+import tqdm
 from scipy.special import softmax
 from sklearn.metrics import accuracy_score
 

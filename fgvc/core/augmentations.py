@@ -1,24 +1,24 @@
-from albumentations.pytorch import ToTensorV2
 from albumentations import (
-    Compose,
-    Resize,
-    Normalize,
-    RandomResizedCrop,
-    HorizontalFlip,
-    VerticalFlip,
-    RandomBrightnessContrast,
-    JpegCompression,
-    Crop,
-    PadIfNeeded,
-    RandomCrop,
-    CenterCrop,
-    ShiftScaleRotate,
-    RandomGridShuffle,
     Blur,
+    CenterCrop,
+    Compose,
+    Crop,
     Cutout,
-    MultiplicativeNoise,
+    HorizontalFlip,
     HueSaturationValue,
+    JpegCompression,
+    MultiplicativeNoise,
+    Normalize,
+    PadIfNeeded,
+    RandomBrightnessContrast,
+    RandomCrop,
+    RandomGridShuffle,
+    RandomResizedCrop,
+    Resize,
+    ShiftScaleRotate,
+    VerticalFlip,
 )
+from albumentations.pytorch import ToTensorV2
 
 
 def light_transforms(*, data, image_size, mean, std):

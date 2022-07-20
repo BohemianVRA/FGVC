@@ -12,8 +12,7 @@ class FocalLoss(nn.Module):
         # self.reduction = "mean"
 
     def forward(self, logits, target):
-        ce_loss = F.cross_entropy(logits, target, reduction="none",
-                                  weight=self.weight)
+        ce_loss = F.cross_entropy(logits, target, reduction="none", weight=self.weight)
         pt = torch.exp(-ce_loss)
         focal_loss = (1 - pt) ** self.gamma * ce_loss
         focal_loss = focal_loss.mean()  # apply mean reduction
@@ -52,13 +51,13 @@ class SeesawLossWithLogits(nn.Module):
 
         numerator = torch.exp(logits)
         denominator = (
-                              (1 - targets)[:, None, :]
-                              * self.s[None, :, :]
-                              * torch.exp(logits)[:, None, :]).sum(axis=-1) \
-                      + torch.exp(logits)
+            (1 - targets)[:, None, :]
+            * self.s[None, :, :]
+            * torch.exp(logits)[:, None, :]
+        ).sum(axis=-1) + torch.exp(logits)
 
         sigma = numerator / (denominator + self.eps)
-        loss = (- targets * torch.log(sigma + self.eps)).sum(-1)
+        loss = (-targets * torch.log(sigma + self.eps)).sum(-1)
         return loss.mean()
 
 
@@ -72,6 +71,6 @@ class DiceLossWithLogits(nn.Module):
         targets = targets.view(-1)
 
         intersection = (inputs * targets).sum()
-        dice = (2. * intersection + smooth) / (inputs.sum() + targets.sum() + smooth)
+        dice = (2.0 * intersection + smooth) / (inputs.sum() + targets.sum() + smooth)
 
         return 1 - dice

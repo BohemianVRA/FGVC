@@ -22,10 +22,10 @@ handlers:
 loggers:
   fgvc:
     level: DEBUG
-    handlers: [console, file_handler]
+    handlers: [ console, file_handler ]
     propagate: no
 
 root:
   level: INFO
-  handlers: [console, file_handler]
+  handlers: [ console ]
   propagate: no

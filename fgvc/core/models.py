@@ -3,8 +3,15 @@ import torch
 import torch.nn as nn
 
 
-def get_model(architecture_name: str, target_size: int, pretrained: bool = False, checkpoint_path: str = None) -> nn.Module:
-    net = timm.create_model(architecture_name, pretrained=pretrained and checkpoint_path is None)
+def get_model(
+    architecture_name: str,
+    target_size: int,
+    pretrained: bool = False,
+    checkpoint_path: str = None,
+) -> nn.Module:
+    net = timm.create_model(
+        architecture_name, pretrained=pretrained and checkpoint_path is None
+    )
 
     # set classification head
     net_cfg = net.default_cfg
