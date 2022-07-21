@@ -193,7 +193,7 @@ class Trainer:
                 "F1": val_f1 * 100,
                 "Acc": val_acc * 100,
                 "Recall@3": val_acc_3 * 100,
-                "time": f"{elapsed_epoch_time:.0f}s",
+                "time": elapsed_epoch_time,
             }
             scores_str = "\t".join([f"{k}: {v:.4f}" for k, v in scores.items()])
             self.t_logger.info(f"Epoch {epoch + 1} - {scores_str}")
@@ -220,12 +220,12 @@ class Trainer:
                 )
 
         self.t_logger.info(
-            "Best scores (Val. loss):",
-            " - ".join([f"{k}={v}" for k, v in best_scores_loss.items()]),
+            "Best scores (Val. loss): ",
+            "\t".join([f"{k}: {v:.4f}" for k, v in best_scores_loss.items()]),
         )
         self.t_logger.info(
-            "Best scores (Val. Accuracy):",
-            " - ".join([f"{k}={v}" for k, v in best_scores_acc.items()]),
+            "Best scores (Val. Accuracy): ",
+            "\t".join([f"{k}: {v:.4f}" for k, v in best_scores_acc.items()]),
         )
         elapsed_training_time = time.time() - start_training_time
         self.t_logger.info(f"Training done in {elapsed_training_time}s.")
