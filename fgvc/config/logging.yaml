@@ -17,3 +17,8 @@ loggers:
     level: DEBUG
     handlers: [ console ]
     propagate: no
+
+  script:
+    level: DEBUG
+    handlers: [ console ]
+    propagate: no
