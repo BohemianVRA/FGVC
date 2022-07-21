@@ -1,0 +1,19 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  standard:
+    format: "(%(name)s) %(levelname)s: %(message)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: standard
+    stream: ext://sys.stdout
+
+loggers:
+  fgvc:
+    level: DEBUG
+    handlers: [ console ]
+    propagate: no

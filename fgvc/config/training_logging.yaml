@@ -1,39 +1,26 @@
 version: 1
-disable_existing_loggers: true
+disable_existing_loggers: false
 
 formatters:
-  standard:
-    format: "(%(name)s) %(levelname)s: %(message)s"
-
   training:
     format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 handlers:
-  console:
+  training_console:
     class: logging.StreamHandler
     level: DEBUG
-    formatter: standard
+    formatter: training
     stream: ext://sys.stdout
 
   training_file_handler:
     class: logging.FileHandler
     level: DEBUG
-    formatter: standard
+    formatter: training
     filename: fgvc_train.log
     encoding: utf8
 
 loggers:
-  fgvc:
-    level: DEBUG
-    handlers: [ console ]
-    propagate: no
-
   fgvc-training:
     level: INFO
-    handlers: [ console, training_file_handler ]
+    handlers: [ training_console, training_file_handler ]
     propagate: no
-
-root:
-  level: INFO
-  handlers: [ console ]
-  propagate: no

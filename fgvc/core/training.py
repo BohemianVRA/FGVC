@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from fgvc.core.metrics import classification_scores
-from fgvc.utils.log import setup_logging
+from fgvc.utils.log import setup_training_logger
 from fgvc.utils.wandb import log_progress
 
 logger = logging.getLogger("fgvc")
@@ -40,7 +40,7 @@ def train_epoch(
     num_updates = epoch * len(dataloader)
     avg_loss = 0.0
     preds_all, targs_all = [], []
-    for i, (imgs, targs) in tqdm(enumerate(dataloader), total=len(dataloader)):
+    for i, (imgs, targs, _) in tqdm(enumerate(dataloader), total=len(dataloader)):
         imgs = imgs.to(device)
         targs = targs.to(device)
 
@@ -88,7 +88,7 @@ def predict(
     model.eval()
     avg_loss = 0.0
     preds_all, targs_all = [], []
-    for i, (imgs, targs) in tqdm(enumerate(dataloader), total=len(dataloader)):
+    for i, (imgs, targs, _) in tqdm(enumerate(dataloader), total=len(dataloader)):
         imgs = imgs.to(device)
         targs = targs.to(device)
 
@@ -127,12 +127,13 @@ def train(
             scheduler, (ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR)
         )
 
-    setup_logging(training_log_file=f"{run_name}.log")
+    # setup training logger
+    t_logger = setup_training_logger(training_log_file=f"{run_name}.log")
 
     # apply training loop
     best_loss, best_acc = np.inf, 0
     best_scores_loss, best_scores_acc = {}, {}
-    logger.info(f"Training of run '{run_name}' started.")
+    t_logger.info(f"Training of run '{run_name}' started.")
     start_time = time.time()
     for epoch in range(0, num_epochs):
         # apply training and validation on one epoch
@@ -185,13 +186,13 @@ def train(
         # log progress
         log_progress(epoch, scores)
         scores_str = " - ".join([f"'{k}'={v:.2f}" for k, v in scores.items()])
-        logger.info(f"Epoch {epoch}: - {scores_str}")
+        t_logger.info(f"Epoch {epoch}: - {scores_str}")
 
         # save model checkpoint
         if valid_loss is not None and valid_loss < best_loss:
             best_loss = valid_loss
             best_scores_loss = scores
-            logger.info(
+            t_logger.info(
                 f"Epoch {epoch} - "
                 f"Save checkpoint with best valid loss: {best_loss:.6f}"
             )
@@ -200,19 +201,19 @@ def train(
         if val_acc is not None and val_acc > best_acc:
             best_acc = val_acc
             best_scores_acc = scores
-            logger.info(
+            t_logger.info(
                 f"Epoch {epoch} - "
                 f"Save checkpoint with best valid loss: {best_loss:.6f}"
             )
             torch.save(model.state_dict(), f"{run_name}_best_accuracy.pth")
 
-    logger.info(
+    t_logger.info(
         "Best scores (Val. loss):",
         " - ".join([f"{k}={v}" for k, v in best_scores_loss.items()]),
     )
-    logger.info(
+    t_logger.info(
         "Best scores (Val. Accuracy):",
         " - ".join([f"{k}={v}" for k, v in best_scores_acc.items()]),
     )
     elapsed_time = time.time() - start_time
-    logger.info(f"Training done in {elapsed_time}s.")
+    t_logger.info(f"Training done in {elapsed_time}s.")
