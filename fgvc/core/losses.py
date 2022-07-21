@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class FocalLoss(nn.Module):
+class FocalLossWithLogits(nn.Module):
     def __init__(self, weight=None, gamma=2.5):
         super().__init__()
         # weight parameter will act as the alpha parameter to balance class weights
