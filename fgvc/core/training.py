@@ -181,16 +181,16 @@ class Trainer:
             scores["Learning Rate"] = self.optimizer.param_groups[0]["lr"]
 
             # log progress
-            log_progress(epoch, scores)
+            log_progress(epoch + 1, scores)
             scores_str = " - ".join([f"'{k}'={v:.2f}" for k, v in scores.items()])
-            self.t_logger.info(f"Epoch {epoch}: - {scores_str}")
+            self.t_logger.info(f"Epoch {epoch + 1}: - {scores_str}")
 
             # save model checkpoint
             if valid_loss is not None and valid_loss < best_loss:
                 best_loss = valid_loss
                 best_scores_loss = scores
                 self.t_logger.info(
-                    f"Epoch {epoch} - "
+                    f"Epoch {epoch + 1} - "
                     f"Save checkpoint with best valid loss: {best_loss:.6f}"
                 )
                 torch.save(self.model.state_dict(), f"{self.run_name}_best_loss.pth")
@@ -199,7 +199,7 @@ class Trainer:
                 best_acc = val_acc
                 best_scores_acc = scores
                 self.t_logger.info(
-                    f"Epoch {epoch} - "
+                    f"Epoch {epoch + 1} - "
                     f"Save checkpoint with best valid accuracy: {best_acc:.6f}"
                 )
                 torch.save(
