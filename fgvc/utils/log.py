@@ -29,16 +29,14 @@ def setup_training_logger(training_log_file: Optional[str]) -> logging.Logger:
     # load logging config
     with open(TRAINING_LOGGER_CONFIG, "r") as f:
         config = yaml.safe_load(f.read())
-    assert (
-        "handlers" in config
-    ), f"Logging configuration file should contain handlers."
+    assert "handlers" in config, "Logging configuration file should contain handlers."
     training_handler_name = "training_file_handler"
     assert (
         training_handler_name in config["handlers"]
     ), f"Logging configuration file is missing field '{training_handler_name}'."
     assert (
         len(config["loggers"]) == 1
-    ), f"Logging configuration file should contain only one training logger."
+    ), "Logging configuration file should contain only one training logger."
 
     # update configuration
     config["handlers"][training_handler_name]["filename"] = training_log_file
