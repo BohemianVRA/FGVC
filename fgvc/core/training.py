@@ -193,7 +193,7 @@ class Trainer:
                 "F1": val_f1 * 100,
                 "Acc": val_acc * 100,
                 "Recall@3": val_acc_3 * 100,
-                "time": elapsed_epoch_time,
+                "time": f"{elapsed_epoch_time:.0f}s",
             }
             scores_str = "\t".join([f"{k}: {v:.4f}" for k, v in scores.items()])
             self.t_logger.info(f"Epoch {epoch + 1} - {scores_str}")
