@@ -33,9 +33,32 @@ def init_wandb(config, run_name, entity, project):
         )
 
 
-def log_progress(epoch: int, scores: dict):
+def log_progress(
+    epoch: int,
+    train_loss: float,
+    val_loss: float,
+    train_acc: float,
+    train_f1: float,
+    val_acc: float,
+    val_recall: float,
+    val_f1: float,
+    lr: float,
+):
     if wandb is not None and wandb.run is not None:
-        wandb.log(scores, step=epoch, commit=True)
+        wandb.log(
+            {
+                "Train. loss (avr.)": train_loss,
+                "Val. loss (avr.)": val_loss,
+                "Val. F1": val_f1,
+                "Val. Accuracy": val_acc,
+                "Val. Recall@3": val_recall,
+                "Learning Rate": lr,
+                "Train. Accuracy": train_acc,
+                "Train. F1": train_f1,
+            },
+            step=epoch,
+            commit=True,
+        )
 
 
 def update_wandb_run_test_performance(run, performance_2017, performance_2018):

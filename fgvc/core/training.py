@@ -142,9 +142,10 @@ class Trainer:
         best_loss, best_acc = np.inf, 0
         best_scores_loss, best_scores_acc = {}, {}
         self.t_logger.info(f"Training of run '{self.run_name}' started.")
-        start_time = time.time()
+        start_training_time = time.time()
         for epoch in range(0, num_epochs):
             # apply training and validation on one epoch
+            start_epoch_time = time.time()
             train_preds, train_targs, train_loss = self.train_epoch(
                 epoch,
                 self.trainloader,
@@ -153,6 +154,7 @@ class Trainer:
             valid_preds, valid_targs, valid_loss = None, None, None
             if self.validloader is not None:
                 valid_preds, valid_targs, valid_loss = self.predict(self.validloader)
+            elapsed_epoch_time = time.time() - start_epoch_time
 
             # make a scheduler step
             if valid_loss is not None and self.scheduler is not None:
@@ -164,26 +166,37 @@ class Trainer:
                     raise ValueError(f"Unsupported scheduler type: {self.scheduler}")
 
             # evaluate metrics
-            scores = {
-                "Train. loss (avr.)": train_loss,
-                "Val. loss (avr.)": valid_loss,
-                **classification_scores(
-                    train_preds, train_targs, top_k=None, prefix="Train."
-                ),
-            }
-            val_acc = None
+            train_acc, _, train_f1 = classification_scores(
+                train_preds, train_targs, top_k=None
+            )
+            val_acc, val_acc_3, val_f1 = None, None, None
             if valid_preds is not None and valid_targs is not None:
-                val_scores = classification_scores(
-                    valid_preds, valid_targs, top_k=3, prefix="Val."
+                val_acc, val_acc_3, val_f1 = classification_scores(
+                    valid_preds, valid_targs, top_k=3
                 )
-                val_acc = val_scores["Val. Accuracy"]
-                scores.update(val_scores)
-            scores["Learning Rate"] = self.optimizer.param_groups[0]["lr"]
 
             # log progress
-            log_progress(epoch + 1, scores)
-            scores_str = " - ".join([f"'{k}'={v:.2f}" for k, v in scores.items()])
-            self.t_logger.info(f"Epoch {epoch + 1}: - {scores_str}")
+            log_progress(
+                epoch + 1,
+                train_loss,
+                valid_loss,
+                train_acc,
+                train_f1,
+                val_acc,
+                val_acc_3,
+                val_f1,
+                lr=self.optimizer.param_groups[0]["lr"],
+            )
+            scores = {
+                "avg_train_loss": train_loss,
+                "avg_val_loss": valid_loss,
+                "F1": val_f1 * 100,
+                "Acc": val_acc * 100,
+                "Recall@3": val_acc_3 * 100,
+                "time": elapsed_epoch_time,
+            }
+            scores_str = "\t".join([f"{k}: {v:.4f}" for k, v in scores.items()])
+            self.t_logger.info(f"Epoch {epoch + 1} - {scores_str}")
 
             # save model checkpoint
             if valid_loss is not None and valid_loss < best_loss:
@@ -214,8 +227,8 @@ class Trainer:
             "Best scores (Val. Accuracy):",
             " - ".join([f"{k}={v}" for k, v in best_scores_acc.items()]),
         )
-        elapsed_time = time.time() - start_time
-        self.t_logger.info(f"Training done in {elapsed_time}s.")
+        elapsed_training_time = time.time() - start_training_time
+        self.t_logger.info(f"Training done in {elapsed_training_time}s.")
 
 
 def train(
