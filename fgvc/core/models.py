@@ -16,6 +16,7 @@ def get_model(
     # set classification head
     net_cfg = net.default_cfg
     last_layer = net_cfg["classifier"]
+    # TODO: Resolve issue with Architectures without "in_features"
     in_features = getattr(net, last_layer).in_features
     setattr(net, last_layer, nn.Linear(in_features, target_size))
 
