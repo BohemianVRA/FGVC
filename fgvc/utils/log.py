@@ -34,7 +34,7 @@ def setup_training_logger(training_log_file: Optional[str]) -> logging.Logger:
     ), f"Logging configuration file should contain handlers."
     training_handler_name = "training_file_handler"
     assert (
-        training_handler_name is config["handlers"]
+        training_handler_name in config["handlers"]
     ), f"Logging configuration file is missing field '{training_handler_name}'."
     assert (
         len(config["loggers"]) == 1
