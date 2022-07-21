@@ -200,7 +200,7 @@ class Trainer:
                 best_scores_acc = scores
                 self.t_logger.info(
                     f"Epoch {epoch} - "
-                    f"Save checkpoint with best valid loss: {best_loss:.6f}"
+                    f"Save checkpoint with best valid accuracy: {best_acc:.6f}"
                 )
                 torch.save(
                     self.model.state_dict(), f"{self.run_name}_best_accuracy.pth"
