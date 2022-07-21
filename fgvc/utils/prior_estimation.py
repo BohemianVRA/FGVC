@@ -2,11 +2,9 @@
 
 
 import numpy as np
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
 from sklearn.metrics import confusion_matrix
 
 # EM algorithm proposed in

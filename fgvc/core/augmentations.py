@@ -1,117 +1,102 @@
-from albumentations.pytorch import ToTensorV2
 from albumentations import (
-    Compose,
-    Resize,
-    Normalize,
-    RandomResizedCrop,
-    HorizontalFlip,
-    VerticalFlip,
-    RandomBrightnessContrast,
-    JpegCompression,
-    Crop,
-    PadIfNeeded,
-    RandomCrop,
-    CenterCrop,
-    ShiftScaleRotate,
-    RandomGridShuffle,
     Blur,
+    CenterCrop,
+    Compose,
+    Crop,
     Cutout,
-    MultiplicativeNoise,
+    HorizontalFlip,
     HueSaturationValue,
+    JpegCompression,
+    MultiplicativeNoise,
+    Normalize,
+    PadIfNeeded,
+    RandomBrightnessContrast,
+    RandomCrop,
+    RandomGridShuffle,
+    RandomResizedCrop,
+    Resize,
+    ShiftScaleRotate,
+    VerticalFlip,
 )
+from albumentations.pytorch import ToTensorV2
 
 
-def light_transforms(*, data, image_size, mean, std):
-
-    assert data in ("train", "valid")
-
-    if data == "train":
-        return Compose(
-            [
-                RandomResizedCrop(image_size[0], image_size[1], scale=(0.8, 1.0)),
-                HorizontalFlip(p=0.5),
-                VerticalFlip(p=0.5),
-                RandomBrightnessContrast(p=0.2),
-                Normalize(mean=mean, std=std),
-                ToTensorV2(),
-            ]
-        )
-
-    elif data == "valid":
-        return Compose(
-            [
-                PadIfNeeded(image_size[0], image_size[1]),
-                Resize(image_size[0], image_size[1]),
-                Normalize(mean=mean, std=std),
-                ToTensorV2(),
-            ]
-        )
+def light_transforms(*, image_size, mean, std):
+    train_tfms = Compose(
+        [
+            RandomResizedCrop(image_size[0], image_size[1], scale=(0.8, 1.0)),
+            HorizontalFlip(p=0.5),
+            VerticalFlip(p=0.5),
+            RandomBrightnessContrast(p=0.2),
+            Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ]
+    )
+    valid_tfms = Compose(
+        [
+            PadIfNeeded(image_size[0], image_size[1]),
+            Resize(image_size[0], image_size[1]),
+            Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ]
+    )
+    return train_tfms, valid_tfms
 
 
-def heavy_transforms(*, data, image_size, mean, std):
-    assert data in ("train", "valid")
-
-    if data == "train":
-        return Compose(
-            [
-                RandomResizedCrop(image_size[0], image_size[1], scale=(0.7, 1.3)),
-                HorizontalFlip(p=0.5),
-                VerticalFlip(p=0.5),
-                ShiftScaleRotate(
-                    shift_limit=0.10, scale_limit=0.25, rotate_limit=90, p=0.5
-                ),
-                JpegCompression(p=0.25, quality_lower=50, quality_upper=100),
-                Blur(blur_limit=(7, 7), p=0.1),
-                RandomGridShuffle(grid=(3, 3), p=0.1),
-                RandomBrightnessContrast(p=0.3),
-                HueSaturationValue(p=0.2),
-                MultiplicativeNoise(multiplier=[0.8, 1.2], elementwise=True, p=0.1),
-                Cutout(
-                    num_holes=15, max_h_size=20, max_w_size=20, fill_value=128, p=0.5
-                ),
-                Normalize(mean=mean, std=std),
-                ToTensorV2(),
-            ]
-        )
-
-    elif data == "valid":
-        return Compose(
-            [
-                PadIfNeeded(image_size[0], image_size[1]),
-                Resize(image_size[0], image_size[1]),
-                Normalize(mean=mean, std=std),
-                ToTensorV2(),
-            ]
-        )
+def heavy_transforms(*, image_size, mean, std):
+    train_tfms = Compose(
+        [
+            RandomResizedCrop(image_size[0], image_size[1], scale=(0.7, 1.3)),
+            HorizontalFlip(p=0.5),
+            VerticalFlip(p=0.5),
+            ShiftScaleRotate(
+                shift_limit=0.10, scale_limit=0.25, rotate_limit=90, p=0.5
+            ),
+            JpegCompression(p=0.25, quality_lower=50, quality_upper=100),
+            Blur(blur_limit=(7, 7), p=0.1),
+            RandomGridShuffle(grid=(3, 3), p=0.1),
+            RandomBrightnessContrast(p=0.3),
+            HueSaturationValue(p=0.2),
+            MultiplicativeNoise(multiplier=[0.8, 1.2], elementwise=True, p=0.1),
+            Cutout(num_holes=15, max_h_size=20, max_w_size=20, fill_value=128, p=0.5),
+            Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ]
+    )
+    valid_tfms = Compose(
+        [
+            PadIfNeeded(image_size[0], image_size[1]),
+            Resize(image_size[0], image_size[1]),
+            Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ]
+    )
+    return train_tfms, valid_tfms
 
 
-def light_transforms_rcrop(*, data, image_size, mean, std):
-
-    assert data in ("train", "valid")
-
-    if data == "train":
-        return Compose(
-            [
-                PadIfNeeded(int(image_size[0] / 0.7), int(image_size[1] / 0.7)),
-                Resize(int(image_size[0] / 0.7), int(image_size[1] / 0.7)),
-                RandomCrop(image_size[0], image_size[1]),
-                HorizontalFlip(p=0.5),
-                VerticalFlip(p=0.5),
-                RandomBrightnessContrast(p=0.2),
-                Normalize(mean=mean, std=std),
-                ToTensorV2(),
-            ]
-        )
-    elif data == "valid":
-        return Compose(
-            [
-                PadIfNeeded(int(image_size[0] / 0.7), int(image_size[1] / 0.7)),
-                Resize(int(image_size[0] / 0.7), int(image_size[1] / 0.7)),
-                CenterCrop(image_size[0], image_size[1]),
-                Normalize(mean=mean, std=std),
-                ToTensorV2(),
-            ]
-        )
+def light_transforms_rcrop(*, image_size, mean, std):
+    train_tfms = Compose(
+        [
+            PadIfNeeded(int(image_size[0] / 0.7), int(image_size[1] / 0.7)),
+            Resize(int(image_size[0] / 0.7), int(image_size[1] / 0.7)),
+            RandomCrop(image_size[0], image_size[1]),
+            HorizontalFlip(p=0.5),
+            VerticalFlip(p=0.5),
+            RandomBrightnessContrast(p=0.2),
+            Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ]
+    )
+    valid_tfms = Compose(
+        [
+            PadIfNeeded(int(image_size[0] / 0.7), int(image_size[1] / 0.7)),
+            Resize(int(image_size[0] / 0.7), int(image_size[1] / 0.7)),
+            CenterCrop(image_size[0], image_size[1]),
+            Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ]
+    )
+    return train_tfms, valid_tfms
 
 
 def tta_transforms(*, data, image_size, mean, std):

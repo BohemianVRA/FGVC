@@ -128,18 +128,17 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# PyCharm
+.idea
 
 # Metadata and Checkpoints
 *.pth
 *.csv
 
-
 # WandB
-
 wandb
 wandb-debug.log
 
 # Metacentrum
-
 scripts/JupyterLabJob.*
 JupyterLabJob.*
