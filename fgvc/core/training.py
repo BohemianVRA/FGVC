@@ -192,14 +192,14 @@ class Trainer:
                 lr=self.optimizer.param_groups[0]["lr"],
             )
             scores = {
-                "avg_train_loss": train_loss,
-                "avg_val_loss": valid_loss,
-                "F1": val_f1 * 100,
-                "Acc": val_acc * 100,
-                "Recall@3": val_acc_3 * 100,
-                "time": elapsed_epoch_time,
+                "avg_train_loss": str(np.round(train_loss, 4)),
+                "avg_val_loss": str(np.round(valid_loss, 4)),
+                "F1": str(np.round(val_f1 * 100, 2)),
+                "Acc": str(np.round(val_acc * 100, 2)),
+                "Recall@3": str(np.round(val_acc_3 * 100, 2)),
+                "time": f"{elapsed_epoch_time:.0f}s",
             }
-            scores_str = "\t".join([f"{k}: {v:.4f}" for k, v in scores.items()])
+            scores_str = "\t".join([f"{k}: {v}" for k, v in scores.items()])
             self.t_logger.info(f"Epoch {epoch + 1} - {scores_str}")
 
             # save model checkpoint
@@ -225,11 +225,11 @@ class Trainer:
 
         self.t_logger.info(
             "Best scores (Val. loss): ",
-            "\t".join([f"{k}: {v:.4f}" for k, v in best_scores_loss.items()]),
+            "\t".join([f"{k}: {v}" for k, v in best_scores_loss.items()]),
         )
         self.t_logger.info(
             "Best scores (Val. Accuracy): ",
-            "\t".join([f"{k}: {v:.4f}" for k, v in best_scores_acc.items()]),
+            "\t".join([f"{k}: {v}" for k, v in best_scores_acc.items()]),
         )
         elapsed_training_time = time.time() - start_training_time
         self.t_logger.info(f"Training done in {elapsed_training_time}s.")
