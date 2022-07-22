@@ -12,9 +12,11 @@ except (ImportError, AssertionError):
 logger = logging.getLogger("fgvc")
 
 
-def init_wandb(config, run_name, entity, project):
+def init_wandb(config, run_name, entity, project, **kwargs):
     if wandb is not None:
-        wandb.init(project=project, entity=entity, name=run_name, config=config)
+        wandb.init(
+            project=project, entity=entity, name=run_name, config=config, **kwargs
+        )
 
         # Log 0 epoch values
         wandb.log(
