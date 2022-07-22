@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 
 from fgvc.core.metrics import classification_scores
 from fgvc.utils.log import setup_training_logger
-from fgvc.utils.utils import seed_everything
+from fgvc.utils.utils import set_random_seed
 from fgvc.utils.wandb import log_progress
 
 logger = logging.getLogger("fgvc")
@@ -140,7 +140,7 @@ class Trainer:
 
     def train(self, num_epochs: int = 1, seed: int = 777):
         # fix random seed
-        seed_everything(seed)
+        set_random_seed(seed)
 
         # apply training loop
         best_loss, best_acc = np.inf, 0

@@ -15,10 +15,16 @@ def timer(name, logger):
     logger.info(f"[{name}] done in {time.time() - t0:.0f} s.")
 
 
-def seed_everything(seed=777):
+def set_random_seed(seed=777):
+    """Set random seed.
+
+    The method ensures multiple runs of the same experiment yield the same result.
+    """
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
