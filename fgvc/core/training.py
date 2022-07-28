@@ -224,11 +224,11 @@ class Trainer:
                 )
 
         self.t_logger.info(
-            "Best scores (Val. loss): ",
+            "Best scores (Val. loss): "
             "\t".join([f"{k}: {v}" for k, v in best_scores_loss.items()]),
         )
         self.t_logger.info(
-            "Best scores (Val. Accuracy): ",
+            "Best scores (Val. Accuracy): "
             "\t".join([f"{k}: {v}" for k, v in best_scores_acc.items()]),
         )
         elapsed_training_time = time.time() - start_training_time
