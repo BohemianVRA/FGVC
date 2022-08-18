@@ -70,9 +70,9 @@ def log_test_scores(
     test_recall: float,
     test_f1: float,
 ):
-    run.summary["Val. F1"] = test_f1
-    run.summary["Val. Accuracy"] = test_acc
-    run.summary["Val. Recall@3"] = test_recall
+    run.summary["Test. F1"] = test_f1
+    run.summary["Test. Accuracy"] = test_acc
+    run.summary["Test. Recall@3"] = test_recall
     run.update()
 
 
