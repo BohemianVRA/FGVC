@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+import pandas as pd
 
 try:
     import wandb
@@ -61,6 +62,42 @@ def log_progress(
             step=epoch,
             commit=True,
         )
+
+
+def log_test_scores(
+    run,
+    test_acc: float,
+    test_recall: float,
+    test_f1: float,
+):
+    run.summary["Val. F1"] = test_f1
+    run.summary["Val. Accuracy"] = test_acc
+    run.summary["Val. Recall@3"] = test_recall
+    run.update()
+
+
+def get_runs_df(entity: str, project: str):
+    import wandb
+
+    # get runs from wandb
+    api = wandb.Api()
+    runs = api.runs(f"{entity}/{project}")
+
+    # create dataframe
+    records = []
+    for run in runs:
+        # remove special values that start with _
+        config = {k: v for k, v in run.config.items() if not k.startswith("_")}
+        # call ._json_dict to omit large files
+        scores = run.summary._json_dict
+        # add custom variables
+        custom = {"logged_epochs": len(run.history())}
+        if "epochs" in config:
+            custom["finished"] = custom["logged_epochs"] > config["epochs"]
+        records.append({"name": run.name, **custom, **config, **scores})
+
+    runs_df = pd.DataFrame(records)
+    return runs_df
 
 
 def update_wandb_run_test_performance(run, performance_2017, performance_2018):

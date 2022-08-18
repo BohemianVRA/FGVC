@@ -222,6 +222,9 @@ class Trainer:
                 )
                 torch.save(self.model.state_dict(), f"{run_name}_best_accuracy.pth")
 
+        self.t_logger.info("Save checkpoint of the last epoch")
+        torch.save(self.model.state_dict(), f"{run_name}-100E.pth")
+
         self.t_logger.info(
             "Best scores (Val. loss): "
             "\t".join([f"{k}: {v}" for k, v in best_scores_loss.items()]),
