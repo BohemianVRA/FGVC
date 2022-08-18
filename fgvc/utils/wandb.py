@@ -94,7 +94,16 @@ def get_runs_df(entity: str, project: str):
         custom = {"logged_epochs": len(run.history())}
         if "epochs" in config:
             custom["finished"] = custom["logged_epochs"] > config["epochs"]
-        records.append({"id": run.id, "name": run.name, **custom, **config, **scores})
+        records.append(
+            {
+                "id": run.id,
+                "name": run.name,
+                "tags": run.tags,
+                **custom,
+                **config,
+                **scores,
+            }
+        )
 
     runs_df = pd.DataFrame(records)
     return runs_df
