@@ -15,10 +15,17 @@ def get_model(
 
     # set classification head
     net_cfg = net.default_cfg
-    last_layer = net_cfg["classifier"]
-    # TODO: Resolve issue with Architectures without "in_features"
-    in_features = getattr(net, last_layer).in_features
-    setattr(net, last_layer, nn.Linear(in_features, target_size))
+    cls_name = net_cfg["classifier"]
+    # iterate through nested modules
+    parts = cls_name.split(".")
+    module = net
+    for i, part_name in enumerate(parts):
+        if i == len(parts) - 1:
+            # TODO: Resolve issue with Architectures without "in_features"
+            last_layer = getattr(module, part_name)
+            setattr(module, part_name, nn.Linear(last_layer.in_features, target_size))
+        else:
+            module = getattr(module, part_name)
 
     # load custom weights
     if checkpoint_path is not None:
