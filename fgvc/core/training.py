@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 
 from fgvc.core.metrics import classification_scores
 from fgvc.utils.log import setup_training_logger
-from fgvc.utils.utils import seed_everything
+from fgvc.utils.utils import set_random_seed
 from fgvc.utils.wandb import log_progress
 
 logger = logging.getLogger("fgvc")
@@ -22,7 +22,6 @@ logger = logging.getLogger("fgvc")
 class Trainer:
     def __init__(
         self,
-        run_name: str,
         model: nn.Module,
         trainloader: DataLoader,
         criterion: nn.Module,
@@ -33,7 +32,6 @@ class Trainer:
         accumulation_steps: int = 1,
         device: torch.device = None,
     ):
-        self.run_name = run_name
         self.model = model
         self.trainloader = trainloader
         self.validloader = validloader
@@ -48,9 +46,6 @@ class Trainer:
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = device
-
-        # setup training logger
-        self.t_logger = setup_training_logger(training_log_file=f"{self.run_name}.log")
 
     def train_batch(self, batch: Any) -> Tuple[np.ndarray, np.ndarray, float]:
         assert len(batch) >= 2
@@ -116,8 +111,11 @@ class Trainer:
         # run inference and compute loss
         with torch.no_grad():
             preds = self.model(imgs)
-        loss = self.criterion(preds, targs)
-        _loss = loss.item()
+        if self.criterion is not None:
+            loss = self.criterion(preds, targs)
+            _loss = loss.item()
+        else:
+            _loss = 0
 
         # convert to numpy
         preds = preds.cpu().numpy()
@@ -138,14 +136,17 @@ class Trainer:
         targs_all = np.concatenate(targs_all, axis=0)
         return preds_all, targs_all, avg_loss
 
-    def train(self, num_epochs: int = 1, seed: int = 777):
+    def train(self, run_name: str, num_epochs: int = 1, seed: int = 777):
+        # setup training logger
+        self.t_logger = setup_training_logger(training_log_file=f"{run_name}.log")
+
         # fix random seed
-        seed_everything(seed)
+        set_random_seed(seed)
 
         # apply training loop
         best_loss, best_acc = np.inf, 0
         best_scores_loss, best_scores_acc = {}, {}
-        self.t_logger.info(f"Training of run '{self.run_name}' started.")
+        self.t_logger.info(f"Training of run '{run_name}' started.")
         start_training_time = time.time()
         for epoch in range(0, num_epochs):
             # apply training and validation on one epoch
@@ -192,14 +193,14 @@ class Trainer:
                 lr=self.optimizer.param_groups[0]["lr"],
             )
             scores = {
-                "avg_train_loss": train_loss,
-                "avg_val_loss": valid_loss,
-                "F1": val_f1 * 100,
-                "Acc": val_acc * 100,
-                "Recall@3": val_acc_3 * 100,
-                "time": elapsed_epoch_time,
+                "avg_train_loss": str(np.round(train_loss, 4)),
+                "avg_val_loss": str(np.round(valid_loss, 4)),
+                "F1": str(np.round(val_f1 * 100, 2)),
+                "Acc": str(np.round(val_acc * 100, 2)),
+                "Recall@3": str(np.round(val_acc_3 * 100, 2)),
+                "time": f"{elapsed_epoch_time:.0f}s",
             }
-            scores_str = "\t".join([f"{k}: {v:.4f}" for k, v in scores.items()])
+            scores_str = "\t".join([f"{k}: {v}" for k, v in scores.items()])
             self.t_logger.info(f"Epoch {epoch + 1} - {scores_str}")
 
             # save model checkpoint
@@ -210,7 +211,7 @@ class Trainer:
                     f"Epoch {epoch + 1} - "
                     f"Save checkpoint with best valid loss: {best_loss:.6f}"
                 )
-                torch.save(self.model.state_dict(), f"{self.run_name}_best_loss.pth")
+                torch.save(self.model.state_dict(), f"{run_name}_best_loss.pth")
 
             if val_acc is not None and val_acc > best_acc:
                 best_acc = val_acc
@@ -219,17 +220,18 @@ class Trainer:
                     f"Epoch {epoch + 1} - "
                     f"Save checkpoint with best valid accuracy: {best_acc:.6f}"
                 )
-                torch.save(
-                    self.model.state_dict(), f"{self.run_name}_best_accuracy.pth"
-                )
+                torch.save(self.model.state_dict(), f"{run_name}_best_accuracy.pth")
+
+        self.t_logger.info("Save checkpoint of the last epoch")
+        torch.save(self.model.state_dict(), f"{run_name}-100E.pth")
 
         self.t_logger.info(
-            "Best scores (Val. loss): ",
-            "\t".join([f"{k}: {v:.4f}" for k, v in best_scores_loss.items()]),
+            "Best scores (Val. loss): "
+            "\t".join([f"{k}: {v}" for k, v in best_scores_loss.items()]),
         )
         self.t_logger.info(
-            "Best scores (Val. Accuracy): ",
-            "\t".join([f"{k}: {v:.4f}" for k, v in best_scores_acc.items()]),
+            "Best scores (Val. Accuracy): "
+            "\t".join([f"{k}: {v}" for k, v in best_scores_acc.items()]),
         )
         elapsed_training_time = time.time() - start_training_time
         self.t_logger.info(f"Training done in {elapsed_training_time}s.")
@@ -251,7 +253,6 @@ def train(
 ):
     """Train neural network."""
     trainer = Trainer(
-        run_name,
         model,
         trainloader,
         criterion,
@@ -261,4 +262,15 @@ def train(
         accumulation_steps=accumulation_steps,
         device=device,
     )
-    trainer.train(num_epochs, seed)
+    trainer.train(run_name, num_epochs, seed)
+
+
+def predict(
+    model: nn.Module,
+    testloader: DataLoader,
+    *,
+    device: torch.device = None,
+):
+    """Run inference."""
+    trainer = Trainer(model, None, None, None, device=device)
+    return trainer.predict(testloader)
