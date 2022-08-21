@@ -9,7 +9,6 @@ def get_model(
     pretrained: bool = False,
     checkpoint_path: str = None,
 ) -> nn.Module:
-    # create timm model
     net = timm.create_model(
         architecture_name, pretrained=pretrained and checkpoint_path is None
     )

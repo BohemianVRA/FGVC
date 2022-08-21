@@ -63,7 +63,6 @@ def log_progress(
             commit=True,
         )
 
-
 def log_test_scores(
     run,
     test_acc: float,
@@ -107,7 +106,6 @@ def get_runs_df(entity: str, project: str):
 
     runs_df = pd.DataFrame(records)
     return runs_df
-
 
 def update_wandb_run_test_performance(run, performance_2017, performance_2018):
 

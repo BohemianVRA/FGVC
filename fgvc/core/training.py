@@ -111,6 +111,7 @@ class Trainer:
         # run inference and compute loss
         with torch.no_grad():
             preds = self.model(imgs)
+
         if self.criterion is not None:
             loss = self.criterion(preds, targs)
             _loss = loss.item()
@@ -136,6 +137,7 @@ class Trainer:
         targs_all = np.concatenate(targs_all, axis=0)
         return preds_all, targs_all, avg_loss
 
+
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777):
         # setup training logger
         self.t_logger = setup_training_logger(training_log_file=f"{run_name}.log")
@@ -146,6 +148,7 @@ class Trainer:
         # apply training loop
         best_loss, best_acc = np.inf, 0
         best_scores_loss, best_scores_acc = {}, {}
+
         self.t_logger.info(f"Training of run '{run_name}' started.")
         start_training_time = time.time()
         for epoch in range(0, num_epochs):
@@ -220,6 +223,7 @@ class Trainer:
                     f"Epoch {epoch + 1} - "
                     f"Save checkpoint with best valid accuracy: {best_acc:.6f}"
                 )
+                
                 torch.save(self.model.state_dict(), f"{run_name}_best_accuracy.pth")
 
         self.t_logger.info("Save checkpoint of the last epoch")
