@@ -234,7 +234,7 @@ class Trainer:
                 valid_targs,
                 valid_loss,
             )
-            val_acc, val_f1 = scores["Acc"], scores["F1"]
+            val_acc, val_f1 = scores.get("Acc"), scores.get("F1")
 
             # save model checkpoint
             if valid_loss is not None and valid_loss < best_loss:
@@ -266,7 +266,7 @@ class Trainer:
                 torch.save(self.model.state_dict(), f"{run_name}_best_f1.pth")
 
         self.t_logger.info("Save checkpoint of the last epoch")
-        torch.save(self.model.state_dict(), f"{run_name}-100E.pth")
+        torch.save(self.model.state_dict(), f"{run_name}-{num_epochs}E.pth")
 
         self.t_logger.info(
             "Best scores (Val. loss): "
