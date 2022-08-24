@@ -137,7 +137,6 @@ class Trainer:
         targs_all = np.concatenate(targs_all, axis=0)
         return preds_all, targs_all, avg_loss
 
-
     def evaluate_and_log_scores(
         self,
         epoch: int,
@@ -248,7 +247,7 @@ class Trainer:
                     f"Epoch {epoch + 1} - "
                     f"Save checkpoint with best valid accuracy: {best_acc:.6f}"
                 )
-                
+
                 torch.save(self.model.state_dict(), f"{run_name}_best_accuracy.pth")
 
             if val_f1 is not None and val_f1 > best_f1:
