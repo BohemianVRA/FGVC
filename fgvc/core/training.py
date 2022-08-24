@@ -177,6 +177,13 @@ class Trainer:
             lr=self.optimizer.param_groups[0]["lr"],
         )
         scores = {
+            "avg_train_loss": train_loss,
+            "avg_val_loss": valid_loss,
+            "F1": val_f1,
+            "Acc": val_acc,
+            "Recall@3": val_acc_3,
+        }
+        scores_str = {
             "avg_train_loss": str(np.round(train_loss, 4)),
             "avg_val_loss": str(np.round(valid_loss, 4)),
             "F1": str(np.round(val_f1 * 100, 2)),
@@ -184,7 +191,7 @@ class Trainer:
             "Recall@3": str(np.round(val_acc_3 * 100, 2)),
             "time": f"{elapsed_epoch_time:.0f}s",
         }
-        scores_str = "\t".join([f"{k}: {v}" for k, v in scores.items()])
+        scores_str = "\t".join([f"{k}: {v}" for k, v in scores_str.items()])
         self.t_logger.info(f"Epoch {epoch + 1} - {scores_str}")
         return scores
 
