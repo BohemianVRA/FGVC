@@ -14,7 +14,7 @@ from tqdm.auto import tqdm
 from fgvc.core.metrics import classification_scores
 from fgvc.utils.log import setup_training_logger
 from fgvc.utils.utils import set_random_seed
-from fgvc.utils.wandb import log_progress
+from fgvc.utils.wandb import log_clf_progress
 
 logger = logging.getLogger("fgvc")
 
@@ -138,6 +138,51 @@ class Trainer:
         return preds_all, targs_all, avg_loss
 
 
+    def evaluate_and_log_scores(
+        self,
+        epoch: int,
+        elapsed_epoch_time: float,
+        train_preds: np.ndarray,
+        train_targs: np.ndarray,
+        train_loss: float,
+        valid_preds: np.ndarray = None,
+        valid_targs: np.ndarray = None,
+        valid_loss: float = None,
+    ):
+        # evaluate metrics
+        train_acc, _, train_f1 = classification_scores(
+            train_preds, train_targs, top_k=None
+        )
+        val_acc, val_acc_3, val_f1 = None, None, None
+        if valid_preds is not None and valid_targs is not None:
+            val_acc, val_acc_3, val_f1 = classification_scores(
+                valid_preds, valid_targs, top_k=3
+            )
+
+        # log progress
+        log_clf_progress(
+            epoch + 1,
+            train_loss,
+            valid_loss,
+            train_acc,
+            train_f1,
+            val_acc,
+            val_acc_3,
+            val_f1,
+            lr=self.optimizer.param_groups[0]["lr"],
+        )
+        scores = {
+            "avg_train_loss": str(np.round(train_loss, 4)),
+            "avg_val_loss": str(np.round(valid_loss, 4)),
+            "F1": str(np.round(val_f1 * 100, 2)),
+            "Acc": str(np.round(val_acc * 100, 2)),
+            "Recall@3": str(np.round(val_acc_3 * 100, 2)),
+            "time": f"{elapsed_epoch_time:.0f}s",
+        }
+        scores_str = "\t".join([f"{k}: {v}" for k, v in scores.items()])
+        self.t_logger.info(f"Epoch {epoch + 1} - {scores_str}")
+        return scores
+
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777):
         # setup training logger
         self.t_logger = setup_training_logger(training_log_file=f"{run_name}.log")
@@ -146,8 +191,8 @@ class Trainer:
         set_random_seed(seed)
 
         # apply training loop
-        best_loss, best_acc = np.inf, 0
-        best_scores_loss, best_scores_acc = {}, {}
+        best_loss, best_acc, best_f1 = np.inf, 0, 0
+        best_scores_loss, best_scores_acc, best_scores_f1 = {}, {}, {}
 
         self.t_logger.info(f"Training of run '{run_name}' started.")
         start_training_time = time.time()
@@ -173,38 +218,18 @@ class Trainer:
                 else:
                     raise ValueError(f"Unsupported scheduler type: {self.scheduler}")
 
-            # evaluate metrics
-            train_acc, _, train_f1 = classification_scores(
-                train_preds, train_targs, top_k=None
-            )
-            val_acc, val_acc_3, val_f1 = None, None, None
-            if valid_preds is not None and valid_targs is not None:
-                val_acc, val_acc_3, val_f1 = classification_scores(
-                    valid_preds, valid_targs, top_k=3
-                )
-
-            # log progress
-            log_progress(
-                epoch + 1,
+            # evaluate and log scores
+            scores = self.evaluate_and_log_scores(
+                epoch,
+                elapsed_epoch_time,
+                train_preds,
+                train_targs,
                 train_loss,
+                valid_preds,
+                valid_targs,
                 valid_loss,
-                train_acc,
-                train_f1,
-                val_acc,
-                val_acc_3,
-                val_f1,
-                lr=self.optimizer.param_groups[0]["lr"],
             )
-            scores = {
-                "avg_train_loss": str(np.round(train_loss, 4)),
-                "avg_val_loss": str(np.round(valid_loss, 4)),
-                "F1": str(np.round(val_f1 * 100, 2)),
-                "Acc": str(np.round(val_acc * 100, 2)),
-                "Recall@3": str(np.round(val_acc_3 * 100, 2)),
-                "time": f"{elapsed_epoch_time:.0f}s",
-            }
-            scores_str = "\t".join([f"{k}: {v}" for k, v in scores.items()])
-            self.t_logger.info(f"Epoch {epoch + 1} - {scores_str}")
+            val_acc, val_f1 = scores["Acc"], scores["F1"]
 
             # save model checkpoint
             if valid_loss is not None and valid_loss < best_loss:
@@ -226,6 +251,15 @@ class Trainer:
                 
                 torch.save(self.model.state_dict(), f"{run_name}_best_accuracy.pth")
 
+            if val_f1 is not None and val_f1 > best_f1:
+                best_f1 = val_f1
+                best_scores_f1 = scores
+                self.t_logger.info(
+                    f"Epoch {epoch + 1} - "
+                    f"Save checkpoint with best valid F1: {best_acc:.6f}"
+                )
+                torch.save(self.model.state_dict(), f"{run_name}_best_f1.pth")
+
         self.t_logger.info("Save checkpoint of the last epoch")
         torch.save(self.model.state_dict(), f"{run_name}-100E.pth")
 
@@ -236,6 +270,10 @@ class Trainer:
         self.t_logger.info(
             "Best scores (Val. Accuracy): "
             "\t".join([f"{k}: {v}" for k, v in best_scores_acc.items()]),
+        )
+        self.t_logger.info(
+            "Best scores (Val. F1): "
+            "\t".join([f"{k}: {v}" for k, v in best_scores_f1.items()]),
         )
         elapsed_training_time = time.time() - start_training_time
         self.t_logger.info(f"Training done in {elapsed_training_time}s.")

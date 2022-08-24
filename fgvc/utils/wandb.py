@@ -36,7 +36,12 @@ def init_wandb(config, run_name, entity, project, **kwargs):
         )
 
 
-def log_progress(
+def log_progress(epoch: int, scores: dict):
+    if wandb is not None and wandb.run is not None:
+        wandb.log(scores, step=epoch, commit=True)
+
+
+def log_clf_progress(
     epoch: int,
     train_loss: float,
     val_loss: float,
