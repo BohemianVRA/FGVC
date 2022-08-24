@@ -9,19 +9,18 @@ def get_model(
     pretrained: bool = False,
     checkpoint_path: str = None,
 ) -> nn.Module:
-    net = timm.create_model(
+    model = timm.create_model(
         architecture_name, pretrained=pretrained and checkpoint_path is None
     )
 
     # set classification head
-    net_cfg = net.default_cfg
-    cls_name = net_cfg["classifier"]
+    model_cfg = model.default_cfg
+    cls_name = model_cfg["classifier"]
     # iterate through nested modules
     parts = cls_name.split(".")
-    module = net
+    module = model
     for i, part_name in enumerate(parts):
         if i == len(parts) - 1:
-            # TODO: Resolve issue with Architectures without "in_features"
             last_layer = getattr(module, part_name)
             setattr(module, part_name, nn.Linear(last_layer.in_features, target_size))
         else:
@@ -29,6 +28,6 @@ def get_model(
 
     # load custom weights
     if checkpoint_path is not None:
-        net.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
+        model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
 
-    return net
+    return model
