@@ -91,11 +91,11 @@ class Trainer:
                     num_updates += 1
                     self.scheduler.step_update(num_updates=num_updates)
 
-            if return_preds:
+            if return_preds and preds is not None and targs is not None:
                 preds_all.append(preds)
                 targs_all.append(targs)
 
-        if return_preds:
+        if return_preds and len(preds_all) > 0 and len(targs_all) > 0:
             preds_all = np.concatenate(preds_all, axis=0)
             targs_all = np.concatenate(targs_all, axis=0)
         else:
@@ -131,10 +131,16 @@ class Trainer:
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.predict_batch(batch)
             avg_loss += loss / len(dataloader)
-            preds_all.append(preds)
-            targs_all.append(targs)
-        preds_all = np.concatenate(preds_all, axis=0)
-        targs_all = np.concatenate(targs_all, axis=0)
+
+            if preds is not None and targs is not None:
+                preds_all.append(preds)
+                targs_all.append(targs)
+
+        if len(preds_all) > 0 and len(targs_all) > 0:
+            preds_all = np.concatenate(preds_all, axis=0)
+            targs_all = np.concatenate(targs_all, axis=0)
+        else:
+            preds_all, targs_all = None, None
         return preds_all, targs_all, avg_loss
 
     def evaluate_and_log_scores(
