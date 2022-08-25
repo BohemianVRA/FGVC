@@ -36,30 +36,30 @@ def init_wandb(config, run_name, entity, project, **kwargs):
         )
 
 
-def log_progress(epoch: int, scores: dict):
+def log_progress(epoch: int, scores: dict, commit: bool = True):
     if wandb is not None and wandb.run is not None:
-        wandb.log(scores, step=epoch, commit=True)
+        wandb.log(scores, step=epoch, commit=commit)
 
 
 def log_clf_progress(
     epoch: int,
     train_loss: float,
-    val_loss: float,
+    valid_loss: float,
     train_acc: float,
     train_f1: float,
-    val_acc: float,
-    val_recall: float,
-    val_f1: float,
+    valid_acc: float,
+    valid_acc3: float,
+    valid_f1: float,
     lr: float,
 ):
     if wandb is not None and wandb.run is not None:
         wandb.log(
             {
                 "Train. loss (avr.)": train_loss,
-                "Val. loss (avr.)": val_loss,
-                "Val. F1": val_f1,
-                "Val. Accuracy": val_acc,
-                "Val. Recall@3": val_recall,
+                "Val. loss (avr.)": valid_loss,
+                "Val. F1": valid_f1,
+                "Val. Accuracy": valid_acc,
+                "Val. Recall@3": valid_acc3,
                 "Learning Rate": lr,
                 "Train. Accuracy": train_acc,
                 "Train. F1": train_f1,
@@ -72,12 +72,12 @@ def log_clf_progress(
 def log_test_scores(
     run,
     test_acc: float,
-    test_recall: float,
+    test_acc3: float,
     test_f1: float,
 ):
     run.summary["Test. F1"] = test_f1
     run.summary["Test. Accuracy"] = test_acc
-    run.summary["Test. Recall@3"] = test_recall
+    run.summary["Test. Recall@3"] = test_acc3
     run.update()
 
 

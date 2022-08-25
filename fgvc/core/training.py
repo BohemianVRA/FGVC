@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Any, Tuple
+from typing import Any, NamedTuple, Tuple, Type
 
 import numpy as np
 import torch
@@ -19,6 +19,97 @@ from fgvc.utils.wandb import log_clf_progress
 logger = logging.getLogger("fgvc")
 
 
+class TrainingState:
+    def __init__(
+        self, model: nn.Module, run_name: str, num_epochs: int, t_logger: logging.Logger
+    ):
+        self.model = model
+        self.run_name = run_name
+        self.num_epochs = num_epochs
+        self.t_logger = t_logger
+
+        # create training state variables
+        self.best_loss = np.inf
+        self.best_scores_loss = None
+
+        self.best_metrics = {}  # best other metrics like accuracy or f1 score
+        self.best_scores_metrics = {}  # should be dict of dicts
+
+        self.t_logger.info(f"Training of run '{self.run_name}' started.")
+        self.start_training_time = time.time()
+
+    def _save_checkpoint(self, epoch: int, metric_name: str, metric_value: float):
+        self.t_logger.info(
+            f"Epoch {epoch} - "
+            f"Save checkpoint with best validation {metric_name}: {metric_value:.6f}"
+        )
+        torch.save(self.model.state_dict(), f"{self.run_name}_best_{metric_name}.pth")
+
+    def step(
+        self, epoch: int, scores: dict, valid_loss: float, valid_metrics: dict = None
+    ):
+        # save model checkpoint based on validation loss
+        if valid_loss is not None and valid_loss < self.best_loss:
+            self.best_loss = valid_loss
+            self.best_scores_loss = scores
+            self._save_checkpoint(epoch, "loss", self.best_loss)
+
+        # save model checkpoint based on other metrics
+        if valid_metrics is not None:
+            if len(self.best_metrics) == 0:
+                # set first values for self.best_metrics
+                self.best_metrics = valid_metrics.copy()
+                self.best_scores_metrics = {k: scores for k in self.best_metrics.keys()}
+            else:
+                for metric_name, metric_value in valid_metrics.items():
+                    if metric_value > self.best_metrics[metric_name]:
+                        self.best_metrics[metric_name] = metric_value
+                        self.best_scores_metrics[metric_name] = scores
+                        self._save_checkpoint(epoch, metric_name, metric_value)
+
+    def finish(self):
+        self.t_logger.info("Save checkpoint of the last epoch")
+        torch.save(self.model.state_dict(), f"{self.run_name}-{self.num_epochs}E.pth")
+
+        self.t_logger.info(
+            "Best scores (Val. loss): "
+            "\t".join([f"{k}: {v}" for k, v in self.best_scores_loss.items()]),
+        )
+        for metric_name, best_scores_metric in self.best_scores_metrics.items():
+            self.t_logger.info(
+                f"Best scores (Val. {metric_name}): "
+                "\t".join([f"{k}: {v}" for k, v in best_scores_metric.items()]),
+            )
+        elapsed_training_time = time.time() - self.start_training_time
+        self.t_logger.info(f"Training done in {elapsed_training_time}s.")
+
+
+class TrainingScores(NamedTuple):
+    train_loss: float = 0.0
+    valid_loss: float = 0.0
+    train_acc: float = 0.0
+    train_f1: float = 0.0
+    valid_acc: float = 0.0
+    valid_acc3: float = 0.0
+    valid_f1: float = 0.0
+    elapsed_epoch_time: float = 0.0
+
+    def to_str(self):
+        scores = {
+            "avg_train_loss": str(np.round(self.train_loss, 4)),
+            "avg_val_loss": str(np.round(self.valid_loss, 4)),
+            "F1": str(np.round(self.valid_f1 * 100, 2)),
+            "Acc": str(np.round(self.valid_acc * 100, 2)),
+            "Recall@3": str(np.round(self.valid_acc3 * 100, 2)),
+            "time": f"{self.elapsed_epoch_time:.0f}s",
+        }
+        scores_str = "\t".join([f"{k}: {v}" for k, v in scores.items()])
+        return scores_str
+
+    def to_dict(self):
+        return {var: getattr(self, var) for var in self._fields}
+
+
 class Trainer:
     def __init__(
         self,
@@ -31,7 +122,10 @@ class Trainer:
         scheduler=None,
         accumulation_steps: int = 1,
         device: torch.device = None,
+        training_state_cls: Type[TrainingState] = TrainingState,
+        training_scores_cls: Type[TrainingScores] = TrainingScores,
     ):
+        # training components (model, data, criterion, opt, ...)
         self.model = model
         self.trainloader = trainloader
         self.validloader = validloader
@@ -46,6 +140,11 @@ class Trainer:
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = device
+
+        # classes to track training state and scores
+        # they can be replaced with custom implementation to track different metrics
+        self.training_state_cls = training_state_cls
+        self.training_scores_cls = training_scores_cls
 
     def train_batch(self, batch: Any) -> Tuple[np.ndarray, np.ndarray, float]:
         assert len(batch) >= 2
@@ -143,6 +242,15 @@ class Trainer:
             preds_all, targs_all = None, None
         return preds_all, targs_all, avg_loss
 
+    def make_scheduler_step(self, epoch: int, valid_loss: float):
+        if valid_loss is not None and self.scheduler is not None:
+            if isinstance(self.scheduler, ReduceLROnPlateau):
+                self.scheduler.step(valid_loss)
+            elif isinstance(self.scheduler, (CosineLRScheduler, CosineAnnealingLR)):
+                self.scheduler.step(epoch)
+            else:
+                raise ValueError(f"Unsupported scheduler type: {self.scheduler}")
+
     def evaluate_and_log_scores(
         self,
         epoch: int,
@@ -153,47 +261,34 @@ class Trainer:
         valid_preds: np.ndarray = None,
         valid_targs: np.ndarray = None,
         valid_loss: float = None,
-    ):
+    ) -> dict:
         # evaluate metrics
         train_acc, _, train_f1 = classification_scores(
             train_preds, train_targs, top_k=None
         )
-        val_acc, val_acc_3, val_f1 = None, None, None
+        valid_acc, valid_acc3, valid_f1 = None, None, None
         if valid_preds is not None and valid_targs is not None:
-            val_acc, val_acc_3, val_f1 = classification_scores(
+            valid_acc, valid_acc3, valid_f1 = classification_scores(
                 valid_preds, valid_targs, top_k=3
             )
 
-        # log progress
-        log_clf_progress(
-            epoch + 1,
+        # log progress to wandb and to log file
+        scores_args = [
             train_loss,
             valid_loss,
             train_acc,
             train_f1,
-            val_acc,
-            val_acc_3,
-            val_f1,
-            lr=self.optimizer.param_groups[0]["lr"],
+            valid_acc,
+            valid_acc3,
+            valid_f1,
+        ]
+        log_clf_progress(epoch, *scores_args, lr=self.optimizer.param_groups[0]["lr"])
+        scores = self.training_scores_cls(
+            *scores_args, elapsed_epoch_time=elapsed_epoch_time
         )
-        scores = {
-            "avg_train_loss": train_loss,
-            "avg_val_loss": valid_loss,
-            "F1": val_f1,
-            "Acc": val_acc,
-            "Recall@3": val_acc_3,
-        }
-        scores_str = {
-            "avg_train_loss": str(np.round(train_loss, 4)),
-            "avg_val_loss": str(np.round(valid_loss, 4)),
-            "F1": str(np.round(val_f1 * 100, 2)),
-            "Acc": str(np.round(val_acc * 100, 2)),
-            "Recall@3": str(np.round(val_acc_3 * 100, 2)),
-            "time": f"{elapsed_epoch_time:.0f}s",
-        }
-        scores_str = "\t".join([f"{k}: {v}" for k, v in scores_str.items()])
-        self.t_logger.info(f"Epoch {epoch + 1} - {scores_str}")
-        return scores
+        self.t_logger.info(f"Epoch {epoch} - {scores.to_str()}")
+
+        return scores.to_dict()
 
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777):
         # setup training logger
@@ -202,12 +297,12 @@ class Trainer:
         # fix random seed
         set_random_seed(seed)
 
-        # apply training loop
-        best_loss, best_acc, best_f1 = np.inf, 0, 0
-        best_scores_loss, best_scores_acc, best_scores_f1 = {}, {}, {}
+        # create training state
+        training_state = self.training_state_cls(
+            self.model, run_name, num_epochs, self.t_logger
+        )
 
-        self.t_logger.info(f"Training of run '{run_name}' started.")
-        start_training_time = time.time()
+        # run training loop
         for epoch in range(0, num_epochs):
             # apply training and validation on one epoch
             start_epoch_time = time.time()
@@ -222,17 +317,11 @@ class Trainer:
             elapsed_epoch_time = time.time() - start_epoch_time
 
             # make a scheduler step
-            if valid_loss is not None and self.scheduler is not None:
-                if isinstance(self.scheduler, ReduceLROnPlateau):
-                    self.scheduler.step(valid_loss)
-                elif isinstance(self.scheduler, (CosineLRScheduler, CosineAnnealingLR)):
-                    self.scheduler.step(epoch + 1)
-                else:
-                    raise ValueError(f"Unsupported scheduler type: {self.scheduler}")
+            self.make_scheduler_step(epoch + 1, valid_loss)
 
             # evaluate and log scores
             scores = self.evaluate_and_log_scores(
-                epoch,
+                epoch + 1,
                 elapsed_epoch_time,
                 train_preds,
                 train_targs,
@@ -241,54 +330,18 @@ class Trainer:
                 valid_targs,
                 valid_loss,
             )
-            val_acc, val_f1 = scores.get("Acc"), scores.get("F1")
+            valid_acc, valid_f1 = scores.get("Acc"), scores.get("F1")
 
-            # save model checkpoint
-            if valid_loss is not None and valid_loss < best_loss:
-                best_loss = valid_loss
-                best_scores_loss = scores
-                self.t_logger.info(
-                    f"Epoch {epoch + 1} - "
-                    f"Save checkpoint with best valid loss: {best_loss:.6f}"
-                )
-                torch.save(self.model.state_dict(), f"{run_name}_best_loss.pth")
+            # save model checkpoints
+            training_state.step(
+                epoch + 1,
+                scores,
+                valid_loss,
+                valid_metrics={"accuracy": valid_acc, "f1": valid_f1},
+            )
 
-            if val_acc is not None and val_acc > best_acc:
-                best_acc = val_acc
-                best_scores_acc = scores
-                self.t_logger.info(
-                    f"Epoch {epoch + 1} - "
-                    f"Save checkpoint with best valid accuracy: {best_acc:.6f}"
-                )
-
-                torch.save(self.model.state_dict(), f"{run_name}_best_accuracy.pth")
-
-            if val_f1 is not None and val_f1 > best_f1:
-                best_f1 = val_f1
-                best_scores_f1 = scores
-                self.t_logger.info(
-                    f"Epoch {epoch + 1} - "
-                    f"Save checkpoint with best valid F1: {best_acc:.6f}"
-                )
-                torch.save(self.model.state_dict(), f"{run_name}_best_f1.pth")
-
-        self.t_logger.info("Save checkpoint of the last epoch")
-        torch.save(self.model.state_dict(), f"{run_name}-{num_epochs}E.pth")
-
-        self.t_logger.info(
-            "Best scores (Val. loss): "
-            "\t".join([f"{k}: {v}" for k, v in best_scores_loss.items()]),
-        )
-        self.t_logger.info(
-            "Best scores (Val. Accuracy): "
-            "\t".join([f"{k}: {v}" for k, v in best_scores_acc.items()]),
-        )
-        self.t_logger.info(
-            "Best scores (Val. F1): "
-            "\t".join([f"{k}: {v}" for k, v in best_scores_f1.items()]),
-        )
-        elapsed_training_time = time.time() - start_training_time
-        self.t_logger.info(f"Training done in {elapsed_training_time}s.")
+        # save last checkpoint, log best scores and total training time
+        training_state.finish()
 
 
 def train(
