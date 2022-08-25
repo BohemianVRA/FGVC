@@ -84,15 +84,43 @@ class TrainingState:
         self.t_logger.info(f"Training done in {elapsed_training_time}s.")
 
 
-class TrainingScores(NamedTuple):
-    train_loss: float = 0.0
-    valid_loss: float = 0.0
-    train_acc: float = 0.0
-    train_f1: float = 0.0
-    valid_acc: float = 0.0
-    valid_acc3: float = 0.0
-    valid_f1: float = 0.0
-    elapsed_epoch_time: float = 0.0
+class TrainingScores:
+    def __init__(
+        self,
+        elapsed_epoch_time: float,
+        train_preds: np.ndarray,
+        train_targs: np.ndarray,
+        train_loss: float,
+        valid_preds: np.ndarray = None,
+        valid_targs: np.ndarray = None,
+        valid_loss: float = None,
+    ):
+        self.train_loss = train_loss
+        self.valid_loss = valid_loss
+        self.elapsed_epoch_time = elapsed_epoch_time
+
+        # evaluate metrics
+        self.train_acc, _, self.train_f1 = classification_scores(
+            train_preds, train_targs, top_k=None
+        )
+        self.valid_acc, self.valid_acc3, self.valid_f1 = None, None, None
+        if valid_preds is not None and valid_targs is not None:
+            self.valid_acc, self.valid_acc3, self.valid_f1 = classification_scores(
+                valid_preds, valid_targs, top_k=3
+            )
+
+    def log_wandb(self, epoch: int, lr: float):
+        log_clf_progress(
+            epoch,
+            train_loss=self.train_loss,
+            valid_loss=self.valid_loss,
+            train_acc=self.train_acc,
+            train_f1=self.train_f1,
+            valid_acc=self.valid_acc,
+            valid_acc3=self.valid_acc3,
+            valid_f1=self.valid_f1,
+            lr=lr,
+        )
 
     def to_str(self):
         scores = {
@@ -107,7 +135,21 @@ class TrainingScores(NamedTuple):
         return scores_str
 
     def to_dict(self):
-        return {var: getattr(self, var) for var in self._fields}
+        scores = {
+            "avg_train_loss": self.train_loss,
+            "avg_val_loss": self.valid_loss,
+            "F1": self.valid_f1,
+            "Acc": self.valid_acc,
+            "Recall@3": self.valid_acc3,
+        }
+        return scores
+
+    def get_checkpoint_metrics(self) -> dict:
+        """Get dictionary with metrics to use for saving checkpoints.
+
+        E.g. save checkpoints during training with the best accuracy or f1 scores.
+        """
+        return {"accuracy": self.valid_acc, "f1": self.valid_f1}
 
 
 class Trainer:
@@ -251,56 +293,15 @@ class Trainer:
             else:
                 raise ValueError(f"Unsupported scheduler type: {self.scheduler}")
 
-    def evaluate_and_log_scores(
-        self,
-        epoch: int,
-        elapsed_epoch_time: float,
-        train_preds: np.ndarray,
-        train_targs: np.ndarray,
-        train_loss: float,
-        valid_preds: np.ndarray = None,
-        valid_targs: np.ndarray = None,
-        valid_loss: float = None,
-    ) -> dict:
-        # evaluate metrics
-        train_acc, _, train_f1 = classification_scores(
-            train_preds, train_targs, top_k=None
-        )
-        valid_acc, valid_acc3, valid_f1 = None, None, None
-        if valid_preds is not None and valid_targs is not None:
-            valid_acc, valid_acc3, valid_f1 = classification_scores(
-                valid_preds, valid_targs, top_k=3
-            )
-
-        # log progress to wandb and to log file
-        scores_args = [
-            train_loss,
-            valid_loss,
-            train_acc,
-            train_f1,
-            valid_acc,
-            valid_acc3,
-            valid_f1,
-        ]
-        log_clf_progress(epoch, *scores_args, lr=self.optimizer.param_groups[0]["lr"])
-        scores = self.training_scores_cls(
-            *scores_args, elapsed_epoch_time=elapsed_epoch_time
-        )
-        self.t_logger.info(f"Epoch {epoch} - {scores.to_str()}")
-
-        return scores.to_dict()
-
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777):
-        # setup training logger
-        self.t_logger = setup_training_logger(training_log_file=f"{run_name}.log")
+        # setup training logger and create training state
+        t_logger = setup_training_logger(training_log_file=f"{run_name}.log")
+        training_state = self.training_state_cls(
+            self.model, run_name, num_epochs, t_logger
+        )
 
         # fix random seed
         set_random_seed(seed)
-
-        # create training state
-        training_state = self.training_state_cls(
-            self.model, run_name, num_epochs, self.t_logger
-        )
 
         # run training loop
         for epoch in range(0, num_epochs):
@@ -320,8 +321,7 @@ class Trainer:
             self.make_scheduler_step(epoch + 1, valid_loss)
 
             # evaluate and log scores
-            scores = self.evaluate_and_log_scores(
-                epoch + 1,
+            training_scores = self.training_scores_cls(
                 elapsed_epoch_time,
                 train_preds,
                 train_targs,
@@ -330,14 +330,17 @@ class Trainer:
                 valid_targs,
                 valid_loss,
             )
-            valid_acc, valid_f1 = scores.get("Acc"), scores.get("F1")
+            training_scores.log_wandb(
+                epoch + 1, lr=self.optimizer.param_groups[0]["lr"]
+            )
+            t_logger.info(f"Epoch {epoch + 1} - {training_scores.to_str()}")
 
             # save model checkpoints
             training_state.step(
                 epoch + 1,
-                scores,
-                valid_loss,
-                valid_metrics={"accuracy": valid_acc, "f1": valid_f1},
+                scores=training_scores.to_dict(),
+                valid_loss=valid_loss,
+                valid_metrics=training_scores.get_checkpoint_metrics(),
             )
 
         # save last checkpoint, log best scores and total training time
