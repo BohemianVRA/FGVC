@@ -274,9 +274,11 @@ class Trainer:
     def make_scheduler_step(self, epoch: int, valid_loss: float):
         if valid_loss is not None and self.scheduler is not None:
             if isinstance(self.scheduler, ReduceLROnPlateau):
-                self.scheduler.step(valid_loss)
-            elif isinstance(self.scheduler, (CosineLRScheduler, CosineAnnealingLR)):
-                self.scheduler.step(epoch)
+                self.scheduler.step(valid_loss)  # pytorch implementation (special case)
+            elif isinstance(self.scheduler, CosineAnnealingLR):
+                self.scheduler.step()  # pytorch implementation
+            elif isinstance(self.scheduler, CosineLRScheduler):
+                self.scheduler.step(epoch)  # timm implementation
             else:
                 raise ValueError(f"Unsupported scheduler type: {self.scheduler}")
 
