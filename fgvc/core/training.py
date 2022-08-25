@@ -153,6 +153,11 @@ class TrainingScores:
 
 
 class Trainer:
+    # classes to track training state and scores
+    # they can be replaced with custom implementation to track different metrics
+    training_state_cls = TrainingState
+    training_scores_cls = TrainingScores
+
     def __init__(
         self,
         model: nn.Module,
@@ -164,8 +169,6 @@ class Trainer:
         scheduler=None,
         accumulation_steps: int = 1,
         device: torch.device = None,
-        training_state_cls: Type[TrainingState] = TrainingState,
-        training_scores_cls: Type[TrainingScores] = TrainingScores,
     ):
         # training components (model, data, criterion, opt, ...)
         self.model = model
@@ -182,11 +185,6 @@ class Trainer:
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = device
-
-        # classes to track training state and scores
-        # they can be replaced with custom implementation to track different metrics
-        self.training_state_cls = training_state_cls
-        self.training_scores_cls = training_scores_cls
 
     def train_batch(self, batch: Any) -> Tuple[np.ndarray, np.ndarray, float]:
         assert len(batch) >= 2
