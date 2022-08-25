@@ -21,12 +21,14 @@ logger = logging.getLogger("fgvc")
 
 class TrainingState:
     def __init__(
-        self, model: nn.Module, run_name: str, num_epochs: int, t_logger: logging.Logger
+        self, model: nn.Module, run_name: str, num_epochs: int
     ):
         self.model = model
         self.run_name = run_name
         self.num_epochs = num_epochs
-        self.t_logger = t_logger
+
+        # setup training logger
+        self.t_logger = setup_training_logger(training_log_file=f"{run_name}.log")
 
         # create training state variables
         self.best_loss = np.inf
@@ -48,6 +50,8 @@ class TrainingState:
     def step(
         self, epoch: int, scores_str: str, valid_loss: float, valid_metrics: dict = None
     ):
+        self.t_logger.info(f"Epoch {epoch} - {scores_str}")
+
         # save model checkpoint based on validation loss
         if valid_loss is not None and valid_loss < self.best_loss:
             self.best_loss = valid_loss
@@ -131,16 +135,6 @@ class TrainingScores:
         }
         scores_str = "\t".join([f"{k}: {v}" for k, v in scores.items()])
         return scores_str
-
-    # def to_dict(self):
-    #     scores = {
-    #         "avg_train_loss": self.train_loss,
-    #         "avg_val_loss": self.valid_loss,
-    #         "F1": self.valid_f1,
-    #         "Acc": self.valid_acc,
-    #         "Recall@3": self.valid_acc3,
-    #     }
-    #     return scores
 
     def get_checkpoint_metrics(self) -> dict:
         """Get dictionary with metrics to use for saving checkpoints.
@@ -243,22 +237,19 @@ class Trainer:
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
         imgs = imgs.to(self.device)
-        targs = targs.to(self.device)
 
         # run inference and compute loss
         with torch.no_grad():
             preds = self.model(imgs)
-
+        loss = 0.0
         if self.criterion is not None:
-            loss = self.criterion(preds, targs)
-            _loss = loss.item()
-        else:
-            _loss = 0
+            targs = targs.to(self.device)
+            loss = self.criterion(preds, targs).item()
 
         # convert to numpy
         preds = preds.cpu().numpy()
         targs = targs.cpu().numpy()
-        return preds, targs, _loss
+        return preds, targs, loss
 
     def predict(self, dataloader: DataLoader):
         self.model.to(self.device)
@@ -290,11 +281,8 @@ class Trainer:
                 raise ValueError(f"Unsupported scheduler type: {self.scheduler}")
 
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777):
-        # setup training logger and create training state
-        t_logger = setup_training_logger(training_log_file=f"{run_name}.log")
-        training_state = self.training_state_cls(
-            self.model, run_name, num_epochs, t_logger
-        )
+        # create training state
+        training_state = self.training_state_cls(self.model, run_name, num_epochs)
 
         # fix random seed
         set_random_seed(seed)
@@ -329,9 +317,8 @@ class Trainer:
             training_scores.log_wandb(
                 epoch + 1, lr=self.optimizer.param_groups[0]["lr"]
             )
-            t_logger.info(f"Epoch {epoch + 1} - {training_scores.to_str()}")
 
-            # save model checkpoints
+            # log scores to file and save model checkpoints
             training_state.step(
                 epoch + 1,
                 scores_str=training_scores.to_str(),
