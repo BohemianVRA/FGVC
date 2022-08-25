@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Any, NamedTuple, Tuple, Type
+from typing import Any, Tuple
 
 import numpy as np
 import torch
@@ -33,7 +33,7 @@ class TrainingState:
         self.best_scores_loss = None
 
         self.best_metrics = {}  # best other metrics like accuracy or f1 score
-        self.best_scores_metrics = {}  # should be dict of dicts
+        self.best_scores_metrics = {}
 
         self.t_logger.info(f"Training of run '{self.run_name}' started.")
         self.start_training_time = time.time()
@@ -46,12 +46,12 @@ class TrainingState:
         torch.save(self.model.state_dict(), f"{self.run_name}_best_{metric_name}.pth")
 
     def step(
-        self, epoch: int, scores: dict, valid_loss: float, valid_metrics: dict = None
+        self, epoch: int, scores_str: str, valid_loss: float, valid_metrics: dict = None
     ):
         # save model checkpoint based on validation loss
         if valid_loss is not None and valid_loss < self.best_loss:
             self.best_loss = valid_loss
-            self.best_scores_loss = scores
+            self.best_scores_loss = scores_str
             self._save_checkpoint(epoch, "loss", self.best_loss)
 
         # save model checkpoint based on other metrics
@@ -59,26 +59,24 @@ class TrainingState:
             if len(self.best_metrics) == 0:
                 # set first values for self.best_metrics
                 self.best_metrics = valid_metrics.copy()
-                self.best_scores_metrics = {k: scores for k in self.best_metrics.keys()}
+                self.best_scores_metrics = {
+                    k: scores_str for k in self.best_metrics.keys()
+                }
             else:
                 for metric_name, metric_value in valid_metrics.items():
                     if metric_value > self.best_metrics[metric_name]:
                         self.best_metrics[metric_name] = metric_value
-                        self.best_scores_metrics[metric_name] = scores
+                        self.best_scores_metrics[metric_name] = scores_str
                         self._save_checkpoint(epoch, metric_name, metric_value)
 
     def finish(self):
         self.t_logger.info("Save checkpoint of the last epoch")
         torch.save(self.model.state_dict(), f"{self.run_name}-{self.num_epochs}E.pth")
 
-        self.t_logger.info(
-            "Best scores (Val. loss): "
-            "\t".join([f"{k}: {v}" for k, v in self.best_scores_loss.items()]),
-        )
+        self.t_logger.info(f"Best scores (validation loss): {self.best_scores_loss}")
         for metric_name, best_scores_metric in self.best_scores_metrics.items():
             self.t_logger.info(
-                f"Best scores (Val. {metric_name}): "
-                "\t".join([f"{k}: {v}" for k, v in best_scores_metric.items()]),
+                f"Best scores (validation {metric_name}): {best_scores_metric}"
             )
         elapsed_training_time = time.time() - self.start_training_time
         self.t_logger.info(f"Training done in {elapsed_training_time}s.")
@@ -134,15 +132,15 @@ class TrainingScores:
         scores_str = "\t".join([f"{k}: {v}" for k, v in scores.items()])
         return scores_str
 
-    def to_dict(self):
-        scores = {
-            "avg_train_loss": self.train_loss,
-            "avg_val_loss": self.valid_loss,
-            "F1": self.valid_f1,
-            "Acc": self.valid_acc,
-            "Recall@3": self.valid_acc3,
-        }
-        return scores
+    # def to_dict(self):
+    #     scores = {
+    #         "avg_train_loss": self.train_loss,
+    #         "avg_val_loss": self.valid_loss,
+    #         "F1": self.valid_f1,
+    #         "Acc": self.valid_acc,
+    #         "Recall@3": self.valid_acc3,
+    #     }
+    #     return scores
 
     def get_checkpoint_metrics(self) -> dict:
         """Get dictionary with metrics to use for saving checkpoints.
@@ -336,7 +334,7 @@ class Trainer:
             # save model checkpoints
             training_state.step(
                 epoch + 1,
-                scores=training_scores.to_dict(),
+                scores_str=training_scores.to_str(),
                 valid_loss=valid_loss,
                 valid_metrics=training_scores.get_checkpoint_metrics(),
             )
