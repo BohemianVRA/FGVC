@@ -272,9 +272,10 @@ class Trainer:
         return preds_all, targs_all, avg_loss
 
     def make_scheduler_step(self, epoch: int, valid_loss: float):
-        if valid_loss is not None and self.scheduler is not None:
+        if self.scheduler is not None:
             if isinstance(self.scheduler, ReduceLROnPlateau):
-                self.scheduler.step(valid_loss)  # pytorch implementation (special case)
+                if valid_loss is not None:
+                    self.scheduler.step(valid_loss)  # pytorch implementation
             elif isinstance(self.scheduler, CosineAnnealingLR):
                 self.scheduler.step()  # pytorch implementation
             elif isinstance(self.scheduler, CosineLRScheduler):
