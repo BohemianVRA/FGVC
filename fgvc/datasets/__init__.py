@@ -1,4 +1,4 @@
-from typing import Tuple, Type
+from typing import Tuple, Type, Optional
 
 import pandas as pd
 from PIL import ImageFile
@@ -32,8 +32,8 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def get_dataloaders(
-    train_df: pd.DataFrame,
-    valid_df: pd.DataFrame,
+    train_df: Optional[pd.DataFrame],
+    valid_df: Optional[pd.DataFrame],
     augmentations: str,
     image_size: tuple,
     model_mean: tuple = IMAGENET_DEFAULT_MEAN,
@@ -55,21 +55,27 @@ def get_dataloaders(
         raise NotImplementedError()
 
     # create training and validation datasets
-    trainset = dataset_cls(train_df, transform=train_tfms)
-    validset = dataset_cls(valid_df, transform=valid_tfms)
+    trainset, validset = None, None
+    if train_df is not None:
+        trainset = dataset_cls(train_df, transform=train_tfms)
+    if valid_df is not None:
+        validset = dataset_cls(valid_df, transform=valid_tfms)
 
     # create training and validation dataloaders
-    trainloader = DataLoader(
-        trainset,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        shuffle=True,
-    )
-    validloader = DataLoader(
-        validset,
-        batch_size=batch_size,
-        num_workers=num_workers,
-        shuffle=False,
-    )
+    trainloader, validloader = None, None
+    if train_df is not None:
+        trainloader = DataLoader(
+            trainset,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            shuffle=True,
+        )
+    if valid_df is not None:
+        validloader = DataLoader(
+            validset,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            shuffle=False,
+        )
 
     return trainloader, validloader, (trainset, validset), (train_tfms, valid_tfms)
