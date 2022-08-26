@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from typing import Any, Tuple
 
@@ -26,9 +27,12 @@ class TrainingState:
         self.model = model
         self.run_name = run_name
         self.num_epochs = num_epochs
+        self.path = f"runs/{run_name}"
 
         # setup training logger
-        self.t_logger = setup_training_logger(training_log_file=f"{run_name}.log")
+        self.t_logger = setup_training_logger(
+            training_log_file=os.path.join(self.path, f"{run_name}.log")
+        )
 
         # create training state variables
         self.best_loss = np.inf
@@ -45,7 +49,10 @@ class TrainingState:
             f"Epoch {epoch} - "
             f"Save checkpoint with best validation {metric_name}: {metric_value:.6f}"
         )
-        torch.save(self.model.state_dict(), f"{self.run_name}_best_{metric_name}.pth")
+        torch.save(
+            self.model.state_dict(),
+            os.path.join(self.path, f"{self.run_name}_best_{metric_name}.pth"),
+        )
 
     def step(
         self, epoch: int, scores_str: str, valid_loss: float, valid_metrics: dict = None
@@ -75,7 +82,10 @@ class TrainingState:
 
     def finish(self):
         self.t_logger.info("Save checkpoint of the last epoch")
-        torch.save(self.model.state_dict(), f"{self.run_name}-{self.num_epochs}E.pth")
+        torch.save(
+            self.model.state_dict(),
+            os.path.join(self.path, f"{self.run_name}-{self.num_epochs}E.pth"),
+        )
 
         self.t_logger.info(f"Best scores (validation loss): {self.best_scores_loss}")
         for metric_name, best_scores_metric in self.best_scores_metrics.items():
