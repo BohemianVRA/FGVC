@@ -28,6 +28,7 @@ class TrainingState:
         self.run_name = run_name
         self.num_epochs = num_epochs
         self.path = f"runs/{run_name}"
+        os.makedirs(self.path, exist_ok=True)
 
         # setup training logger
         self.t_logger = setup_training_logger(
