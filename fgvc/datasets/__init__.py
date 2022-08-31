@@ -1,4 +1,4 @@
-from typing import Tuple, Type, Optional
+from typing import Optional, Tuple, Type
 
 import pandas as pd
 from PIL import ImageFile

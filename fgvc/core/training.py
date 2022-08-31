@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-from typing import Any, Tuple
+from typing import Any, Tuple, Union
 
 import numpy as np
 import torch
@@ -18,12 +18,23 @@ from fgvc.utils.utils import set_random_seed
 from fgvc.utils.wandb import log_clf_progress
 
 logger = logging.getLogger("fgvc")
+Scheduler_ = Union[ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR]
 
 
 class TrainingState:
-    def __init__(
-        self, model: nn.Module, run_name: str, num_epochs: int
-    ):
+    """Class to log scores, track best scores, and save checkpoints with best scores.
+
+    Parameters
+    ----------
+    model
+        Pytorch neural network.
+    run_name
+        Name of the run for logging and naming checkpoint files.
+    num_epochs
+        Number of epochs to train.
+    """
+
+    def __init__(self, model: nn.Module, run_name: str, num_epochs: int):
         self.model = model
         self.run_name = run_name
         self.num_epochs = num_epochs
@@ -46,6 +57,17 @@ class TrainingState:
         self.start_training_time = time.time()
 
     def _save_checkpoint(self, epoch: int, metric_name: str, metric_value: float):
+        """Save checkpoint to .pth file and log score.
+
+        Parameters
+        ----------
+        epoch
+            Epoch number.
+        metric_name
+            Name of metric (e.g. loss) based on which checkpoint is saved.
+        metric_value
+            Value of metric based on which checkpoint is saved.
+        """
         self.t_logger.info(
             f"Epoch {epoch} - "
             f"Save checkpoint with best validation {metric_name}: {metric_value:.6f}"
@@ -58,6 +80,22 @@ class TrainingState:
     def step(
         self, epoch: int, scores_str: str, valid_loss: float, valid_metrics: dict = None
     ):
+        """Log scores and save the best loss and metrics.
+
+        Save checkpoints if the new best loss and metrics were achieved.
+        The method should be called after training and validation of one epoch.
+
+        Parameters
+        ----------
+        epoch
+            Epoch number.
+        scores_str
+            Validation scores to log.
+        valid_loss
+            Validation loss based on which checkpoint is saved.
+        valid_metrics
+            Other validation metrics based on which checkpoint is saved.
+        """
         self.t_logger.info(f"Epoch {epoch} - {scores_str}")
 
         # save model checkpoint based on validation loss
@@ -82,6 +120,10 @@ class TrainingState:
                         self._save_checkpoint(epoch, metric_name, metric_value)
 
     def finish(self):
+        """Log best scores achieved during training and save checkpoint of last epoch.
+
+        The method should be called after training of all epochs is done.
+        """
         self.t_logger.info("Save checkpoint of the last epoch")
         torch.save(
             self.model.state_dict(),
@@ -98,6 +140,26 @@ class TrainingState:
 
 
 class TrainingScores:
+    """Class for evaluating scores and preparing them to log.
+
+    Parameters
+    ----------
+    elapsed_epoch_time
+        Number of seconds past during training and validation of one epoch.
+    train_preds
+        Numpy array with training predictions.
+    train_targs
+        Numpy array with training ground-truth targets.
+    train_loss
+        Average training loss.
+    valid_preds
+        Numpy array with validation predictions.
+    valid_targs
+        Numpy array with validation ground-truth targets.
+    valid_loss
+        Average validation loss.
+    """
+
     def __init__(
         self,
         elapsed_epoch_time: float,
@@ -123,6 +185,15 @@ class TrainingScores:
             )
 
     def log_wandb(self, epoch: int, lr: float):
+        """Log evaluated scores to WandB.
+
+        Parameters
+        ----------
+        epoch
+            Epoch number.
+        lr
+            Current learning rate used by optimizer.
+        """
         log_clf_progress(
             epoch,
             train_loss=self.train_loss,
@@ -136,6 +207,7 @@ class TrainingScores:
         )
 
     def to_str(self):
+        """Convert evaluated scores to string for logging."""
         scores = {
             "avg_train_loss": str(np.round(self.train_loss, 4)),
             "avg_val_loss": str(np.round(self.valid_loss, 4)),
@@ -148,14 +220,109 @@ class TrainingScores:
         return scores_str
 
     def get_checkpoint_metrics(self) -> dict:
-        """Get dictionary with metrics to use for saving checkpoints.
+        """Get dictionary with metrics to use for saving checkpoints (besides loss).
 
         E.g. save checkpoints during training with the best accuracy or f1 scores.
         """
         return {"accuracy": self.valid_acc, "f1": self.valid_f1}
 
 
+def _preds_targs_to_numpy(
+    preds: torch.Tensor, targs: Union[torch.Tensor, dict]
+) -> Tuple[np.ndarray, Union[np.ndarray, dict]]:
+    """Converts pytorch tensors with predictions and targets to numpy arrays.
+
+    Parameters
+    ----------
+    preds
+        Pytorch tensor with predictions.
+    targs
+        Pytorch tensor or dictionary of pytorch tensors with ground-truth targets.
+
+    Returns
+    -------
+    preds
+        Numpy array with predictions.
+    targs
+        Numpy array or dictionary of numpy arrays with ground-truth targets.
+    """
+    preds = preds.detach().cpu().numpy()
+    if isinstance(targs, dict):
+        targs = {k: v.detach().cpu().numpy() for k, v in targs.items()}
+    else:
+        targs = targs.detach().cpu().numpy()
+    return preds, targs
+
+
+def _concat_preds_targs(
+    preds_list: list, targs_list: list
+) -> Tuple[np.ndarray, Union[np.ndarray, dict]]:
+    """Concatenates lists of numpy arrays with predictions and targets to numpy arrays.
+
+    Parameters
+    ----------
+    preds_list
+        List of numpy arrays with predictions.
+    targs_list
+        List of numpy arrays or dictionary of lists with ground-truth targets.
+
+    Returns
+    -------
+    preds
+        Numpy array with predictions.
+    targs
+        Numpy array or dictionary of numpy arrays with ground-truth targets.
+    """
+    preds, targs = None, None
+    if len(preds_list) > 0 and len(targs_list) > 0:
+        preds = np.concatenate(preds_list, axis=0)
+        if isinstance(targs_list[0], dict):
+            # concatenate list of dicts of numpy arrays to a dict of numpy arrays
+            targs = {}
+            for k in targs_list[0].keys():
+                targs[k] = np.concatenate([x[k] for x in targs_list])
+        else:
+            # concatenate list of numpy arrays to a numpy array
+            targs = np.concatenate(targs_list, axis=0)
+    return preds, targs
+
+
 class Trainer:
+    """Class to perform training of a neural network and/or run inference.
+
+    The class is designed to make it easy to inherit from it and override methods
+    to change functionality. E.g. if the training and validation dataloaders
+    return additional items beside images and targets, then overriding methods
+    `train_batch` and `predict_batch` should be enough. And there is no need to
+    re-implement training loop which is for the majority use-cases the same.
+
+    Trainer is using TrainingState class to log scores, track best scores,
+    and save checkpoints with the best scores. TrainingState class can be replaced
+    with a custom implementation.
+
+    Trainer is using TrainingScores class to evaluate scores and prepare them to log.
+    TrainingScores class can be replaced with a custom implementation.
+
+    Parameters
+    ----------
+    model
+        Pytorch neural network.
+    trainloader
+        Pytorch dataloader with training data.
+    criterion
+        Loss function.
+    optimizer
+        Optimizer algorithm.
+    validloader
+        Pytorch dataloader with validation data.
+    scheduler
+        Scheduler algorithm.
+    accumulation_steps
+        Number of iterations to accumulate gradients before performing optimizer step.
+    device
+        Device to use (CPU,CUDA,CUDA:0,...).
+    """
+
     # classes to track training state and scores
     # they can be replaced with custom implementation to track different metrics
     training_state_cls = TrainingState
@@ -169,7 +336,7 @@ class Trainer:
         optimizer: Optimizer,
         *,
         validloader: DataLoader = None,
-        scheduler=None,
+        scheduler: Scheduler_ = None,
         accumulation_steps: int = 1,
         device: torch.device = None,
     ):
@@ -190,6 +357,23 @@ class Trainer:
         self.device = device
 
     def train_batch(self, batch: Any) -> Tuple[np.ndarray, np.ndarray, float]:
+        """Run a training iteration on one batch.
+
+        Parameters
+        ----------
+        batch
+            Tuple of arbitrary size with image and target pytorch tensors
+            and optionally additional items depending on the dataloaders.
+
+        Returns
+        -------
+        preds
+            Numpy array with predictions.
+        targs
+            Numpy array with ground-truth targets.
+        loss
+            Average loss.
+        """
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
         imgs = imgs.to(self.device)
@@ -204,14 +388,33 @@ class Trainer:
         loss.backward()
 
         # convert to numpy
-        preds = preds.detach().cpu().numpy()
-        targs = targs.detach().cpu().numpy()
+        preds, targs = _preds_targs_to_numpy(preds, targs)
         return preds, targs, _loss
 
     def train_epoch(
         self, epoch: int, dataloader: DataLoader, return_preds: bool = False
-    ):
-        """Train one epoch."""
+    ) -> Tuple[np.ndarray, np.ndarray, float]:
+        """Train one epoch.
+
+        Parameters
+        ----------
+        epoch
+            Epoch number.
+        dataloader
+            PyTorch dataloader with training data.
+        return_preds
+            If true, returns training predictions and targets.
+            Otherwise, returns None, None to save memory.
+
+        Returns
+        -------
+        preds
+            Numpy array with predictions.
+        targs
+            Numpy array with ground-truth targets.
+        loss
+            Average loss.
+        """
         self.model.to(self.device)
         self.model.train()
         self.optimizer.zero_grad()
@@ -237,14 +440,30 @@ class Trainer:
                 preds_all.append(preds)
                 targs_all.append(targs)
 
-        if return_preds and len(preds_all) > 0 and len(targs_all) > 0:
-            preds_all = np.concatenate(preds_all, axis=0)
-            targs_all = np.concatenate(targs_all, axis=0)
+        if return_preds:
+            preds_all, targs_all = _concat_preds_targs(preds_all, targs_all)
         else:
             preds_all, targs_all = None, None
         return preds_all, targs_all, avg_loss
 
     def predict_batch(self, batch: Any) -> Tuple[np.ndarray, np.ndarray, float]:
+        """Run a prediction iteration on one batch.
+
+        Parameters
+        ----------
+        batch
+            Tuple of arbitrary size with image and target pytorch tensors
+            and optionally additional items depending on the dataloaders.
+
+        Returns
+        -------
+        preds
+            Numpy array with predictions.
+        targs
+            Numpy array with ground-truth targets.
+        loss
+            Average loss.
+        """
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
         imgs = imgs.to(self.device)
@@ -258,11 +477,26 @@ class Trainer:
             loss = self.criterion(preds, targs).item()
 
         # convert to numpy
-        preds = preds.cpu().numpy()
-        targs = targs.cpu().numpy()
+        preds, targs = _preds_targs_to_numpy(preds, targs)
         return preds, targs, loss
 
-    def predict(self, dataloader: DataLoader):
+    def predict(self, dataloader: DataLoader) -> Tuple[np.ndarray, np.ndarray, float]:
+        """Run inference.
+
+        Parameters
+        ----------
+        dataloader
+            PyTorch dataloader with validation/test data.
+
+        Returns
+        -------
+        preds
+            Numpy array with predictions.
+        targs
+            Numpy array with ground-truth targets.
+        loss
+            Average loss.
+        """
         self.model.to(self.device)
         self.model.eval()
         avg_loss = 0.0
@@ -270,19 +504,22 @@ class Trainer:
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.predict_batch(batch)
             avg_loss += loss / len(dataloader)
-
             if preds is not None and targs is not None:
                 preds_all.append(preds)
                 targs_all.append(targs)
-
-        if len(preds_all) > 0 and len(targs_all) > 0:
-            preds_all = np.concatenate(preds_all, axis=0)
-            targs_all = np.concatenate(targs_all, axis=0)
-        else:
-            preds_all, targs_all = None, None
+        preds_all, targs_all = _concat_preds_targs(preds_all, targs_all)
         return preds_all, targs_all, avg_loss
 
     def make_scheduler_step(self, epoch: int, valid_loss: float):
+        """Make scheduler step. Use different arguments depending on the scheduler type.
+
+        Parameters
+        ----------
+        epoch
+            Epoch number.
+        valid_loss
+            Average validation loss to use for `ReduceLROnPlateau` scheduler.
+        """
         if self.scheduler is not None:
             if isinstance(self.scheduler, ReduceLROnPlateau):
                 if valid_loss is not None:
@@ -295,6 +532,17 @@ class Trainer:
                 raise ValueError(f"Unsupported scheduler type: {self.scheduler}")
 
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777):
+        """Train neural network.
+
+        Parameters
+        ----------
+        run_name
+            Name of the run for logging and naming checkpoint files.
+        num_epochs
+            Number of epochs to train.
+        seed
+            Random seed to set.
+        """
         # create training state
         training_state = self.training_state_cls(self.model, run_name, num_epochs)
 
@@ -352,13 +600,39 @@ def train(
     optimizer: Optimizer,
     *,
     validloader: DataLoader = None,
-    scheduler=None,
+    scheduler: Scheduler_ = None,
     num_epochs: int = 1,
     accumulation_steps: int = 1,
     device: torch.device = None,
     seed: int = 777,
 ):
-    """Train neural network."""
+    """Train neural network.
+
+    Parameters
+    ----------
+    run_name
+        Name of the run for logging and naming checkpoint files.
+    model
+        Pytorch neural network.
+    trainloader
+        Pytorch dataloader with training data.
+    criterion
+        Loss function.
+    optimizer
+        Optimizer algorithm.
+    validloader
+        Pytorch dataloader with validation data.
+    scheduler
+        Scheduler algorithm.
+    num_epochs
+        Number of epochs to train.
+    accumulation_steps
+        Number of iterations to accumulate gradients before performing optimizer step.
+    device
+        Device to use (CPU,CUDA,CUDA:0,...).
+    seed
+        Random seed to set.
+    """
     trainer = Trainer(
         model,
         trainloader,
@@ -376,8 +650,30 @@ def predict(
     model: nn.Module,
     testloader: DataLoader,
     *,
+    criterion: nn.Module = None,
     device: torch.device = None,
-):
-    """Run inference."""
-    trainer = Trainer(model, None, None, None, device=device)
+) -> Tuple[np.ndarray, np.ndarray, float]:
+    """Run inference.
+
+    Parameters
+    ----------
+    model
+        PyTorch neural network.
+    testloader
+        PyTorch dataloader with test data.
+    criterion
+        Loss function.
+    device
+        Device to use (CPU,CUDA,CUDA:0,...).
+
+    Returns
+    -------
+    preds
+        Numpy array with predictions.
+    targs
+        Numpy array with ground-truth targets.
+    loss
+        Average loss.
+    """
+    trainer = Trainer(model, None, criterion, None, device=device)
     return trainer.predict(testloader)
