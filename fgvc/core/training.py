@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-from typing import Any, Tuple, Union
+from typing import Any, Tuple, Union, List, Optional
 
 import numpy as np
 import torch
@@ -227,64 +227,80 @@ class TrainingScores:
         return {"accuracy": self.valid_acc, "f1": self.valid_f1}
 
 
-def _preds_targs_to_numpy(
-    preds: torch.Tensor, targs: Union[torch.Tensor, dict]
-) -> Tuple[np.ndarray, Union[np.ndarray, dict]]:
-    """Converts pytorch tensors with predictions and targets to numpy arrays.
+def to_device(*tensors: List[Union[torch.Tensor, dict]], device: torch.device) -> List[Union[torch.Tensor, dict]]:
+    """Converts pytorch tensors to device.
 
     Parameters
     ----------
-    preds
-        Pytorch tensor with predictions.
-    targs
-        Pytorch tensor or dictionary of pytorch tensors with ground-truth targets.
+    tensors
+        (One or multiple items) Pytorch tensor or dictionary of pytorch tensors.
+    device
+        Device to use (CPU,CUDA,CUDA:0,...).
 
     Returns
     -------
-    preds
-        Numpy array with predictions.
-    targs
-        Numpy array or dictionary of numpy arrays with ground-truth targets.
+    (One or multiple items) Pytorch tensor or dictionary of pytorch tensors.
     """
-    preds = preds.detach().cpu().numpy()
-    if isinstance(targs, dict):
-        targs = {k: v.detach().cpu().numpy() for k, v in targs.items()}
-    else:
-        targs = targs.detach().cpu().numpy()
-    return preds, targs
+    out = []
+    for tensor in tensors:
+        if isinstance(tensor, dict):
+            tensor = {k: v.to(device) for k, v in tensor.items()}
+        else:
+            tensor = tensor.to(device)
+        out.append(tensor)
+    return out
 
 
-def _concat_preds_targs(
-    preds_list: list, targs_list: list
-) -> Tuple[np.ndarray, Union[np.ndarray, dict]]:
+def to_numpy(*tensors: List[Union[torch.Tensor, dict]]) -> List[Union[np.ndarray, dict]]:
+    """Converts pytorch tensors to numpy arrays.
+
+    Parameters
+    ----------
+    tensors
+        (One or multiple items) Pytorch tensor or dictionary of pytorch tensors.
+
+    Returns
+    -------
+    (One or multiple items) Numpy array or dictionary of numpy arrays.
+    """
+    out = []
+    for tensor in tensors:
+        if isinstance(tensor, dict):
+            tensor = {k: v.detach().cpu().numpy() for k, v in tensor.items()}
+        else:
+            tensor = tensor.detach().cpu().numpy()
+        out.append(tensor)
+    return out
+
+
+def concat_arrays(
+    *lists: List[List[Union[np.ndarray, dict]]]
+) -> List[Optional[List[Union[np.ndarray, dict]]]]:
     """Concatenates lists of numpy arrays with predictions and targets to numpy arrays.
 
     Parameters
     ----------
-    preds_list
-        List of numpy arrays with predictions.
-    targs_list
-        List of numpy arrays or dictionary of lists with ground-truth targets.
+    lists
+        (One or multiple items) List of numpy arrays or dictionary of lists.
 
     Returns
     -------
-    preds
-        Numpy array with predictions.
-    targs
-        Numpy array or dictionary of numpy arrays with ground-truth targets.
+    (One or multiple items) Numpy array or dictionary of numpy arrays.
     """
-    preds, targs = None, None
-    if len(preds_list) > 0 and len(targs_list) > 0:
-        preds = np.concatenate(preds_list, axis=0)
-        if isinstance(targs_list[0], dict):
-            # concatenate list of dicts of numpy arrays to a dict of numpy arrays
-            targs = {}
-            for k in targs_list[0].keys():
-                targs[k] = np.concatenate([x[k] for x in targs_list])
-        else:
-            # concatenate list of numpy arrays to a numpy array
-            targs = np.concatenate(targs_list, axis=0)
-    return preds, targs
+    out = []
+    for array_list in lists:
+        concatenated = None
+        if len(array_list) > 0:
+            if isinstance(array_list[0], dict):
+                # concatenate list of dicts of numpy arrays to a dict of numpy arrays
+                concatenated = {}
+                for k in array_list[0].keys():
+                    concatenated[k] = np.concatenate([x[k] for x in array_list])
+            else:
+                # concatenate list of numpy arrays to a numpy array
+                concatenated = np.concatenate(array_list, axis=0)
+        out.append(concatenated)
+    return out
 
 
 class Trainer:
@@ -376,8 +392,7 @@ class Trainer:
         """
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
-        imgs = imgs.to(self.device)
-        targs = targs.to(self.device)
+        imgs, targs = to_device(imgs, targs, device=self.device)
 
         preds = self.model(imgs)
         loss = self.criterion(preds, targs)
@@ -388,7 +403,7 @@ class Trainer:
         loss.backward()
 
         # convert to numpy
-        preds, targs = _preds_targs_to_numpy(preds, targs)
+        preds, targs = to_numpy(preds, targs)
         return preds, targs, _loss
 
     def train_epoch(
@@ -440,10 +455,7 @@ class Trainer:
                 preds_all.append(preds)
                 targs_all.append(targs)
 
-        if return_preds:
-            preds_all, targs_all = _concat_preds_targs(preds_all, targs_all)
-        else:
-            preds_all, targs_all = None, None
+        preds_all, targs_all = concat_arrays(preds_all, targs_all)
         return preds_all, targs_all, avg_loss
 
     def predict_batch(self, batch: Any) -> Tuple[np.ndarray, np.ndarray, float]:
@@ -466,18 +478,18 @@ class Trainer:
         """
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
-        imgs = imgs.to(self.device)
+        imgs = to_device(imgs, device=self.device)
 
         # run inference and compute loss
         with torch.no_grad():
             preds = self.model(imgs)
         loss = 0.0
         if self.criterion is not None:
-            targs = targs.to(self.device)
+            targs = to_device(targs, device=self.device)
             loss = self.criterion(preds, targs).item()
 
         # convert to numpy
-        preds, targs = _preds_targs_to_numpy(preds, targs)
+        preds, targs = to_numpy(preds, targs)
         return preds, targs, loss
 
     def predict(self, dataloader: DataLoader) -> Tuple[np.ndarray, np.ndarray, float]:
@@ -507,7 +519,7 @@ class Trainer:
             if preds is not None and targs is not None:
                 preds_all.append(preds)
                 targs_all.append(targs)
-        preds_all, targs_all = _concat_preds_targs(preds_all, targs_all)
+        preds_all, targs_all = concat_arrays(preds_all, targs_all)
         return preds_all, targs_all, avg_loss
 
     def make_scheduler_step(self, epoch: int, valid_loss: float):
