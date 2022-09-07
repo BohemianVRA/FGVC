@@ -19,13 +19,23 @@ class TrainingState:
         Name of the run for logging and naming checkpoint files.
     num_epochs
         Number of epochs to train.
+    exp_name
+        Experiment name for saving run artefacts like checkpoints or logs.
+        E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
     """
 
-    def __init__(self, model: nn.Module, run_name: str, num_epochs: int):
+    def __init__(
+        self, model: nn.Module, run_name: str, num_epochs: int, exp_name: str = None
+    ):
+        assert "/" not in run_name, "Arg 'run_name' should not contain character /"
         self.model = model
         self.run_name = run_name
         self.num_epochs = num_epochs
-        self.path = f"runs/{run_name}"
+        if exp_name is not None:
+            assert "/" not in exp_name, "Arg 'exp_name' should not contain character /"
+            self.path = f"runs/{run_name}/{exp_name}"
+        else:
+            self.path = f"runs/{run_name}"
         os.makedirs(self.path, exist_ok=True)
 
         # setup training logger

@@ -259,7 +259,9 @@ class Trainer:
             else:
                 raise ValueError(f"Unsupported scheduler type: {self.scheduler}")
 
-    def train(self, run_name: str, num_epochs: int = 1, seed: int = 777):
+    def train(
+        self, run_name: str, num_epochs: int = 1, seed: int = 777, exp_name: str = None
+    ):
         """Train neural network.
 
         Parameters
@@ -270,9 +272,14 @@ class Trainer:
             Number of epochs to train.
         seed
             Random seed to set.
+        exp_name
+            Experiment name for saving run artefacts like checkpoints or logs.
+            E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
         """
         # create training state
-        training_state = self.training_state_cls(self.model, run_name, num_epochs)
+        training_state = self.training_state_cls(
+            self.model, run_name, num_epochs, exp_name
+        )
 
         # fix random seed
         set_random_seed(seed)
@@ -333,6 +340,7 @@ def train(
     accumulation_steps: int = 1,
     device: torch.device = None,
     seed: int = 777,
+    exp_name: str = None,
 ):
     """Train neural network.
 
@@ -360,6 +368,9 @@ def train(
         Device to use (CPU,CUDA,CUDA:0,...).
     seed
         Random seed to set.
+    exp_name
+        Experiment name for saving run artefacts like checkpoints or logs.
+        E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
     """
     trainer = Trainer(
         model,
@@ -371,7 +382,7 @@ def train(
         accumulation_steps=accumulation_steps,
         device=device,
     )
-    trainer.train(run_name, num_epochs, seed)
+    trainer.train(run_name, num_epochs, seed, exp_name)
 
 
 def predict(
