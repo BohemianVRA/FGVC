@@ -1,0 +1,41 @@
+name: Releases
+run-name: Build and Create Release
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+env:
+  PYTHON_VERSION: 3.8
+
+jobs:
+  build:
+    name: Build and Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    - name: Build Python Package
+      run: |
+        # install build dependencies
+        pip install -U setuptools build
+        # build the package
+        GIT_TAG=${{ github.ref }} python -m build
+    - name: Create Release
+      uses: ncipollo/release-action@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+      with:
+        tag: ${{ github.ref }}
+        name: Release ${{ github.ref }}
+        artifacts: "dist/*.tar.gz,dist/*.whl"
+        body: |
+          Changes in this Release: ...
+        draft: false
