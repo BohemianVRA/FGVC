@@ -26,16 +26,19 @@ jobs:
       run: |
         # install build dependencies
         pip install -U setuptools build
+        # modify version.py file
+        echo '__version__ = "${{ github.ref_name }}"' > fgvc/version.py
         # build the package
-        GIT_TAG=${{ github.ref }} python -m build
+        python -m build
     - name: Create Release
       uses: ncipollo/release-action@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
       with:
         tag: ${{ github.ref }}
-        name: Release ${{ github.ref }}
+        name: Release ${{ github.ref_name }}
         artifacts: "dist/*.tar.gz,dist/*.whl"
         body: |
-          Changes in this Release: ...
+          Changes in this Release:
+          - <FILL>
         draft: false
