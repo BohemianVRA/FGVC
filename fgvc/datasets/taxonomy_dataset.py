@@ -25,9 +25,11 @@ class TaxonomyDataset(ImageDataset):
         return image, target, file_path
 
     def get_genus_id(self, idx: int) -> int:
+        """TODO add docstring."""
         return self.df["genus_id"].iloc[idx]
 
     def get_family_id(self, idx: int) -> int:
+        """TODO add docstring."""
         return self.df["family_id"].iloc[idx]
 
 

@@ -7,12 +7,13 @@ import numpy as np
 import pandas as pd
 import torch
 import wandb
+
 from fgvc.core.metrics import classification_scores
 from fgvc.core.training import predict
 from fgvc.datasets import get_dataloaders
 from fgvc.utils.wandb import log_test_scores
 
-from .train import set_cuda_device, load_config, load_model
+from .train import load_config, load_model, set_cuda_device
 
 logger = logging.getLogger("script")
 
@@ -20,6 +21,7 @@ SCRATCH_DIR = os.getenv("SCRATCHDIR", "/Projects/Data/DF20M/")
 
 
 def load_metadata() -> pd.DataFrame:
+    """TODO add docstring."""
     test_df = pd.read_csv("../../metadata/DanishFungi2020-Mini_test_metadata_DEV.csv")
     logger.info(f"Loaded test metadata. Number of samples: {len(test_df)}")
 
@@ -112,9 +114,7 @@ if __name__ == "__main__":
 
     # evaluate and log scores
     logger.info("Evaluating scores.")
-    test_acc, test_acc_3, test_f1 = classification_scores(
-        test_preds, test_targs, top_k=3
-    )
+    test_acc, test_acc_3, test_f1 = classification_scores(test_preds, test_targs, top_k=3)
     scores = {
         "F1": str(np.round(test_f1 * 100, 2)),
         "Acc": str(np.round(test_acc * 100, 2)),

@@ -79,9 +79,7 @@ class Trainer:
         self.criterion = criterion
         self.optimizer = optimizer
         if scheduler is not None:
-            assert isinstance(
-                scheduler, (ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR)
-            )
+            assert isinstance(scheduler, (ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR))
         self.scheduler = scheduler
         self.accumulation_steps = accumulation_steps
         if device is None:
@@ -160,9 +158,7 @@ class Trainer:
             if (i - 1) % self.accumulation_steps == 0:
                 self.optimizer.step()
                 self.optimizer.zero_grad()
-                if self.scheduler is not None and isinstance(
-                    self.scheduler, CosineLRScheduler
-                ):
+                if self.scheduler is not None and isinstance(self.scheduler, CosineLRScheduler):
                     # update lr scheduler from timm library
                     num_updates += 1
                     self.scheduler.step_update(num_updates=num_updates)
@@ -259,9 +255,7 @@ class Trainer:
             else:
                 raise ValueError(f"Unsupported scheduler type: {self.scheduler}")
 
-    def train(
-        self, run_name: str, num_epochs: int = 1, seed: int = 777, exp_name: str = None
-    ):
+    def train(self, run_name: str, num_epochs: int = 1, seed: int = 777, exp_name: str = None):
         """Train neural network.
 
         Parameters
@@ -277,9 +271,7 @@ class Trainer:
             E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
         """
         # create training state
-        training_state = self.training_state_cls(
-            self.model, run_name, num_epochs, exp_name
-        )
+        training_state = self.training_state_cls(self.model, run_name, num_epochs, exp_name)
 
         # fix random seed
         set_random_seed(seed)
@@ -311,9 +303,7 @@ class Trainer:
                 valid_targs,
                 valid_loss,
             )
-            training_scores.log_wandb(
-                epoch + 1, lr=self.optimizer.param_groups[0]["lr"]
-            )
+            training_scores.log_wandb(epoch + 1, lr=self.optimizer.param_groups[0]["lr"])
 
             # log scores to file and save model checkpoints
             training_state.step(

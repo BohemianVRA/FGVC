@@ -12,6 +12,7 @@ class FocalLossWithLogits(nn.Module):
         # self.reduction = "mean"
 
     def forward(self, logits, target):
+        """TODO add docstring."""
         ce_loss = F.cross_entropy(logits, target, reduction="none", weight=self.weight)
         pt = torch.exp(-ce_loss)
         focal_loss = (1 - pt) ** self.gamma * ce_loss
@@ -20,9 +21,9 @@ class FocalLossWithLogits(nn.Module):
 
 
 class SeesawLossWithLogits(nn.Module):
-    """
-    This is unofficial implementation for Seesaw loss,
-    which is proposed in the technical report for LVIS workshop at ECCV 2020.
+    """An unofficial implementation for Seesaw loss.
+
+    The loss was proposed in the technical report for LVIS workshop at ECCV 2020.
     For more detail, please refer https://arxiv.org/pdf/2008.10032.pdf.
     Args:
     class_counts: The list which has number of samples for each class.
@@ -44,17 +45,16 @@ class SeesawLossWithLogits(nn.Module):
         self.eps = 1.0e-6
 
     def forward(self, logits, targets):
+        """TODO add docstring."""
         targets = F.one_hot(targets, self.num_labels)
         self.s = self.s.to(targets.device)
         max_element, _ = logits.max(axis=-1)
         logits = logits - max_element[:, None]  # to prevent overflow
 
         numerator = torch.exp(logits)
-        denominator = (
-            (1 - targets)[:, None, :]
-            * self.s[None, :, :]
-            * torch.exp(logits)[:, None, :]
-        ).sum(axis=-1) + torch.exp(logits)
+        denominator = ((1 - targets)[:, None, :] * self.s[None, :, :] * torch.exp(logits)[:, None, :]).sum(
+            axis=-1
+        ) + torch.exp(logits)
 
         sigma = numerator / (denominator + self.eps)
         loss = (-targets * torch.log(sigma + self.eps)).sum(-1)
@@ -66,6 +66,7 @@ class DiceLossWithLogits(nn.Module):
         super().__init__()
 
     def forward(self, inputs, targets, smooth=1):
+        """TODO add docstring."""
         # flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)

@@ -1,3 +1,10 @@
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 120
+# skip-string-normalization = true  # requouting '...' -> "..." can be disabled
+
+[tool.isort]
+profile = "black"

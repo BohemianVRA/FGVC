@@ -40,14 +40,10 @@ class TrainingScores:
         self.elapsed_epoch_time = elapsed_epoch_time
 
         # evaluate metrics
-        self.train_acc, _, self.train_f1 = classification_scores(
-            train_preds, train_targs, top_k=None
-        )
+        self.train_acc, _, self.train_f1 = classification_scores(train_preds, train_targs, top_k=None)
         self.valid_acc, self.valid_acc3, self.valid_f1 = None, None, None
         if valid_preds is not None and valid_targs is not None:
-            self.valid_acc, self.valid_acc3, self.valid_f1 = classification_scores(
-                valid_preds, valid_targs, top_k=3
-            )
+            self.valid_acc, self.valid_acc3, self.valid_f1 = classification_scores(valid_preds, valid_targs, top_k=3)
 
     def log_wandb(self, epoch: int, lr: float):
         """Log evaluated scores to WandB.

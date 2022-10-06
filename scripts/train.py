@@ -23,6 +23,7 @@ SCRATCH_DIR = os.getenv("SCRATCHDIR", "/Projects/Data/DF20M/")
 
 
 def set_cuda_device(cuda_devices: str):
+    """TODO add docstring."""
     os.environ["CUDA_VISIBLE_DEVICES"] = cuda_devices
     torch.cuda.device_count()  # fix CUDA_VISIBLE_DEVICES setting
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -31,6 +32,7 @@ def set_cuda_device(cuda_devices: str):
 
 
 def load_config(config_path: str) -> Tuple[dict, str]:
+    """TODO add docstring."""
     with open(config_path) as f:
         config = yaml.safe_load(f)
     config["image_size"] = (
@@ -44,6 +46,7 @@ def load_config(config_path: str) -> Tuple[dict, str]:
 
 
 def load_metadata() -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """TODO add docstring."""
     train_df = pd.read_csv("../../metadata/DanishFungi2020-Mini_train_metadata_DEV.csv")
     logger.info(f"Loaded training metadata. Number of samples: {len(train_df)}")
 
@@ -68,9 +71,8 @@ def load_metadata() -> Tuple[pd.DataFrame, pd.DataFrame]:
     return train_df, valid_df
 
 
-def add_metadata_info_to_config(
-    config: dict, train_df: pd.DataFrame, valid_df: pd.DataFrame
-) -> dict:
+def add_metadata_info_to_config(config: dict, train_df: pd.DataFrame, valid_df: pd.DataFrame) -> dict:
+    """TODO add docstring."""
     config["number_of_classes"] = len(train_df["class_id"].unique())
     config["training_samples"] = len(train_df)
     config["test_samples"] = len(valid_df)
@@ -78,11 +80,10 @@ def add_metadata_info_to_config(
 
 
 def load_model(config: dict) -> Tuple[nn.Module, tuple, tuple]:
+    """TODO add docstring."""
     assert "architecture" in config
     assert "number_of_classes" in config
-    model = get_model(
-        config["architecture"], config["number_of_classes"], pretrained=True
-    )
+    model = get_model(config["architecture"], config["number_of_classes"], pretrained=True)
     model_mean = list(model.default_cfg["mean"])
     model_std = list(model.default_cfg["std"])
     if config.get("multigpu", False):  # multi gpu model
@@ -91,16 +92,13 @@ def load_model(config: dict) -> Tuple[nn.Module, tuple, tuple]:
 
 
 def get_optimizer_and_scheduler(model: nn.Module, config: dict):
+    """TODO add docstring."""
     assert "optimizer" in config
     assert "learning_rate" in config
     assert "scheduler" in config
     assert "epochs" in config
-    optimizer = get_optimizer(
-        name=config["optimizer"], params=model.parameters(), lr=config["learning_rate"]
-    )
-    scheduler = get_scheduler(
-        name=config["scheduler"], optimizer=optimizer, epochs=config["epochs"]
-    )
+    optimizer = get_optimizer(name=config["optimizer"], params=model.parameters(), lr=config["learning_rate"])
+    scheduler = get_scheduler(name=config["scheduler"], optimizer=optimizer, epochs=config["epochs"])
     return optimizer, scheduler
 
 
@@ -167,9 +165,7 @@ if __name__ == "__main__":
         criterion = FocalLossWithLogits()
     elif config["loss"] == "SeeSawLoss":
         value_counts = train_df["class_id"].value_counts()
-        class_counts = [
-            value_counts[i] for i in range(len(train_df["class_id"].unique()))
-        ]
+        class_counts = [value_counts[i] for i in range(len(train_df["class_id"].unique()))]
         criterion = SeesawLossWithLogits(class_counts=class_counts)
     else:
         logger.error(f"Unknown Loss specified --> {config['loss']}")

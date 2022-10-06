@@ -5,9 +5,7 @@ import torch
 import torch.nn.functional as F
 
 
-def _numpy_cosine_similarity(
-    a: np.ndarray, b: np.ndarray, eps: float
-) -> Union[np.ndarray, float]:
+def _numpy_cosine_similarity(a: np.ndarray, b: np.ndarray, eps: float) -> Union[np.ndarray, float]:
     """Compute cosine similarity in numpy."""
     # a [emb_size]
     # b [emb_size] or b [num_items, emb_size]
@@ -44,9 +42,7 @@ def cosine_similarity(
     """
     assert len(a.shape) == 1, "Input parameter (a) must be array."
     assert len(b.shape) in [1, 2], "Input parameter (b) must be array or 2d matrix."
-    assert (
-        a.shape[-1] == b.shape[-1]
-    ), f"Embedding size does not match: a={a.shape}, b={b.shape}."
+    assert a.shape[-1] == b.shape[-1], f"Embedding size does not match: a={a.shape}, b={b.shape}."
     if isinstance(a, torch.Tensor):
         cos_sim = F.cosine_similarity(a, b, dim=-1)
     else:
@@ -75,21 +71,15 @@ def pairwise_cosine_similarity(
     if isinstance(mat, torch.Tensor):
         sim_mat = torch.zeros((len(mat), len(mat)), dtype=mat.dtype, device=mat.device)
         for i in range(len(mat)):
-            sim_mat[i, i:] = sim_mat[i:, i] = F.cosine_similarity(
-                mat[i], mat[i:], dim=-1, eps=eps
-            )
+            sim_mat[i, i:] = sim_mat[i:, i] = F.cosine_similarity(mat[i], mat[i:], dim=-1, eps=eps)
     else:
         sim_mat = np.zeros((len(mat), len(mat)), dtype=mat.dtype)
         for i in range(len(mat)):
-            sim_mat[i, i:] = sim_mat[i:, i] = _numpy_cosine_similarity(
-                mat[i], mat[i:], eps
-            )
+            sim_mat[i, i:] = sim_mat[i:, i] = _numpy_cosine_similarity(mat[i], mat[i:], eps)
     return sim_mat
 
 
-def _numpy_batch_cosine_similarity(
-    a: np.ndarray, b: np.ndarray, eps: float
-) -> np.ndarray:
+def _numpy_batch_cosine_similarity(a: np.ndarray, b: np.ndarray, eps: float) -> np.ndarray:
     """Compute batch-wise cosine similarity in numpy."""
     # a [bs, emb_size]
     # b [bs, emb_size] or b [bs, num_items, emb_size]
@@ -100,9 +90,7 @@ def _numpy_batch_cosine_similarity(
     return np.einsum("Bi,Bji ->Bj", a, b)
 
 
-def _torch_batch_cosine_similarity(
-    a: torch.Tensor, b: torch.Tensor, eps: float
-) -> torch.Tensor:
+def _torch_batch_cosine_similarity(a: torch.Tensor, b: torch.Tensor, eps: float) -> torch.Tensor:
     """Compute batch-wise cosine similarity in pytorch."""
     # a [bs, emb_size]
     # b [bs, emb_size] or b [bs, num_items, emb_size]
@@ -137,9 +125,7 @@ def batch_cosine_similarity(
     """
     assert len(a.shape) == 2, "Input parameter (a) must be 2d matrix."
     assert len(b.shape) in [2, 3], "Input parameter (b) must be 2d or 3d matrix."
-    assert (
-        a.shape[-1] == b.shape[-1]
-    ), f"Embedding size does not match: a={a.shape}, b={b.shape}."
+    assert a.shape[-1] == b.shape[-1], f"Embedding size does not match: a={a.shape}, b={b.shape}."
     if isinstance(a, torch.Tensor):
         cos_sim = _torch_batch_cosine_similarity(a, b, eps)
     else:

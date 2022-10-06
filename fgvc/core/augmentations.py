@@ -25,11 +25,9 @@ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
 
 def light_transforms(
-    *,
-    image_size: tuple,
-    mean: tuple = IMAGENET_DEFAULT_MEAN,
-    std: tuple = IMAGENET_DEFAULT_STD
+    *, image_size: tuple, mean: tuple = IMAGENET_DEFAULT_MEAN, std: tuple = IMAGENET_DEFAULT_STD
 ) -> Tuple[Compose, Compose]:
+    """TODO add docstring."""
     train_tfms = Compose(
         [
             RandomResizedCrop(image_size[0], image_size[1], scale=(0.8, 1.0)),
@@ -52,19 +50,15 @@ def light_transforms(
 
 
 def heavy_transforms(
-    *,
-    image_size: tuple,
-    mean: tuple = IMAGENET_DEFAULT_MEAN,
-    std: tuple = IMAGENET_DEFAULT_STD
+    *, image_size: tuple, mean: tuple = IMAGENET_DEFAULT_MEAN, std: tuple = IMAGENET_DEFAULT_STD
 ) -> Tuple[Compose, Compose]:
+    """TODO add docstring."""
     train_tfms = Compose(
         [
             RandomResizedCrop(image_size[0], image_size[1], scale=(0.7, 1.3)),
             HorizontalFlip(p=0.5),
             VerticalFlip(p=0.5),
-            ShiftScaleRotate(
-                shift_limit=0.10, scale_limit=0.25, rotate_limit=90, p=0.5
-            ),
+            ShiftScaleRotate(shift_limit=0.10, scale_limit=0.25, rotate_limit=90, p=0.5),
             JpegCompression(p=0.25, quality_lower=50, quality_upper=100),
             Blur(blur_limit=(7, 7), p=0.1),
             RandomGridShuffle(grid=(3, 3), p=0.1),
@@ -88,11 +82,9 @@ def heavy_transforms(
 
 
 def light_transforms_rcrop(
-    *,
-    image_size: tuple,
-    mean: tuple = IMAGENET_DEFAULT_MEAN,
-    std: tuple = IMAGENET_DEFAULT_STD
+    *, image_size: tuple, mean: tuple = IMAGENET_DEFAULT_MEAN, std: tuple = IMAGENET_DEFAULT_STD
 ) -> Tuple[Compose, Compose]:
+    """TODO add docstring."""
     train_tfms = Compose(
         [
             PadIfNeeded(int(image_size[0] / 0.7), int(image_size[1] / 0.7)),
@@ -118,12 +110,9 @@ def light_transforms_rcrop(
 
 
 def tta_transforms(
-    *,
-    data: str,
-    image_size: tuple,
-    mean: tuple = IMAGENET_DEFAULT_MEAN,
-    std: tuple = IMAGENET_DEFAULT_STD
+    *, data: str, image_size: tuple, mean: tuple = IMAGENET_DEFAULT_MEAN, std: tuple = IMAGENET_DEFAULT_STD
 ) -> Compose:
+    """TODO add docstring."""
     assert data in (
         "vanilla",
         "centercrop_90",

@@ -42,15 +42,12 @@ def get_dataloaders(
     num_workers: int = 8,
     dataset_cls: Type[ImageDataset] = ImageDataset,
 ) -> Tuple[DataLoader, DataLoader, tuple, tuple]:
+    """TODO add docstring."""
     # create training and validation augmentations
     if augmentations == "light":
-        train_tfms, valid_tfms = light_transforms(
-            image_size=image_size, mean=model_mean, std=model_std
-        )
+        train_tfms, valid_tfms = light_transforms(image_size=image_size, mean=model_mean, std=model_std)
     elif augmentations == "heavy":
-        train_tfms, valid_tfms = heavy_transforms(
-            image_size=image_size, mean=model_mean, std=model_std
-        )
+        train_tfms, valid_tfms = heavy_transforms(image_size=image_size, mean=model_mean, std=model_std)
     else:
         raise NotImplementedError()
 

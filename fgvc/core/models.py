@@ -9,9 +9,8 @@ def get_model(
     pretrained: bool = False,
     checkpoint_path: str = None,
 ) -> nn.Module:
-    model = timm.create_model(
-        architecture_name, pretrained=pretrained and checkpoint_path is None
-    )
+    """TODO add docstring."""
+    model = timm.create_model(architecture_name, pretrained=pretrained and checkpoint_path is None)
 
     # set classification head
     model_cfg = model.default_cfg

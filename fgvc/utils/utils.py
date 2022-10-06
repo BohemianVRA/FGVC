@@ -12,6 +12,7 @@ logger = logging.getLogger("fgvc")
 
 @contextmanager
 def timer(name, logger):
+    """TODO add docstring."""
     t0 = time.time()
     logger.info(f"[{name}] start")
     yield
