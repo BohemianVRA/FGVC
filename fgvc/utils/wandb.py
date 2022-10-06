@@ -19,21 +19,21 @@ def init_wandb(config, run_name, entity, project, **kwargs):
             project=project, entity=entity, name=run_name, config=config, **kwargs
         )
 
-        # Log 0 epoch values
-        wandb.log(
-            {
-                "Train. loss (avr.)": np.inf,
-                "Val. loss (avr.)": np.inf,
-                "Val. F1": 0,
-                "Val. Accuracy": 0,
-                "Val. Recall@3": 0,
-                "Learning Rate": config["learning_rate"],
-                "Train. Accuracy": 0,
-                "Train. F1": 0,
-            },
-            step=0,
-            commit=True,
-        )
+        # # Log 0 epoch values
+        # wandb.log(
+        #     {
+        #         "Train. loss (avr.)": np.inf,
+        #         "Val. loss (avr.)": np.inf,
+        #         "Val. F1": 0,
+        #         "Val. Accuracy": 0,
+        #         "Val. Recall@3": 0,
+        #         "Learning Rate": config["learning_rate"],
+        #         "Train. Accuracy": 0,
+        #         "Train. F1": 0,
+        #     },
+        #     step=0,
+        #     commit=True,
+        # )
 
 
 def log_progress(epoch: int, scores: dict, commit: bool = True):
