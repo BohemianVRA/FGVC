@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from albumentations import (
     Blur,
     CenterCrop,
@@ -19,9 +21,15 @@ from albumentations import (
     VerticalFlip,
 )
 from albumentations.pytorch import ToTensorV2
+from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
 
-def light_transforms(*, image_size, mean, std):
+def light_transforms(
+    *,
+    image_size: tuple,
+    mean: tuple = IMAGENET_DEFAULT_MEAN,
+    std: tuple = IMAGENET_DEFAULT_STD
+) -> Tuple[Compose, Compose]:
     train_tfms = Compose(
         [
             RandomResizedCrop(image_size[0], image_size[1], scale=(0.8, 1.0)),
@@ -43,7 +51,12 @@ def light_transforms(*, image_size, mean, std):
     return train_tfms, valid_tfms
 
 
-def heavy_transforms(*, image_size, mean, std):
+def heavy_transforms(
+    *,
+    image_size: tuple,
+    mean: tuple = IMAGENET_DEFAULT_MEAN,
+    std: tuple = IMAGENET_DEFAULT_STD
+) -> Tuple[Compose, Compose]:
     train_tfms = Compose(
         [
             RandomResizedCrop(image_size[0], image_size[1], scale=(0.7, 1.3)),
@@ -74,7 +87,12 @@ def heavy_transforms(*, image_size, mean, std):
     return train_tfms, valid_tfms
 
 
-def light_transforms_rcrop(*, image_size, mean, std):
+def light_transforms_rcrop(
+    *,
+    image_size: tuple,
+    mean: tuple = IMAGENET_DEFAULT_MEAN,
+    std: tuple = IMAGENET_DEFAULT_STD
+) -> Tuple[Compose, Compose]:
     train_tfms = Compose(
         [
             PadIfNeeded(int(image_size[0] / 0.7), int(image_size[1] / 0.7)),
@@ -99,7 +117,13 @@ def light_transforms_rcrop(*, image_size, mean, std):
     return train_tfms, valid_tfms
 
 
-def tta_transforms(*, data, image_size, mean, std):
+def tta_transforms(
+    *,
+    data: str,
+    image_size: tuple,
+    mean: tuple = IMAGENET_DEFAULT_MEAN,
+    std: tuple = IMAGENET_DEFAULT_STD
+) -> Compose:
     assert data in (
         "vanilla",
         "centercrop_90",
