@@ -27,7 +27,7 @@ def to_device(
         else:
             tensor = tensor.to(device)
         out.append(tensor)
-    return out
+    return out if len(out) > 0 else out[0]
 
 
 def to_numpy(
@@ -51,7 +51,7 @@ def to_numpy(
         else:
             tensor = tensor.detach().cpu().numpy()
         out.append(tensor)
-    return out
+    return out if len(out) > 0 else out[0]
 
 
 def concat_arrays(
@@ -81,4 +81,4 @@ def concat_arrays(
                 # concatenate list of numpy arrays to a numpy array
                 concatenated = np.concatenate(array_list, axis=0)
         out.append(concatenated)
-    return out
+    return out if len(out) > 0 else out[0]
