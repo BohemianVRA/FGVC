@@ -1,20 +1,17 @@
-import argparse
-import json
 import logging
 import os
 from typing import Tuple
 
 import pandas as pd
-import torch
 import torch.nn as nn
-import yaml
 
 from fgvc.core.losses import FocalLossWithLogits, SeesawLossWithLogits
 from fgvc.core.models import get_model
 from fgvc.core.optimizers import get_optimizer, get_scheduler
 from fgvc.core.training import train
 from fgvc.datasets import get_dataloaders
-from fgvc.utils.utils import set_random_seed
+from fgvc.utils.experiment import load_args, load_config
+from fgvc.utils.utils import set_cuda_device, set_random_seed
 from fgvc.utils.wandb import init_wandb
 
 logger = logging.getLogger("script")
@@ -22,31 +19,8 @@ logger = logging.getLogger("script")
 SCRATCH_DIR = os.getenv("SCRATCHDIR", "/Projects/Data/DF20M/")
 
 
-def set_cuda_device(cuda_devices: str):
-    """TODO add docstring."""
-    os.environ["CUDA_VISIBLE_DEVICES"] = cuda_devices
-    torch.cuda.device_count()  # fix CUDA_VISIBLE_DEVICES setting
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Using device: {device}")
-    return device
-
-
-def load_config(config_path: str) -> Tuple[dict, str]:
-    """TODO add docstring."""
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
-    config["image_size"] = (
-        config["image_size"][0]["width"],
-        config["image_size"][1]["height"],
-    )
-    run_name = f"{config['architecture']}-{config['loss']}-{config['augmentations']}"
-    logger.info(f"Setting run name: {run_name}")
-    logger.info(f"Using training config: {json.dumps(config, indent=4)}")
-    return config, run_name
-
-
 def load_metadata() -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """TODO add docstring."""
+    """Load metadata of the training and validation sets."""
     train_df = pd.read_csv("../../metadata/DanishFungi2020-Mini_train_metadata_DEV.csv")
     logger.info(f"Loaded training metadata. Number of samples: {len(train_df)}")
 
@@ -72,7 +46,7 @@ def load_metadata() -> Tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def add_metadata_info_to_config(config: dict, train_df: pd.DataFrame, valid_df: pd.DataFrame) -> dict:
-    """TODO add docstring."""
+    """Include information from metadata to the training configuration."""
     config["number_of_classes"] = len(train_df["class_id"].unique())
     config["training_samples"] = len(train_df)
     config["test_samples"] = len(valid_df)
@@ -80,7 +54,7 @@ def add_metadata_info_to_config(config: dict, train_df: pd.DataFrame, valid_df: 
 
 
 def load_model(config: dict) -> Tuple[nn.Module, tuple, tuple]:
-    """TODO add docstring."""
+    """Load model with pretrained checkpoint."""
     assert "architecture" in config
     assert "number_of_classes" in config
     model = get_model(config["architecture"], config["number_of_classes"], pretrained=True)
@@ -92,7 +66,7 @@ def load_model(config: dict) -> Tuple[nn.Module, tuple, tuple]:
 
 
 def get_optimizer_and_scheduler(model: nn.Module, config: dict):
-    """TODO add docstring."""
+    """Create optimizer and learning rate scheduler."""
     assert "optimizer" in config
     assert "learning_rate" in config
     assert "scheduler" in config
@@ -103,39 +77,14 @@ def get_optimizer_and_scheduler(model: nn.Module, config: dict):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config-path",
-        help="Path to a training config yaml file.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--cuda-devices",
-        help="Visible cuda devices (cpu,0,1,2,...).",
-        type=str,
-        default="0",
-    )
-    parser.add_argument(
-        "--wandb-entity",
-        help="Entity name for logging experiment to wandb.",
-        type=str,
-        required=False,
-    )
-    parser.add_argument(
-        "--wandb-project",
-        help="Project name for logging experiment to wandb.",
-        type=str,
-        required=False,
-    )
-    args = parser.parse_args()
-
-    device = set_cuda_device(args.cuda_devices)
+    # load script args
+    args, extra_args = load_args()
 
     # load training config
-    config, run_name = load_config(args.config_path)
+    config, run_name = load_config(args.config_path, extra_args, run_name_fmt="architecture-loss-augmentations")
 
-    # set random seed
+    # set device and random seed
+    device = set_cuda_device(args.cuda_devices)
     set_random_seed(config["random_seed"])
 
     # load metadata
@@ -168,7 +117,7 @@ if __name__ == "__main__":
         class_counts = [value_counts[i] for i in range(len(train_df["class_id"].unique()))]
         criterion = SeesawLossWithLogits(class_counts=class_counts)
     else:
-        logger.error(f"Unknown Loss specified --> {config['loss']}")
+        logger.error(f"Unknown loss: {config['loss']}")
         raise ValueError()
 
     # init wandb
@@ -184,6 +133,7 @@ if __name__ == "__main__":
     # train model
     train(
         run_name=run_name,
+        exp_name=config["exp_name"],
         model=model,
         trainloader=trainloader,
         validloader=validloader,
