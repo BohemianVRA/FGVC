@@ -11,10 +11,12 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from fgvc.utils.utils import set_random_seed
+from fgvc.core.metrics import classification_scores
+from fgvc.utils.wandb import log_clf_progress
 
 from .training_utils import concat_arrays, to_device, to_numpy
+from .scores_monitor import ScoresMonitor
 from .training_state import TrainingState
-from .traning_scores import TrainingScores
 
 Scheduler_ = Union[ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR]
 
@@ -54,11 +56,6 @@ class Trainer:
     device
         Device to use (CPU,CUDA,CUDA:0,...).
     """
-
-    # classes to track training state and scores
-    # they can be replaced with custom implementation to track different metrics
-    training_state_cls = TrainingState
-    training_scores_cls = TrainingScores
 
     def __init__(
         self,
@@ -120,9 +117,7 @@ class Trainer:
         preds, targs = to_numpy(preds, targs)
         return preds, targs, _loss
 
-    def train_epoch(
-        self, epoch: int, dataloader: DataLoader, return_preds: bool = False
-    ) -> Tuple[np.ndarray, np.ndarray, float]:
+    def train_epoch(self, epoch: int, dataloader: DataLoader) -> Tuple[float, dict]:
         """Train one epoch.
 
         Parameters
@@ -137,23 +132,24 @@ class Trainer:
 
         Returns
         -------
-        preds
-            Numpy array with predictions.
-        targs
-            Numpy array with ground-truth targets.
-        loss
+        avg_loss
             Average loss.
+        avg_scores
+            Average scores.
         """
         self.model.to(self.device)
         self.model.train()
         self.optimizer.zero_grad()
         num_updates = epoch * len(dataloader)
         avg_loss = 0.0
-        preds_all, targs_all = [], []
-        # TODO - add ScoresMonitor to aggregate scores
+        scores_monitor = ScoresMonitor(
+            metrics_fc=lambda preds, targs: classification_scores(preds, targs, top_k=None, return_dict=True),
+            num_samples=len(dataloader.dataset),
+        )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.train_batch(batch)
             avg_loss += loss / len(dataloader)
+            scores_monitor.update(preds, targs)
 
             # make optimizer step
             if (i - 1) % self.accumulation_steps == 0:
@@ -164,12 +160,7 @@ class Trainer:
                     num_updates += 1
                     self.scheduler.step_update(num_updates=num_updates)
 
-            if return_preds and preds is not None and targs is not None:
-                preds_all.append(preds)
-                targs_all.append(targs)
-
-        preds_all, targs_all = concat_arrays(preds_all, targs_all)
-        return preds_all, targs_all, avg_loss
+        return avg_loss, scores_monitor.avg_scores
 
     def predict_batch(self, batch: Any) -> Tuple[np.ndarray, np.ndarray, float]:
         """Run a prediction iteration on one batch.
@@ -205,7 +196,7 @@ class Trainer:
         preds, targs = to_numpy(preds, targs)
         return preds, targs, loss
 
-    def predict(self, dataloader: DataLoader) -> Tuple[np.ndarray, np.ndarray, float]:
+    def predict(self, dataloader: DataLoader, return_preds: bool = True) -> Tuple[np.ndarray, np.ndarray, float, float]:
         """Run inference.
 
         Parameters
@@ -219,22 +210,28 @@ class Trainer:
             Numpy array with predictions.
         targs
             Numpy array with ground-truth targets.
-        loss
+        avg_loss
             Average loss.
+        avg_scores
+            Average scores.
         """
         self.model.to(self.device)
         self.model.eval()
         avg_loss = 0.0
-        # TODO - add ScoresMonitor to aggregate scores and optionally (preds, targs)
+        scores_monitor = ScoresMonitor(
+            metrics_fc=lambda preds, targs: classification_scores(preds, targs, top_k=3, return_dict=True),
+            num_samples=len(dataloader.dataset),
+        )
         preds_all, targs_all = [], []
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.predict_batch(batch)
             avg_loss += loss / len(dataloader)
-            if preds is not None and targs is not None:
+            scores_monitor.update(preds, targs)
+            if return_preds and preds is not None and targs is not None:
                 preds_all.append(preds)
                 targs_all.append(targs)
         preds_all, targs_all = concat_arrays(preds_all, targs_all)
-        return preds_all, targs_all, avg_loss
+        return preds_all, targs_all, avg_loss, scores_monitor.avg_scores
 
     def make_scheduler_step(self, epoch: int, valid_loss: float):
         """Make scheduler step. Use different arguments depending on the scheduler type.
@@ -274,7 +271,7 @@ class Trainer:
             E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
         """
         # create training state
-        training_state = self.training_state_cls(self.model, run_name, num_epochs, exp_name)
+        training_state = TrainingState(self.model, run_name, num_epochs, exp_name)
 
         # fix random seed
         set_random_seed(seed)
@@ -283,37 +280,42 @@ class Trainer:
         for epoch in range(0, num_epochs):
             # apply training and validation on one epoch
             start_epoch_time = time.time()
-            train_preds, train_targs, train_loss = self.train_epoch(
-                epoch,
-                self.trainloader,
-                return_preds=True,
-            )
-            valid_preds, valid_targs, valid_loss = None, None, None
+            train_loss, train_scores = self.train_epoch(epoch, self.trainloader)
             if self.validloader is not None:
-                valid_preds, valid_targs, valid_loss = self.predict(self.validloader)
+                _, _, valid_loss, valid_scores = self.predict(self.validloader, return_preds=False)
+            else:
+                valid_loss, valid_scores = None, None
             elapsed_epoch_time = time.time() - start_epoch_time
 
             # make a scheduler step
             self.make_scheduler_step(epoch + 1, valid_loss)
 
             # evaluate and log scores
-            training_scores = self.training_scores_cls(
-                elapsed_epoch_time,
-                train_preds,
-                train_targs,
-                train_loss,
-                valid_preds,
-                valid_targs,
-                valid_loss,
+            log_clf_progress(
+                epoch + 1,
+                train_loss=train_loss,
+                valid_loss=valid_loss,
+                train_acc=train_scores["Acc"],
+                train_f1=train_scores["F1"],
+                valid_acc=valid_scores["Acc"],
+                valid_acc3=valid_scores["Recall@3"],
+                valid_f1=valid_scores["F1"],
+                lr=self.optimizer.param_groups[0]["lr"],
             )
-            training_scores.log_wandb(epoch + 1, lr=self.optimizer.param_groups[0]["lr"])
+            _scores = {
+                "avg_train_loss": f"{train_loss:.4f}",
+                "avg_val_loss": f"{valid_loss:.4f}",
+                **{s: f"{valid_scores[s]:.2%}" for s in ["F1", "Acc", "Recall@3"]},
+                "time": f"{elapsed_epoch_time:.0f}s",
+            }
+            scores_str = "\t".join([f"{k}: {v}" for k, v in _scores.items()])
 
             # log scores to file and save model checkpoints
             training_state.step(
                 epoch + 1,
-                scores_str=training_scores.to_str(),
+                scores_str=scores_str,
                 valid_loss=valid_loss,
-                valid_metrics=training_scores.get_checkpoint_metrics(),
+                valid_metrics={"accuracy": valid_scores["Acc"], "f1": valid_scores["F1"]},
             )
 
         # save last checkpoint, log best scores and total training time

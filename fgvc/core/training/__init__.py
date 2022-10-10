@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 from .trainer import Trainer, Scheduler_
 from .training_state import TrainingState
-from .traning_scores import TrainingScores
+
 
 def train(
     run_name: str,
@@ -74,7 +74,7 @@ def predict(
     *,
     criterion: nn.Module = None,
     device: torch.device = None,
-) -> Tuple[np.ndarray, np.ndarray, float]:
+) -> Tuple[np.ndarray, np.ndarray, float, float]:
     """Run inference.
 
     Parameters
@@ -94,8 +94,10 @@ def predict(
         Numpy array with predictions.
     targs
         Numpy array with ground-truth targets.
-    loss
+    avg_loss
         Average loss.
+    avg_scores
+        Average scores.
     """
     trainer = Trainer(model, None, criterion, None, device=device)
-    return trainer.predict(testloader)
+    return trainer.predict(testloader, return_preds=True)
