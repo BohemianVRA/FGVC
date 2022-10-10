@@ -11,32 +11,19 @@ import wandb
 from fgvc.core.metrics import classification_scores
 from fgvc.core.training import predict
 from fgvc.datasets import get_dataloaders
+from fgvc.utils.experiment import load_config
+from fgvc.utils.utils import set_cuda_device
 from fgvc.utils.wandb import log_test_scores
 
-from .train import load_config, load_model, set_cuda_device
+from .train import load_model
 
 logger = logging.getLogger("script")
 
 SCRATCH_DIR = os.getenv("SCRATCHDIR", "/Projects/Data/DF20M/")
 
 
-def load_metadata() -> pd.DataFrame:
-    """TODO add docstring."""
-    test_df = pd.read_csv("../../metadata/DanishFungi2020-Mini_test_metadata_DEV.csv")
-    logger.info(f"Loaded test metadata. Number of samples: {len(test_df)}")
-
-    test_df["image_path"] = (
-        test_df["image_path"]
-        .str.split("/Datasets/SvampeAtlas-14.12.2020/")
-        .str[-1]
-        .str.replace(".jpg", ".JPG", regex=False)
-        .apply(lambda x: f"{SCRATCH_DIR}/{x}")
-    )
-
-    return test_df
-
-
-if __name__ == "__main__":
+def load_args():
+    """Load script arguments using `argparse` library."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--wandb-run-id",
@@ -68,7 +55,30 @@ if __name__ == "__main__":
         action="store_true",
     )
     args = parser.parse_args()
+    return args
 
+
+def load_metadata() -> pd.DataFrame:
+    """Load metadata of the test set."""
+    test_df = pd.read_csv("../../metadata/DanishFungi2020-Mini_test_metadata_DEV.csv")
+    logger.info(f"Loaded test metadata. Number of samples: {len(test_df)}")
+
+    test_df["image_path"] = (
+        test_df["image_path"]
+        .str.split("/Datasets/SvampeAtlas-14.12.2020/")
+        .str[-1]
+        .str.replace(".jpg", ".JPG", regex=False)
+        .apply(lambda x: f"{SCRATCH_DIR}/{x}")
+    )
+
+    return test_df
+
+
+if __name__ == "__main__":
+    # load script args
+    args = load_args()
+
+    # set device
     device = set_cuda_device(args.cuda_devices)
 
     # load training config
