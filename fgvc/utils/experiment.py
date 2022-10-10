@@ -159,7 +159,7 @@ def load_config(
         config["exp_name"] = f"exp{last_exp + 1}"
     else:
         config["exp_name"] = "exp1"
-    os.makedirs(config["exp_name"], exist_ok=False)
+    os.makedirs(os.path.join(path, config["exp_name"]), exist_ok=False)
 
     logger.info(f"Setting run name: {run_name}")
     logger.info(f"Using training config: {json.dumps(config, indent=4)}")
