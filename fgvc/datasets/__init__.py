@@ -8,6 +8,20 @@ from torch.utils.data import DataLoader
 from fgvc.core.augmentations import heavy_transforms, light_transforms
 
 from .image_dataset import ImageDataset
+from .poison_dataset import PoisonDataset
+from .prediction_dataset import PredictionDataset
+from .segmentation_dataset import BinarySegmentationDataset
+from .taxonomy_dataset import TaxonomyDataset, TaxonomyQuadrupleDataset
+
+__all__ = (
+    "ImageDataset",
+    "PoisonDataset",
+    "PredictionDataset",
+    "BinarySegmentationDataset",
+    "TaxonomyDataset",
+    "TaxonomyQuadrupleDataset",
+    "get_dataloaders",
+)
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
