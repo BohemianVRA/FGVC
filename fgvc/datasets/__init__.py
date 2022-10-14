@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Type
+from typing import Optional, Tuple, Type, Union
 
 import pandas as pd
 from PIL import ImageFile
@@ -6,7 +6,8 @@ from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from torch.utils.data import DataLoader
 
 from fgvc.core.augmentations import heavy_transforms, light_transforms
-from fgvc.datasets.image_dataset import ImageDataset
+
+from .image_dataset import ImageDataset
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -32,8 +33,8 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def get_dataloaders(
-    train_df: Optional[pd.DataFrame],
-    valid_df: Optional[pd.DataFrame],
+    train_data: Optional[Union[pd.DataFrame, list, dict]],
+    val_data: Optional[Union[pd.DataFrame, list, dict]],
     augmentations: str,
     image_size: tuple,
     model_mean: tuple = IMAGENET_DEFAULT_MEAN,
@@ -45,34 +46,36 @@ def get_dataloaders(
     """TODO add docstring."""
     # create training and validation augmentations
     if augmentations == "light":
-        train_tfms, valid_tfms = light_transforms(image_size=image_size, mean=model_mean, std=model_std)
+        train_tfm, val_tfm = light_transforms(image_size=image_size, mean=model_mean, std=model_std)
     elif augmentations == "heavy":
-        train_tfms, valid_tfms = heavy_transforms(image_size=image_size, mean=model_mean, std=model_std)
+        train_tfm, val_tfm = heavy_transforms(image_size=image_size, mean=model_mean, std=model_std)
     else:
         raise NotImplementedError()
 
-    # create training and validation datasets
-    trainset, validset = None, None
-    if train_df is not None:
-        trainset = dataset_cls(train_df, transform=train_tfms)
-    if valid_df is not None:
-        validset = dataset_cls(valid_df, transform=valid_tfms)
-
-    # create training and validation dataloaders
-    trainloader, validloader = None, None
-    if train_df is not None:
+    # create training dataset and dataloader
+    if train_data is not None:
+        trainset = dataset_cls(train_data, transform=train_tfm)
         trainloader = DataLoader(
             trainset,
             batch_size=batch_size,
             num_workers=num_workers,
             shuffle=True,
         )
-    if valid_df is not None:
+    else:
+        trainset = None
+        trainloader = None
+
+    # create validation dataset and dataloader
+    if val_data is not None:
+        validset = dataset_cls(val_data, transform=val_tfm)
         validloader = DataLoader(
             validset,
             batch_size=batch_size,
             num_workers=num_workers,
             shuffle=False,
         )
+    else:
+        validset = None
+        validloader = None
 
-    return trainloader, validloader, (trainset, validset), (train_tfms, valid_tfms)
+    return trainloader, validloader, (trainset, validset), (train_tfm, val_tfm)
