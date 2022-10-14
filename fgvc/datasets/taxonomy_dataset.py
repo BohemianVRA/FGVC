@@ -1,13 +1,15 @@
 from typing import Tuple
 
+import albumentations as A
 import numpy as np
+import pandas as pd
 import torch
 
 from fgvc.datasets.image_dataset import ImageDataset
 
 
 class TaxonomyDataset(ImageDataset):
-    def __init__(self, df, transform=None):
+    def __init__(self, df: pd.DataFrame, transform: A.Compose = None):
         assert "genus_id" in df
         assert "family_id" in df
         super().__init__(df, transform)
@@ -15,7 +17,7 @@ class TaxonomyDataset(ImageDataset):
     def __len__(self):
         return len(self.df)
 
-    def __getitem__(self, idx) -> Tuple[torch.Tensor, dict, str]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, dict, str]:
         image, file_path = self.get_image(idx)
         species_id = self.get_class_id(idx)
         genus_id = self.get_genus_id(idx)
@@ -34,7 +36,7 @@ class TaxonomyDataset(ImageDataset):
 
 
 class TaxonomyQuadrupleDataset(TaxonomyDataset):
-    def __getitem__(self, idx) -> Tuple[torch.Tensor, int, str]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, list]:
         image, file_path = self.get_image(idx)
         class_id = self.get_class_id(idx)
         genus_id = self.get_genus_id(idx)

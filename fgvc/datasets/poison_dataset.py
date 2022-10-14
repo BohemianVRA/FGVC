@@ -1,16 +1,18 @@
 from typing import Tuple
 
+import albumentations as A
+import pandas as pd
 import torch
 
 from fgvc.datasets.image_dataset import ImageDataset
 
 
 class PoisonDataset(ImageDataset):
-    def __init__(self, df, transform=None):
+    def __init__(self, df: pd.DataFrame, transform: A.Compose = None):
         assert "poisonous" in df
         super().__init__(df, transform)
 
-    def __getitem__(self, idx) -> Tuple[torch.Tensor, int, str, int]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str, int]:
         image, file_path = self.get_image(idx)
         class_id = self.get_class_id(idx)
         poisonous = self.df["poisonous"].iloc[idx]

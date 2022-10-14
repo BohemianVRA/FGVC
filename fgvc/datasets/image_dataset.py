@@ -1,5 +1,6 @@
 from typing import Tuple
 
+import albumentations as A
 import numpy as np
 import pandas as pd
 import torch
@@ -8,7 +9,7 @@ from torch.utils.data import Dataset
 
 
 class ImageDataset(Dataset):
-    def __init__(self, df: pd.DataFrame, transform=None):
+    def __init__(self, df: pd.DataFrame, transform: A.Compose = None):
         assert "image_path" in df
         assert "class_id" in df
         self.df = df
@@ -17,7 +18,7 @@ class ImageDataset(Dataset):
     def __len__(self):
         return len(self.df)
 
-    def __getitem__(self, idx) -> Tuple[torch.Tensor, int, str]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str]:
         image, file_path = self.get_image(idx)
         class_id = self.get_class_id(idx)
         image = self.apply_transforms(image)
