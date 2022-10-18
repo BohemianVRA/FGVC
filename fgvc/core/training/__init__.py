@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Type
 
 import numpy as np
 import torch
@@ -6,8 +6,12 @@ import torch.nn as nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
-from .trainer import Trainer, Scheduler_
-from .training_state import TrainingState
+from .base_trainer import BaseTrainer
+from .classification_trainer import ClassificationTrainer
+from .scheduler_mixin import SchedulerType
+from .segmentation_trainer import SegmentationTrainer
+
+__all__ = ["ClassificationTrainer", "SegmentationTrainer", "train", "predict"]
 
 
 def train(
@@ -18,12 +22,13 @@ def train(
     optimizer: Optimizer,
     *,
     validloader: DataLoader = None,
-    scheduler: Scheduler_ = None,
+    scheduler: SchedulerType = None,
     num_epochs: int = 1,
     accumulation_steps: int = 1,
     device: torch.device = None,
     seed: int = 777,
     exp_name: str = None,
+    trainer_cls: Type[BaseTrainer] = ClassificationTrainer,
 ):
     """Train neural network.
 
@@ -55,11 +60,11 @@ def train(
         Experiment name for saving run artefacts like checkpoints or logs.
         E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
     """
-    trainer = Trainer(
-        model,
-        trainloader,
-        criterion,
-        optimizer,
+    trainer = trainer_cls(
+        model=model,
+        trainloader=trainloader,
+        criterion=criterion,
+        optimizer=optimizer,
         validloader=validloader,
         scheduler=scheduler,
         accumulation_steps=accumulation_steps,
@@ -74,6 +79,7 @@ def predict(
     *,
     criterion: nn.Module = None,
     device: torch.device = None,
+    trainer_cls: Type[BaseTrainer] = ClassificationTrainer,
 ) -> Tuple[np.ndarray, np.ndarray, float, float]:
     """Run inference.
 
@@ -99,5 +105,11 @@ def predict(
     avg_scores
         Average scores.
     """
-    trainer = Trainer(model, None, criterion, None, device=device)
+    trainer = trainer_cls(
+        model=model,
+        trainloader=None,
+        criterion=criterion,
+        optimizer=None,
+        device=device,
+    )
     return trainer.predict(testloader, return_preds=True)

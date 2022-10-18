@@ -138,13 +138,13 @@ def binary_segmentation_scores(preds: np.ndarray, targs: np.ndarray, reduction: 
 
     # compute scores
     scores = {
-        # "acc": (tp + tn) / (tp + tn + fp + fn)
-        "balanced_acc": (r + spec) / 2,
-        "recall": r,
-        "precision": p,
-        # "specificity": spec,
-        "f1": divide((2 * p * r), (p + r)),
-        "iou": divide(tp, (tp + fp + fn)),
+        # "Acc": (tp + tn) / (tp + tn + fp + fn)
+        "BalancedAcc": (r + spec) / 2,
+        "Recall": r,
+        "Precision": p,
+        # "Specificity": spec,
+        "F1": divide((2 * p * r), (p + r)),
+        "IOU": divide(tp, (tp + fp + fn)),
     }
     if reduction == "mean":
         scores = {k: v.mean() for k, v in scores.items()}
