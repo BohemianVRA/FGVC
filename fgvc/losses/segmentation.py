@@ -36,7 +36,7 @@ class DiceLoss(nn.Module):
         loss
         """
         preds = F.softmax(preds, 1)
-        loss = self.binary_dice_loss(preds[:, 0], 1 - targs) + self.binary_dice_loss(  # background class
-            preds[:, 1], targs
-        )  # foreground class
+        bg_loss = self.binary_dice_loss(preds[:, 0], 1 - targs)  # background class
+        fg_loss = self.binary_dice_loss(preds[:, 1], targs)  # foreground class
+        loss = bg_loss + fg_loss
         return loss

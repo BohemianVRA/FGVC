@@ -8,6 +8,7 @@ Hacked together by Ross Wightman
 
 from typing import List, Optional
 
+import timm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -126,12 +127,8 @@ class DecoderBlock(nn.Module):
             self.conv1 = Conv2dBnAct(in_channels, out_channels, **conv_args)
             self.conv2 = Conv2dBnAct(out_channels, out_channels, **conv_args)
         else:
-            self.conv1 = Conv2dBnAct(
-                in_channels, out_channels, norm_layer=norm_layer, **conv_args
-            )
-            self.conv2 = Conv2dBnAct(
-                out_channels, out_channels, norm_layer=norm_layer, **conv_args
-            )
+            self.conv1 = Conv2dBnAct(in_channels, out_channels, norm_layer=norm_layer, **conv_args)
+            self.conv2 = Conv2dBnAct(out_channels, out_channels, norm_layer=norm_layer, **conv_args)
 
     def forward(self, x, skip: Optional[torch.Tensor] = None):
         """Run forward pass."""
@@ -158,9 +155,7 @@ class UnetDecoder(nn.Module):
 
         if center:
             channels = encoder_channels[0]
-            self.center = DecoderBlock(
-                channels, channels, scale_factor=1.0, norm_layer=norm_layer
-            )
+            self.center = DecoderBlock(channels, channels, scale_factor=1.0, norm_layer=norm_layer)
         else:
             self.center = nn.Identity()
 
@@ -185,9 +180,7 @@ class UnetDecoder(nn.Module):
                     norm_layer=norm_layer,
                 )
             )
-        self.final_conv = nn.Conv2d(
-            out_channels[-1], final_channels, kernel_size=(1, 1)
-        )
+        self.final_conv = nn.Conv2d(out_channels[-1], final_channels, kernel_size=(1, 1))
 
         self._init_weight()
 
@@ -209,3 +202,31 @@ class UnetDecoder(nn.Module):
             x = b(x, skip)
         x = self.final_conv(x)
         return x
+
+
+def create_unet(arch_name: str, num_classes: int, pretrained: bool = True, **kwargs) -> nn.Module:
+    """Create U-Net model with backbone from timm library.
+
+    Parameters
+    ----------
+    arch_name
+        Architecture name of a backbone.
+    num_classes
+        Number of classes the U-Net predicts.
+    pretrained
+        If True, use pretrained checkpoint.
+
+    Returns
+    -------
+    model
+        PyTorch instance of a neural network.
+    """
+    encoder = timm.create_model(
+        arch_name,
+        features_only=True,
+        out_indices=None,
+        in_chans=3,
+        pretrained=pretrained,
+    )
+    model = Unet(encoder, num_classes, **kwargs)
+    return model

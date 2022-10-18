@@ -81,15 +81,15 @@ def get_dataloaders(
 
     # create validation dataset and dataloader
     if val_data is not None:
-        validset = dataset_cls(val_data, transform=val_tfm)
-        validloader = DataLoader(
-            validset,
+        valset = dataset_cls(val_data, transform=val_tfm)
+        valloader = DataLoader(
+            valset,
             batch_size=batch_size,
             num_workers=num_workers,
             shuffle=False,
         )
     else:
-        validset = None
-        validloader = None
+        valset = None
+        valloader = None
 
-    return trainloader, validloader, (trainset, validset), (train_tfm, val_tfm)
+    return trainloader, valloader, (trainset, valset), (train_tfm, val_tfm)
