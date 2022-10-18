@@ -10,7 +10,7 @@ from sklearn.metrics import (
 
 
 def classification_scores(
-    preds: np.ndarray, targs: np.ndarray, *, top_k: Optional[int] = 3
+    preds: np.ndarray, targs: np.ndarray, *, top_k: Optional[int] = 3, return_dict: bool = False
 ) -> Tuple[float, float, float]:
     """Compute top-1 and top-k accuracy and f1 score.
 
@@ -22,6 +22,8 @@ def classification_scores(
         Numpy array with ground-truth targets.
     top_k
         Value of k to compute top k accuracy.
+    return_dict
+        If True, the method returns dictionary with metrics.
 
     Returns
     -------
@@ -34,12 +36,19 @@ def classification_scores(
     """
     preds_argmax = preds.argmax(1)
     labels = np.arange(preds.shape[1])
+
     acc = accuracy_score(targs, preds_argmax)
     acc_k = None
     if top_k is not None and preds.shape[1] > top_k:
         acc_k = top_k_accuracy_score(targs, preds, k=top_k, labels=labels)
     f1 = f1_score(targs, preds_argmax, labels=labels, average="macro")
-    return acc, acc_k, f1
+
+    if return_dict:
+        out = {"Acc": acc, f"Recall@{top_k}": acc_k, "F1": f1}
+    else:
+        out = acc, acc_k, f1
+
+    return out
 
 
 def binary_segmentation_tp_fp_fn_tn(
@@ -129,13 +138,13 @@ def binary_segmentation_scores(preds: np.ndarray, targs: np.ndarray, reduction: 
 
     # compute scores
     scores = {
-        # "acc": (tp + tn) / (tp + tn + fp + fn)
-        "balanced_acc": (r + spec) / 2,
-        "recall": r,
-        "precision": p,
-        # "specificity": spec,
-        "f1": divide((2 * p * r), (p + r)),
-        "iou": divide(tp, (tp + fp + fn)),
+        # "Acc": (tp + tn) / (tp + tn + fp + fn)
+        "BalancedAcc": (r + spec) / 2,
+        "Recall": r,
+        "Precision": p,
+        # "Specificity": spec,
+        "F1": divide((2 * p * r), (p + r)),
+        "IOU": divide(tp, (tp + fp + fn)),
     }
     if reduction == "mean":
         scores = {k: v.mean() for k, v in scores.items()}
