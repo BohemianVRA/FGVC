@@ -112,7 +112,10 @@ def load_args(args: list = None) -> Tuple[argparse.Namespace, dict]:
 
 
 def load_config(
-    config_path: str, extra_args: dict = None, run_name_fmt: str = "architecture-loss-augmentations"
+    config_path: str,
+    extra_args: dict = None,
+    run_name_fmt: str = "architecture-loss-augmentations",
+    create_dirs: bool = True,
 ) -> Tuple[dict, str]:
     """Load training configuration in YAML format, create run name and experiment name.
 
@@ -124,6 +127,8 @@ def load_config(
         Optional dictionary with parsed unknown args.
     run_name_fmt
         Format of a run name. It should contain attribute names from configuration file separated by "-".
+    create_dirs
+        If True, the method will create run and experiment directory.
 
     Returns
     -------
@@ -159,7 +164,9 @@ def load_config(
         config["exp_name"] = f"exp{last_exp + 1}"
     else:
         config["exp_name"] = "exp1"
-    os.makedirs(os.path.join(path, config["exp_name"]), exist_ok=False)
+
+    if create_dirs:
+        os.makedirs(os.path.join(path, config["exp_name"]), exist_ok=False)
 
     logger.info(f"Setting run name: {run_name}")
     logger.info(f"Using training config: {json.dumps(config, indent=4)}")
