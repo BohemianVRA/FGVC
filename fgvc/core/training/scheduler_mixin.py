@@ -9,9 +9,9 @@ SchedulerType = Union[ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR]
 
 class SchedulerMixin:
     def __init__(self):
-        if getattr(self, "scheduler") is None:
+        if getattr(self, "scheduler", None) is None:
             self.scheduler = None
-        if getattr(self, "validloader") is None:
+        if getattr(self, "validloader", None) is None:
             self.validloader = None
 
     def validate_scheduler(self, scheduler: SchedulerType):
