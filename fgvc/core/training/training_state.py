@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from fgvc.utils.experiment import get_experiment_path
 from fgvc.utils.log import setup_training_logger
 
 
@@ -29,11 +30,7 @@ class TrainingState:
         self.model = model
         self.run_name = run_name
         self.num_epochs = num_epochs
-        if exp_name is not None:
-            assert "/" not in exp_name, "Arg 'exp_name' should not contain character /"
-            self.path = f"runs/{run_name}/{exp_name}"
-        else:
-            self.path = f"runs/{run_name}"
+        self.path = get_experiment_path(run_name, exp_name)
         os.makedirs(self.path, exist_ok=True)
 
         # setup training logger

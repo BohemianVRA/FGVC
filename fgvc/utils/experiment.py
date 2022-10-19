@@ -111,6 +111,16 @@ def load_args(args: list = None) -> Tuple[argparse.Namespace, dict]:
     return args, extra_args
 
 
+def get_experiment_path(run_name: str, exp_name: str = None) -> str:
+    """Create directory path to store experiment files."""
+    if exp_name is not None:
+        assert "/" not in exp_name, "Arg 'exp_name' should not contain character /"
+        experiment_path = f"runs/{run_name}/{exp_name}"
+    else:
+        experiment_path = f"runs/{run_name}"
+    return experiment_path
+
+
 def load_config(
     config_path: str,
     extra_args: dict = None,
