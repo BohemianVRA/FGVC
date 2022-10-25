@@ -92,7 +92,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
         num_updates = epoch * len(dataloader)
         avg_loss = 0.0
         scores_monitor = ScoresMonitor(
-            metrics_fc=lambda preds, targs: binary_segmentation_scores(preds, targs, reduction="sum"),
+            scores_fn=lambda preds, targs: binary_segmentation_scores(preds, targs, reduction="sum"),
             num_samples=len(dataloader.dataset),
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
@@ -135,7 +135,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
         self.model.eval()
         avg_loss = 0.0
         scores_monitor = ScoresMonitor(
-            metrics_fc=lambda preds, targs: binary_segmentation_scores(preds, targs, reduction="sum"),
+            scores_fn=lambda preds, targs: binary_segmentation_scores(preds, targs, reduction="sum"),
             num_samples=len(dataloader.dataset),
         )
         preds_all, targs_all = [], []

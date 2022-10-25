@@ -4,8 +4,8 @@ import numpy as np
 
 
 class ScoresMonitor:
-    def __init__(self, metrics_fc: Callable, num_samples: int):
-        self.metrics_fc = metrics_fc
+    def __init__(self, scores_fn: Callable, num_samples: int):
+        self.metrics_fc = scores_fn
         self.num_samples = num_samples
         self.avg_scores = None
 

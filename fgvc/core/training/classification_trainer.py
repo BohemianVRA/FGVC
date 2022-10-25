@@ -92,7 +92,7 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
         num_updates = epoch * len(dataloader)
         avg_loss = 0.0
         scores_monitor = ScoresMonitor(
-            metrics_fc=lambda preds, targs: classification_scores(preds, targs, top_k=None, return_dict=True),
+            scores_fn=lambda preds, targs: classification_scores(preds, targs, top_k=None, return_dict=True),
             num_samples=len(dataloader.dataset),
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
@@ -135,7 +135,7 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
         self.model.eval()
         avg_loss = 0.0
         scores_monitor = ScoresMonitor(
-            metrics_fc=lambda preds, targs: classification_scores(preds, targs, top_k=3, return_dict=True),
+            scores_fn=lambda preds, targs: classification_scores(preds, targs, top_k=3, return_dict=True),
             num_samples=len(dataloader.dataset),
         )
         preds_all, targs_all = [], []
