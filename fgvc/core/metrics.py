@@ -83,8 +83,8 @@ def binary_segmentation_tp_fp_fn_tn(
     if len(preds.shape) == 4:
         if preds.shape[1] == 1:
             # binary classification with sigmoid activation
-            preds = expit(preds[:, 0])  # apply sigmoid function
-            preds = (preds > 0.5).astype(np.int64)  # threshold the probabilities
+            # apply sigmoid function and threshold the probabilities
+            preds = (expit(preds[:, 0]) > 0.5).astype(np.int64)
         else:
             # binary classification with softmax activation
             preds = preds.argmax(1)
