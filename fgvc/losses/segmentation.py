@@ -36,7 +36,7 @@ class BinaryDiceLoss(nn.Module):
         -------
         loss
         """
-        probs = F.sigmoid(logits)
+        probs = torch.sigmoid(logits)
         bg_loss = binary_dice_loss(1 - probs[:, 0], 1 - targs, eps=self.eps)  # background class
         fg_loss = binary_dice_loss(probs[:, 0], targs, eps=self.eps)  # foreground class
         loss = bg_loss + fg_loss
