@@ -7,8 +7,8 @@ def binary_dice_loss(probs: torch.Tensor, targs: torch.Tensor, eps: float = 1e-3
     """Compute binary Dice Loss."""
     assert probs.shape == targs.shape
     a = (probs * targs).sum(1)
-    b = (probs ** 2).sum(1) + eps
-    c = (targs ** 2).sum(1) + eps
+    b = (probs**2).sum(1) + eps
+    c = (targs**2).sum(1) + eps
     d = (2 * a) / (b + c)
     loss = 1 - d
     return loss.mean()

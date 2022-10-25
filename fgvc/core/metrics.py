@@ -1,13 +1,13 @@
 from typing import Optional, Tuple
 
 import numpy as np
+from scipy.special import expit
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
     multilabel_confusion_matrix,
     top_k_accuracy_score,
 )
-from scipy.special import expit
 
 
 def classification_scores(
@@ -77,7 +77,6 @@ def binary_segmentation_tp_fp_fn_tn(
     tn
         Array [b,] with True Negatives for each sample.
     """
-
     assert len(targs.shape) == 3
     assert pos_label in (0, 1)
     if len(preds.shape) == 4:
