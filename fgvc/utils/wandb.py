@@ -137,12 +137,19 @@ def log_clf_progress(
 
 
 @if_wandb_run_started
-def finish_wandb():
+def finish_wandb() -> str:
     """Finish W&B run.
 
     The method is executed if the W&B run was initialized.
+
+    Returns
+    -------
+    run_id
+        W&B run id.
     """
+    run_id = wandb.run.id
     wandb.finish()
+    return run_id
 
 
 """
