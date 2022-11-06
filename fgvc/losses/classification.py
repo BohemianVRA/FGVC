@@ -3,19 +3,34 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class BCEWithLogitsLoss(nn.Module):
+    """A wapper class for `torch.nn.BCEWithLogitsLoss` that aligns prediction and target shapes and dtypes."""
+
+    def __init__(self, weight: torch.Tensor = None, reduction: str = "mean", pos_weight: torch.Tensor = None):
+        super().__init__()
+        self.criterion = nn.BCEWithLogitsLoss(weight=weight, reduction=reduction, pos_weight=pos_weight)
+
+    def forward(self, logits: torch.Tensor, targs: torch.Tensor) -> torch.Tensor:
+        """Evaluate Binary Cross Entropy Loss."""
+        if len(logits.shape) == len(targs.shape) + 1 and logits.shape[1] == 1:
+            logits = logits.squeeze(1)
+        targs = targs.to(logits.dtype)
+        assert logits.shape == targs.shape
+        return self.criterion(logits, targs)
+
+
 class FocalLossWithLogits(nn.Module):
-    def __init__(self, weight=None, gamma=2.5):
+    def __init__(self, weight: torch.Tensor = None, gamma: float = 2.5):
         super().__init__()
         # weight parameter will act as the alpha parameter to balance class weights
         self.weight = weight
         self.gamma = gamma
-        # self.reduction = "mean"
+        self.reduction = "mean"
 
-    def forward(self, logits, target):
-        """TODO add docstring."""
-        ce_loss = F.cross_entropy(logits, target, reduction="none", weight=self.weight)
-        pt = torch.exp(-ce_loss)
-        focal_loss = (1 - pt) ** self.gamma * ce_loss
+    def forward(self, logits: torch.Tensor, targs: torch.Tensor) -> torch.Tensor:
+        """Evaluate Focal Loss."""
+        ce_loss = F.cross_entropy(logits, targs, reduction="none", weight=self.weight)
+        focal_loss = (1 - torch.exp(-ce_loss)) ** self.gamma * ce_loss
         focal_loss = focal_loss.mean()  # apply mean reduction
         return focal_loss
 
@@ -44,20 +59,20 @@ class SeesawLossWithLogits(nn.Module):
         self.num_labels = len(class_counts)
         self.eps = 1.0e-6
 
-    def forward(self, logits, targets):
-        """TODO add docstring."""
-        targets = F.one_hot(targets, self.num_labels)
-        self.s = self.s.to(targets.device)
+    def forward(self, logits: torch.Tensor, targs: torch.Tensor) -> torch.Tensor:
+        """Evaluate Seesaw Loss."""
+        targs = F.one_hot(targs, self.num_labels)
+        self.s = self.s.to(targs.device)
         max_element, _ = logits.max(axis=-1)
         logits = logits - max_element[:, None]  # to prevent overflow
 
         numerator = torch.exp(logits)
-        denominator = ((1 - targets)[:, None, :] * self.s[None, :, :] * torch.exp(logits)[:, None, :]).sum(
+        denominator = ((1 - targs)[:, None, :] * self.s[None, :, :] * torch.exp(logits)[:, None, :]).sum(
             axis=-1
         ) + torch.exp(logits)
 
         sigma = numerator / (denominator + self.eps)
-        loss = (-targets * torch.log(sigma + self.eps)).sum(-1)
+        loss = (-targs * torch.log(sigma + self.eps)).sum(-1)
         return loss.mean()
 
 
@@ -65,13 +80,13 @@ class DiceLossWithLogits(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, inputs, targets, smooth=1):
-        """TODO add docstring."""
+    def forward(self, logits: torch.Tensor, targs: torch.Tensor, smooth: int = 1) -> torch.Tensor:
+        """Evaluate Dice Loss across images in the batch."""
         # flatten label and prediction tensors
-        inputs = inputs.view(-1)
-        targets = targets.view(-1)
+        logits = logits.view(-1)
+        targs = targs.view(-1)
 
-        intersection = (inputs * targets).sum()
-        dice = (2.0 * intersection + smooth) / (inputs.sum() + targets.sum() + smooth)
+        intersection = (logits * targs).sum()
+        dice = (2.0 * intersection + smooth) / (logits.sum() + targs.sum() + smooth)
 
         return 1 - dice

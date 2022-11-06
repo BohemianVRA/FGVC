@@ -1,6 +1,7 @@
 from typing import Optional, Tuple
 
 import numpy as np
+from scipy.special import expit
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -79,7 +80,13 @@ def binary_segmentation_tp_fp_fn_tn(
     assert len(targs.shape) == 3
     assert pos_label in (0, 1)
     if len(preds.shape) == 4:
-        preds = preds.argmax(1)
+        if preds.shape[1] == 1:
+            # binary classification with sigmoid activation
+            # apply sigmoid function and threshold the probabilities
+            preds = (expit(preds[:, 0]) > 0.5).astype(np.int64)
+        else:
+            # binary classification with softmax activation
+            preds = preds.argmax(1)
     assert preds.shape == targs.shape
     assert np.all(np.isin(preds, [0, 1])), "The method supports only binary classification"
     assert np.all(np.isin(targs, [0, 1])), "The method supports only binary classification"
