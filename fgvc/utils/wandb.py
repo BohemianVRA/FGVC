@@ -136,13 +136,22 @@ def log_clf_progress(
     )
 
 
+@if_wandb_run_started
+def finish_wandb():
+    """Finish W&B run.
+
+    The method is executed if the W&B run was initialized.
+    """
+    wandb.finish()
+
+
 """
 W&B methods used after training - after W&B run is finished.
 """
 
 
 @if_wandb_is_installed
-def get_runs_df(entity: str, project: str, config_cols: List[str], summary_cols: List[str]) -> pd.DataFrame:
+def get_runs_df(entity: str, project: str, config_cols: List[str] = [], summary_cols: List[str] = []) -> pd.DataFrame:
     """Get a DataFrame with W&B runs for the given entity/project.
 
     The method is executed if the `wandb` library is installed.
@@ -173,8 +182,8 @@ def get_runs_df(entity: str, project: str, config_cols: List[str], summary_cols:
             "state": run.state,
             "epochs": len(run.history()),
             "run": run,
-            **{col: run.config[col] for col in config_cols},
-            **{col: run.summary[col] for col in summary_cols},
+            **{col: run.config.get(col) for col in config_cols},
+            **{col: run.summary.get(col) for col in summary_cols},
         }
         for run in runs
     ]
