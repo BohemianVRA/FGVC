@@ -9,9 +9,10 @@ from torch.utils.data import DataLoader
 from .base_trainer import BaseTrainer
 from .classification_trainer import ClassificationTrainer
 from .scheduler_mixin import SchedulerType
+from .scores_monitor import ScoresMonitor
 from .segmentation_trainer import SegmentationTrainer
 
-__all__ = ["ClassificationTrainer", "SegmentationTrainer", "train", "predict"]
+__all__ = ["ClassificationTrainer", "SegmentationTrainer", "ScoresMonitor", "train", "predict"]
 
 
 def train(
