@@ -1,4 +1,7 @@
 import logging
+import warnings
+from functools import wraps
+from typing import List, Tuple
 
 import pandas as pd
 
@@ -12,34 +15,75 @@ except (ImportError, AssertionError):
 logger = logging.getLogger("fgvc")
 
 
-def init_wandb(config, run_name, entity, project, **kwargs):
-    """TODO add docstring."""
-    if wandb is not None:
-        wandb.init(project=project, entity=entity, name=run_name, config=config, **kwargs)
+def if_wandb_is_installed(func: callable):
+    """A decorator function that checks if the `wandb` library is installed."""
 
-        # # Log 0 epoch values
-        # wandb.log(
-        #     {
-        #         "Train. loss (avr.)": np.inf,
-        #         "Val. loss (avr.)": np.inf,
-        #         "Val. F1": 0,
-        #         "Val. Accuracy": 0,
-        #         "Val. Recall@3": 0,
-        #         "Learning Rate": config["learning_rate"],
-        #         "Train. Accuracy": 0,
-        #         "Train. F1": 0,
-        #     },
-        #     step=0,
-        #     commit=True,
-        # )
+    @wraps(func)
+    def decorator(*args, **kwargs):
+        if wandb is not None:
+            return func(*args, **kwargs)
+        else:
+            warnings.warn("Library wandb is not installed.")
+
+    return decorator
 
 
+def if_wandb_run_started(func: callable):
+    """A decorator function that checks if the `wandb` library is installed and W&B run is initialized."""
+
+    @wraps(func)
+    def decorator(*args, **kwargs):
+        if wandb is not None and wandb.run is not None:
+            return func(*args, **kwargs)
+
+    return decorator
+
+
+"""
+W&B methods used during training, before W&B run is finished.
+"""
+
+
+@if_wandb_is_installed
+def init_wandb(config: dict, run_name: str, entity: str, project: str, **kwargs):
+    """Initialize a new W&B run.
+
+    The method is executed if the `wandb` library is installed.
+
+    Parameters
+    ----------
+    config
+        A dictionary with experiment configuration.
+    run_name
+        Name of W&B run.
+    entity
+        Name of W&B entity.
+    project
+        Name of W&B project.
+    """
+    wandb.init(project=project, entity=entity, name=run_name, config=config, **kwargs)
+
+
+@if_wandb_run_started
 def log_progress(epoch: int, scores: dict, commit: bool = True):
-    """TODO add docstring."""
-    if wandb is not None and wandb.run is not None:
-        wandb.log(scores, step=epoch, commit=commit)
+    """Log a dictionary with scores or other data to W&B run.
+
+    The method is executed if the W&B run was initialized.
+
+    Parameters
+    ----------
+    epoch
+        Current training epoch.
+    scores
+        A dictionary with scores or other data to log.
+    commit
+        If true save the scores to the W&B and increment the step.
+        Otherwise, only update the current score dictionary.
+    """
+    wandb.log(scores, step=epoch, commit=commit)
 
 
+@if_wandb_run_started
 def log_clf_progress(
     epoch: int,
     train_loss: float,
@@ -51,83 +95,180 @@ def log_clf_progress(
     valid_f1: float,
     lr: float,
 ):
-    """TODO add docstring."""
-    if wandb is not None and wandb.run is not None:
-        wandb.log(
-            {
-                "Train. loss (avr.)": train_loss,
-                "Val. loss (avr.)": valid_loss,
-                "Val. F1": valid_f1,
-                "Val. Accuracy": valid_acc,
-                "Val. Recall@3": valid_acc3,
-                "Learning Rate": lr,
-                "Train. Accuracy": train_acc,
-                "Train. F1": train_f1,
-            },
-            step=epoch,
-            commit=True,
-        )
+    """Log classification scores to W&B run.
+
+    The method is executed if the W&B run was initialized.
+
+    Parameters
+    ----------
+    epoch
+        Current training epoch.
+    train_loss
+        Training loss.
+    valid_loss
+        Validation loss.
+    train_acc
+        Training Top-1 accuracy.
+    train_f1
+        Training F1 score.
+    valid_acc
+        Validation Top-1 accuracy.
+    valid_acc3
+        Validation Top-3 accuracy.
+    valid_f1
+        Validation F1 score.
+    lr
+        Learning rate.
+    """
+    wandb.log(
+        {
+            "Train. loss (avr.)": train_loss,
+            "Val. loss (avr.)": valid_loss,
+            "Val. F1": valid_f1,
+            "Val. Accuracy": valid_acc,
+            "Val. Recall@3": valid_acc3,
+            "Learning Rate": lr,
+            "Train. Accuracy": train_acc,
+            "Train. F1": train_f1,
+        },
+        step=epoch,
+        commit=True,
+    )
 
 
-def log_test_scores(
-    run,
-    test_acc: float,
-    test_acc3: float,
-    test_f1: float,
-):
-    """TODO add docstring."""
-    run.summary["Test. F1"] = test_f1
-    run.summary["Test. Accuracy"] = test_acc
-    run.summary["Test. Recall@3"] = test_acc3
-    run.update()
+@if_wandb_run_started
+def finish_wandb() -> str:
+    """Finish W&B run.
+
+    The method is executed if the W&B run was initialized.
+
+    Returns
+    -------
+    run_id
+        W&B run id.
+    """
+    run_id = wandb.run.id
+    wandb.finish()
+    return run_id
 
 
-def get_runs_df(entity: str, project: str):
-    """TODO add docstring."""
-    import wandb
+"""
+W&B methods used after training - after W&B run is finished.
+"""
 
-    # get runs from wandb
+
+@if_wandb_is_installed
+def get_runs_df(entity: str, project: str, config_cols: List[str] = [], summary_cols: List[str] = []) -> pd.DataFrame:
+    """Get a DataFrame with W&B runs for the given entity/project.
+
+    The method is executed if the `wandb` library is installed.
+
+    Parameters
+    ----------
+    entity
+        Name of W&B entity.
+    project
+        Name of W&B project.
+    config_cols
+        Columns from W&B run configuration to include into the DataFrame.
+    summary_cols
+        Columns from W&B run summary to include into the DataFrame.
+
+    Returns
+    -------
+    A DataFrame with W&B runs.
+    """
     api = wandb.Api()
     runs = api.runs(f"{entity}/{project}")
 
     # create dataframe
-    records = []
-    for run in runs:
-        # remove special values that start with _
-        config = {k: v for k, v in run.config.items() if not k.startswith("_")}
-        # call ._json_dict to omit large files
-        scores = run.summary._json_dict
-        # add custom variables
-        custom = {"logged_epochs": len(run.history())}
-        if "epochs" in config:
-            custom["finished"] = custom["logged_epochs"] > config["epochs"]
-        records.append(
-            {
-                "id": run.id,
-                "name": run.name,
-                "tags": run.tags,
-                **custom,
-                **config,
-                **scores,
-            }
-        )
+    runs = [
+        {
+            "id": run.id,
+            "name": run.name,
+            "state": run.state,
+            "epochs": len(run.history()),
+            "run": run,
+            **{col: run.config.get(col) for col in config_cols},
+            **{col: run.summary.get(col) for col in summary_cols},
+        }
+        for run in runs
+    ]
+    runs_df = pd.DataFrame(runs).set_index("id")
 
-    runs_df = pd.DataFrame(records)
     return runs_df
 
 
-def update_wandb_run_test_performance(run, performance_2017, performance_2018):
-    """TODO add docstring."""
-    run.summary["PlantCLEF2017 | Test Acc. (img.)"] = performance_2017["acc"]
-    run.summary["PlantCLEF2017 | Test Acc. (obs. - max logit)"] = performance_2017["max_logits_acc"]
-    run.summary["PlantCLEF2017 | Test Acc. (obs. - mean logits)"] = performance_2017["mean_logits_acc"]
-    run.summary["PlantCLEF2017 | Test Acc. (obs. - max softmax)"] = performance_2017["max_softmax_acc"]
-    run.summary["PlantCLEF2017 | Test Acc. (obs. - mean softmax)"] = performance_2017["mean_softmax_acc"]
+@if_wandb_is_installed
+def log_summary_scores(
+    run_path: str,
+    scores: dict,
+    allow_new: bool = True,
+):
+    """Log scores to W&B run summary, after the W&B run is finished.
 
-    run.summary["PlantCLEF2018 | Test Acc. (img.)"] = performance_2018["acc"]
-    run.summary["PlantCLEF2018 | Test Acc. (obs. - max logit)"] = performance_2018["max_logits_acc"]
-    run.summary["PlantCLEF2018 | Test Acc. (obs. - mean logits)"] = performance_2018["mean_logits_acc"]
-    run.summary["PlantCLEF2018 | Test Acc. (obs. - max softmax)"] = performance_2018["max_softmax_acc"]
-    run.summary["PlantCLEF2018 | Test Acc. (obs. - mean softmax)"] = performance_2018["mean_softmax_acc"]
+    The method is executed if the `wandb` library is installed.
 
+    Parameters
+    ----------
+    run_path
+        A W&B path to run in the form `entity/project/run_id`.
+    scores
+        A dictionary of scores to update in the W&B run summary.
+    allow_new
+        If false the method checks if each passed score already exists in W&B run summary
+        and raises ValueError if the score does not exist.
+    """
+    api = wandb.Api()
+    run = api.run(run_path)
+    for k, v in scores.items():
+        if not allow_new and k not in run.summary:
+            raise ValueError(f"Key '{k}' not found in wandb run summary.")
+        run.summary[k] = v
     run.update()
+
+
+@if_wandb_is_installed
+def set_best_scores_in_summary(run_path: str, primary_score: str, scores: Tuple[list, callable]):
+    """Update W&B run summary with the best scores achieved during training instead of last epoch scores.
+
+    The method is executed if the `wandb` library is installed.
+
+    Parameters
+    ----------
+    run_path
+        A W&B path to run in the form `entity/project/run_id`.
+    primary_score
+        A score in the W&B run history based on which the best epoch is selected.
+    scores
+        A list of score to update in the W&B run summary.
+    """
+    api = wandb.Api()
+    run = api.run(run_path)
+
+    history_df = run.history()
+    assert primary_score in history_df, f"Key '{primary_score}' not found in wandb run history."
+    best_idx = history_df[primary_score].idxmax()
+    best_epoch = history_df.loc[best_idx, "_step"]
+    best_scores = history_df.loc[best_idx, scores].to_dict()
+
+    for k, v in best_scores.items():
+        run.summary[k] = v
+    run.summary["best_epoch"] = best_epoch
+    run.update()
+
+
+# def update_wandb_run_test_performance(run, performance_2017, performance_2018):
+#     run.summary["PlantCLEF2017 | Test Acc. (img.)"] = performance_2017["acc"]
+#     run.summary["PlantCLEF2017 | Test Acc. (obs. - max logit)"] = performance_2017["max_logits_acc"]
+#     run.summary["PlantCLEF2017 | Test Acc. (obs. - mean logits)"] = performance_2017["mean_logits_acc"]
+#     run.summary["PlantCLEF2017 | Test Acc. (obs. - max softmax)"] = performance_2017["max_softmax_acc"]
+#     run.summary["PlantCLEF2017 | Test Acc. (obs. - mean softmax)"] = performance_2017["mean_softmax_acc"]
+#
+#     run.summary["PlantCLEF2018 | Test Acc. (img.)"] = performance_2018["acc"]
+#     run.summary["PlantCLEF2018 | Test Acc. (obs. - max logit)"] = performance_2018["max_logits_acc"]
+#     run.summary["PlantCLEF2018 | Test Acc. (obs. - mean logits)"] = performance_2018["mean_logits_acc"]
+#     run.summary["PlantCLEF2018 | Test Acc. (obs. - max softmax)"] = performance_2018["max_softmax_acc"]
+#     run.summary["PlantCLEF2018 | Test Acc. (obs. - mean softmax)"] = performance_2018["mean_softmax_acc"]
+#
+#     run.update()
