@@ -147,10 +147,9 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
                     n = len(dataloader.dataset)
                     preds_all = np.zeros((n, *preds.shape[1:]), dtype=preds.dtype)
                     targs_all = np.zeros((n, *targs.shape[1:]), dtype=targs.dtype)
-                else:
-                    bs = preds.shape[0]
-                    preds_all[i * bs : (i + 1) * bs] = preds
-                    targs_all[i * bs : (i + 1) * bs] = targs
+                bs = dataloader.batch_size
+                preds_all[i * bs : (i + 1) * bs] = preds
+                targs_all[i * bs : (i + 1) * bs] = targs
         return preds_all, targs_all, avg_loss, scores_monitor.avg_scores
 
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777, exp_name: str = None):

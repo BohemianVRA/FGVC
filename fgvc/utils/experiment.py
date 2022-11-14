@@ -55,7 +55,7 @@ def parse_unknown_args(unknown_args: list) -> dict:
         _key = _key[2:]  # remove -- in the beginning
         extra_args[_key] = _value
 
-    # try to cast strings to numeric types (int, float)
+    # try to cast strings to numeric and boolean types (int, float, bool)
     for k, v in extra_args.items():
         for dtype in (int, float):  # important to test int first
             try:
@@ -63,6 +63,10 @@ def parse_unknown_args(unknown_args: list) -> dict:
                 break
             except ValueError:
                 pass  # casting to dtype is not possible
+        if v.lower() == "false":
+            v = False
+        elif v.lower() == "true":
+            v = True
     return extra_args
 
 
@@ -156,7 +160,7 @@ def load_config(
         logger.debug(f"Extra arguments passed to the script: {extra_args}")
         for k, v in extra_args.items():
             if k in config:
-                logger.debug(f"Changing config value {k}: {v} -> {config[k]}")
+                logger.debug(f"Changing config value {k}: {config[k]} -> {v}")
                 config[k] = v
 
     # create run name
@@ -179,5 +183,7 @@ def load_config(
         os.makedirs(os.path.join(path, config["exp_name"]), exist_ok=False)
 
     logger.info(f"Setting run name: {run_name}")
+    exp_path = get_experiment_path(run_name, config["exp_name"])
+    logger.info(f"Using experiment directory: {exp_path}")
     logger.info(f"Using training config: {json.dumps(config, indent=4)}")
     return config, run_name
