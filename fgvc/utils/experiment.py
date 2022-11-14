@@ -64,9 +64,9 @@ def parse_unknown_args(unknown_args: list) -> dict:
             except ValueError:
                 pass  # casting to dtype is not possible
         if v.lower() == "false":
-            v = False
+            extra_args[k] = False
         elif v.lower() == "true":
-            v = True
+            extra_args[k] = True
     return extra_args
 
 
