@@ -11,34 +11,82 @@ env:
 
 jobs:
   build:
-    name: Build and Create Release
+    name: Build Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Dependencies
+        run: |
+          pip install -U pip
+          pip install -U setuptools build
+      - name: Build Python Package
+        run: python -m build
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist/
+  changelog:
+    name: Generate Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Generate Release Changelog
+        uses: heinrichreimer/github-changelog-generator-action@v2.3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          onlyLastTag: true
+          headerLabel: "# 📑 Changelog"
+          breakingLabel: '### 💥 Breaking'
+          enhancementLabel: '### 🚀 Enhancements'
+          bugsLabel: '### 🐛 Bug fixes'
+          deprecatedLabel: '### ⚠️ Deprecations'
+          removedLabel: '### 🔥 Removals'
+          securityLabel: '### 🛡️ Security'
+          issuesLabel: '### 📁 Other issues'
+          prLabel: '### 📁 Other pull requests'
+          addSections: '{"documentation":{"prefix":"### 📖 Documentation","labels":["documentation"]},"tests":{"prefix":"### ✅ Testing","labels":["tests"]}}'
+          issues: true
+          issuesWoLabels: true
+          pullRequests: true
+          prWoLabels: true
+          author: true
+          unreleased: true
+          compareLink: true
+          stripGeneratorNotice: true
+          verbose: true
+      - name: Print Changelog
+        run: cat CHANGELOG.md
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: changelog
+          path: CHANGELOG.md
+  release:
+    name: Create Release
+    needs: [build, changelog]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    - name: Set up Python ${{ env.PYTHON_VERSION }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-    - name: Build Python Package
-      run: |
-        # install build dependencies
-        pip install -U setuptools build
-        # modify version.py file
-        echo '__version__ = "${{ github.ref_name }}"' > fgvc/version.py
-        # build the package
-        python -m build
-    - name: Create Release
-      uses: ncipollo/release-action@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-      with:
-        tag: ${{ github.ref }}
-        name: Release ${{ github.ref_name }}
-        artifacts: "dist/*.tar.gz,dist/*.whl"
-        body: |
-          Changes in this Release:
-          - <FILL>
-        draft: false
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+      - name: List Files
+        run: ls -R
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          files: |
+            changelog/CHANGELOG.md
+            dist/*.tar.gz
+            dist/*.whl
+          body_path: changelog/CHANGELOG.md
+          generate_release_notes: true
+          draft: false
