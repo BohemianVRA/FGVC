@@ -2,12 +2,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 from scipy.special import expit
-from sklearn.metrics import (
-    accuracy_score,
-    f1_score,
-    multilabel_confusion_matrix,
-    top_k_accuracy_score,
-)
+from sklearn.metrics import accuracy_score, f1_score, multilabel_confusion_matrix, top_k_accuracy_score
 
 
 def classification_scores(

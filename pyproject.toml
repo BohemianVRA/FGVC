@@ -7,4 +7,5 @@ line-length = 120
 # skip-string-normalization = true  # requouting '...' -> "..." can be disabled
 
 [tool.isort]
+line_length = 120
 profile = "black"
