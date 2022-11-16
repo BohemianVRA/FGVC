@@ -62,6 +62,13 @@ def concat_arrays(*lists: List[List[Union[np.ndarray, dict]]]) -> List[Optional[
     -------
     (One or multiple items) Numpy array or dictionary of numpy arrays.
     """
+
+    def _safer_concat(array_list):
+        num_elems = sum([len(x) for x in array_list])
+        out_array = np.zeros((num_elems, *array_list[0].shape[1:]), dtype=array_list[0].dtype)
+        np.concatenate(array_list, axis=0, out=out_array)
+        return out_array
+
     out = []
     for array_list in lists:
         concatenated = None
@@ -70,9 +77,9 @@ def concat_arrays(*lists: List[List[Union[np.ndarray, dict]]]) -> List[Optional[
                 # concatenate list of dicts of numpy arrays to a dict of numpy arrays
                 concatenated = {}
                 for k in array_list[0].keys():
-                    concatenated[k] = np.concatenate([x[k] for x in array_list])
+                    concatenated[k] = _safer_concat([x[k] for x in array_list])
             else:
                 # concatenate list of numpy arrays to a numpy array
-                concatenated = np.concatenate(array_list, axis=0)
+                concatenated = _safer_concat(array_list)
         out.append(concatenated)
     return out if len(out) > 1 else out[0]

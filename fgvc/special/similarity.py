@@ -3,6 +3,7 @@ from typing import Union
 import numpy as np
 import torch
 import torch.nn.functional as F
+from tqdm.auto import trange
 
 
 def _numpy_cosine_similarity(a: np.ndarray, b: np.ndarray, eps: float) -> Union[np.ndarray, float]:
@@ -51,7 +52,7 @@ def cosine_similarity(
 
 
 def pairwise_cosine_similarity(
-    mat: Union[torch.Tensor, np.ndarray], eps: float = 1e-08
+    mat: Union[torch.Tensor, np.ndarray], eps: float = 1e-08, progress: bool = False
 ) -> Union[torch.Tensor, np.ndarray]:
     """Compute pair-wise cosine similarity between all elements in the input matrix.
 
@@ -61,6 +62,8 @@ def pairwise_cosine_similarity(
         A matrix represented as numpy array or pytorch tensor.
     eps
         Epsilon small constant to prevent division by 0.
+    progress
+        If true use tqdm progress bar.
 
     Returns
     -------
@@ -68,13 +71,15 @@ def pairwise_cosine_similarity(
         A similarity matrix.
     """
     assert len(mat.shape) == 2, "Input parameter (mat) must be a 2d matrix."
+    range_fn = trange if progress else range
+
     if isinstance(mat, torch.Tensor):
         sim_mat = torch.zeros((len(mat), len(mat)), dtype=mat.dtype, device=mat.device)
-        for i in range(len(mat)):
+        for i in range_fn(len(mat)):
             sim_mat[i, i:] = sim_mat[i:, i] = F.cosine_similarity(mat[i], mat[i:], dim=-1, eps=eps)
     else:
         sim_mat = np.zeros((len(mat), len(mat)), dtype=mat.dtype)
-        for i in range(len(mat)):
+        for i in range_fn(len(mat)):
             sim_mat[i, i:] = sim_mat[i:, i] = _numpy_cosine_similarity(mat[i], mat[i:], eps)
     return sim_mat
 

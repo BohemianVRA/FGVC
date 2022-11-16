@@ -16,7 +16,6 @@ from .base_trainer import BaseTrainer
 from .scheduler_mixin import SchedulerMixin, SchedulerType
 from .scores_monitor import ScoresMonitor
 from .training_state import TrainingState
-from .training_utils import concat_arrays
 
 
 class SegmentationTrainer(BaseTrainer, SchedulerMixin):
@@ -138,15 +137,19 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
             scores_fn=lambda preds, targs: binary_segmentation_scores(preds, targs, reduction="sum"),
             num_samples=len(dataloader.dataset),
         )
-        preds_all, targs_all = [], []
+        preds_all, targs_all = None, None
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.predict_batch(batch)
             avg_loss += loss / len(dataloader)
             scores_monitor.update(preds, targs)
             if return_preds and preds is not None and targs is not None:
-                preds_all.append(preds)
-                targs_all.append(targs)
-        preds_all, targs_all = concat_arrays(preds_all, targs_all)
+                if preds_all is None and targs_all is None:
+                    n = len(dataloader.dataset)
+                    preds_all = np.zeros((n, *preds.shape[1:]), dtype=preds.dtype)
+                    targs_all = np.zeros((n, *targs.shape[1:]), dtype=targs.dtype)
+                bs = dataloader.batch_size
+                preds_all[i * bs : (i + 1) * bs] = preds
+                targs_all[i * bs : (i + 1) * bs] = targs
         return preds_all, targs_all, avg_loss, scores_monitor.avg_scores
 
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777, exp_name: str = None):
