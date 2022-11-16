@@ -26,6 +26,8 @@ jobs:
           pip install -U setuptools build
       - name: Build Python Package
         run: python -m build
+      - name: Test Importing Python Package
+        run: python -c "import fgvc; print(fgvc.__version__)"
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
