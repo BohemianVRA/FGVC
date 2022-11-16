@@ -1,0 +1,2 @@
+include fgvc/config/*.yaml
+include fgvc/config/*.yml
