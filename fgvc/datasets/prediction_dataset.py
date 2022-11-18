@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 
 
 class PredictionDataset(Dataset):
-    def __init__(self, image_paths: list, transform: A.Compose = None):
+    def __init__(self, image_paths: list, transform: A.Compose = None, **kwargs):
         self.image_paths = image_paths
         self.transform = transform
 

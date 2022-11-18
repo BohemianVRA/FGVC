@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Type, Union
+from typing import Dict, Optional, Tuple, Type, Union
 
 import pandas as pd
 from PIL import ImageFile
@@ -25,25 +25,10 @@ __all__ = (
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-
-# def get_dataloader(
-#     df, run_config, model_mean, model_std, augmentation="vanilla", shuffle=False
-# ):
-#     transform = tta_transforms(
-#         data=augmentation,
-#         image_size=run_config["image_size"],
-#         mean=model_mean,
-#         std=model_std,
-#     )
-#     dataset = ImageDataset(df, transform=transform)
-#     dataloader = DataLoader(
-#         dataset,
-#         batch_size=run_config["batch_size"],
-#         shuffle=shuffle,
-#         num_workers=run_config["workers"],
-#     )
-#
-#     return dataloader
+default_tranforms = {
+    "light": light_transforms,
+    "heavy": heavy_transforms,
+}
 
 
 def get_dataloaders(
@@ -55,20 +40,73 @@ def get_dataloaders(
     model_std: tuple = IMAGENET_DEFAULT_STD,
     batch_size: int = 32,
     num_workers: int = 8,
+    *,
+    transforms_fns: Dict[str, callable] = None,
+    transforms_kws: dict = None,
     dataset_cls: Type[ImageDataset] = ImageDataset,
+    dataset_kws: dict = None,
 ) -> Tuple[DataLoader, DataLoader, tuple, tuple]:
-    """TODO add docstring."""
+    """For given input training and validation data create augmentation transforms, Datasets, and DataLoaders.
+
+    The method is generic and allows to create Transforms and Datasets of any given type or class.
+
+    Parameters
+    ----------
+    train_data
+        Training data of any type supported by Dataset defined using `dataset_cls`.
+    val_data
+        Validation data of any type supported by Dataset defined using `dataset_cls`.
+    augmentations
+        Name of augmentations to use (light, heavy, ...).
+    image_size
+        Image size used for resizing in augmentation transforms.
+    model_mean
+        Model mean used for input normalization in augmentation transforms.
+    model_std
+        Model mean used for input normalization in augmentation transforms.
+    batch_size
+        Batch size used in DataLoader.
+    num_workers
+        Number of workers used in DataLoader.
+    transforms_fns
+        A dictionary with names of augmentations (light, heavy, ...) as keys
+        and corresponding functions to create training and validation augmentation transformations as values.
+    transforms_kws
+        Additional keyword arguments for the transformation function.
+    dataset_cls
+        Dataset class that implements `__len__` and `__getitem__` functions
+        and inherits from `torch.utils.data.Dataset` PyTorch class.
+    dataset_kws
+        Additional keyword arguments for the dataset class.
+
+    Returns
+    -------
+    trainloader
+        Training PyTorch DataLoader.
+    valloader
+        Validation PyTorch DataLoader.
+    (trainset, valset)
+        Tuple with training and validation dataset instances.
+    (train_tfm, val_tfm)
+        Tuple with training and validation augmentation transforms.
+    """
+    transforms_fns = transforms_fns or default_tranforms
+    assert len(transforms_fns) > 0
+    transforms_kws = transforms_kws or {}
+    dataset_kws = dataset_kws or {}
+
     # create training and validation augmentations
-    if augmentations == "light":
-        train_tfm, val_tfm = light_transforms(image_size=image_size, mean=model_mean, std=model_std)
-    elif augmentations == "heavy":
-        train_tfm, val_tfm = heavy_transforms(image_size=image_size, mean=model_mean, std=model_std)
+    if augmentations in transforms_fns:
+        transforms_fn = transforms_fns[augmentations]
+        train_tfm, val_tfm = transforms_fn(image_size=image_size, mean=model_mean, std=model_std, **transforms_kws)
     else:
-        raise NotImplementedError()
+        raise ValueError(
+            f"Augmentation {augmentations} is not recognized. Available options are {list(transforms_fns.keys())}."
+        )
 
     # create training dataset and dataloader
     if train_data is not None:
-        trainset = dataset_cls(train_data, transform=train_tfm)
+        trainset = dataset_cls(train_data, transform=train_tfm, **dataset_kws)
         trainloader = DataLoader(
             trainset,
             batch_size=batch_size,
@@ -81,7 +119,7 @@ def get_dataloaders(
 
     # create validation dataset and dataloader
     if val_data is not None:
-        valset = dataset_cls(val_data, transform=val_tfm)
+        valset = dataset_cls(val_data, transform=val_tfm, **dataset_kws)
         valloader = DataLoader(
             valset,
             batch_size=batch_size,

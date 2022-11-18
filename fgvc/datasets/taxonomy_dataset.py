@@ -9,7 +9,7 @@ from fgvc.datasets.image_dataset import ImageDataset
 
 
 class TaxonomyDataset(ImageDataset):
-    def __init__(self, df: pd.DataFrame, transform: A.Compose = None):
+    def __init__(self, df: pd.DataFrame, transform: A.Compose = None, **kwargs):
         assert "genus_id" in df
         assert "family_id" in df
         super().__init__(df, transform)

@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 
 class BinarySegmentationDataset(Dataset):
-    def __init__(self, coco_dict: dict, transform: A.Compose = None):
+    def __init__(self, coco_dict: dict, transform: A.Compose = None, **kwargs):
         super().__init__()
         assert "images" in coco_dict
         assert "annotations" in coco_dict

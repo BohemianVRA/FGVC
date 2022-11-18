@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 
 
 class ImageDataset(Dataset):
-    def __init__(self, df: pd.DataFrame, transform: A.Compose = None):
+    def __init__(self, df: pd.DataFrame, transform: A.Compose = None, **kwargs):
         assert "image_path" in df
         assert "class_id" in df
         self.df = df
