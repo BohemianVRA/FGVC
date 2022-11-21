@@ -2,7 +2,6 @@ from typing import Dict, Optional, Tuple, Type, Union
 
 import pandas as pd
 from PIL import ImageFile
-from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from torch.utils.data import DataLoader
 
 from fgvc.core.augmentations import heavy_transforms, light_transforms
@@ -21,7 +20,12 @@ __all__ = (
     "TaxonomyDataset",
     "TaxonomyQuadrupleDataset",
     "get_dataloaders",
+    "IMAGENET_MEAN",
+    "IMAGENET_STD",
 )
+
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD = (0.229, 0.224, 0.225)
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -36,8 +40,8 @@ def get_dataloaders(
     val_data: Optional[Union[pd.DataFrame, list, dict]],
     augmentations: str,
     image_size: tuple,
-    model_mean: tuple = IMAGENET_DEFAULT_MEAN,
-    model_std: tuple = IMAGENET_DEFAULT_STD,
+    model_mean: tuple = IMAGENET_MEAN,
+    model_std: tuple = IMAGENET_STD,
     batch_size: int = 32,
     num_workers: int = 8,
     *,
