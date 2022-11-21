@@ -37,10 +37,14 @@ def classification_scores(
     acc_k = None
     if top_k is not None and preds.shape[1] > top_k:
         acc_k = top_k_accuracy_score(targs, preds, k=top_k, labels=labels)
-    f1 = f1_score(targs, preds_argmax, labels=labels, average="macro")
+    f1 = f1_score(targs, preds_argmax, labels=labels, average="macro", zero_division=0)
 
     if return_dict:
-        out = {"Acc": acc, f"Recall@{top_k}": acc_k, "F1": f1}
+        out = {}
+        out["Acc"] = acc
+        if top_k is not None:
+            out["Recall@{top_k}"] = acc_k
+        out["F1"] = f1
     else:
         out = acc, acc_k, f1
 
