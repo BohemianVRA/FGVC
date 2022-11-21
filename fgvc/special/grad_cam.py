@@ -1,70 +1,82 @@
-from typing import Union
+from typing import Callable, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from PIL import Image
 
 
+def _minmax_normalize(x: np.ndarray, eps: float = 1e-6) -> np.ndarray:
+    xmin, xmax = x.min(), x.max()
+    x = (x - xmin) / (xmax - xmin + eps)
+    return x
+
+
 class GradCamTimm:
-    def __init__(self, model: nn.Module, target_layer: str = None):
+    def __init__(self, model: nn.Module, target_layer: str = None, device: torch.device = None):
         self.model = model
         self.target_layer = target_layer
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device
 
         self.gradients = None
         self.features = None
 
-    def __call__(
-        self, x: torch.Tensor, target_cls: str = None, return_method: Union[str, callable] = "mean"
-    ) -> np.ndarray:
+    def __call__(self, x: torch.Tensor, target_cls: int = None, reduction: Union[str, callable] = "mean") -> np.ndarray:
         """Get the attentions for the timm model.
 
         Parameters
         ----------
         x : torch.Tensor
-            input to the model as single image or batch of one image
-        target_cls : str
-            target class for returning the attentions, the argmax of classification head is selected in default
-        return_method : str or function
-            one of "norm_mean", "norm_max", "mean", "max" or user defined function for transferring the output
+            Input to the model as single image or batch of one image.
+        target_cls : int
+            Target class for returning the attentions, the argmax of classification head is selected in default.
+        reduction : str or function
+            Specifies the reduction method to apply to the output.
+            One of "norm_mean", "norm_max", "mean", "max" or user defined function for transferring the output.
 
         Returns
         -------
         np.ndarray
-            weighted features / attentions
+            Weighted Features (attentions).
         """
+        assert isinstance(reduction, Callable) or (
+            isinstance(reduction, str) and reduction.lower() in ["norm_mean", "norm_max", "mean", "max"]
+        ), "Argument `reduction` should be one of norm_mean, norm_max, mean, max, or a callable function. "
+
+        self.model = self.model.to(self.device)
+        x = x.to(self.device)
+
         # fix the input shape if only image is passed
         if len(x.shape) == 3:
             x = torch.unsqueeze(x, dim=0)
-
         # check the batch size
-        if x.shape[0] != 1:
-            raise ValueError(f"The shape of the input is wrong, allowed is only (1, channel, width, height): {x.shape}")
+        assert x.shape[0] == 1, f"Allowed input shape is (1, channel, width, height): {x.shape}"
 
         # forward features and backward target
-        feats, x = self.forward_pass(x)
-        grads = self.backward_pass(x, target_cls)
+        feats, logits = self.forward_pass(x)
+        grads = self.backward_pass(logits, target_cls)
 
         # return weighted features
         weighted_features = self.weight_features(feats, grads)
-        if type(return_method) is str:
+        if isinstance(reduction, str):
             # return_method parameter as string
-            if "mean" in return_method.lower():
+            if "mean" in reduction.lower():
                 weighted_features = np.mean(weighted_features, axis=0)
-            elif "max" in return_method.lower():
+            elif "max" in reduction.lower():
                 weighted_features = np.max(weighted_features, axis=0)
             else:
-                raise ValueError(f"Value of return_method is not known: '{return_method}'")
+                raise ValueError(f"Argument `reduction` is not known: {reduction}")
 
             # normalize the output if wanted
-            if "norm" in return_method.lower():
-                weighted_features = (weighted_features - np.min(weighted_features)) / (
-                    np.max(weighted_features) - np.min(weighted_features)
-                )
-        elif return_method is not None:
+            if "norm" in reduction.lower():
+                weighted_features = _minmax_normalize(weighted_features)
+        else:
             # return_method parameter as function
-            weighted_features = return_method(weighted_features)
+            weighted_features = reduction(weighted_features)
 
         return weighted_features
 
@@ -72,8 +84,22 @@ class GradCamTimm:
         """Tensor hook for saving gradients."""
         self.gradients = gradients
 
-    def forward_pass(self, x: torch.Tensor):
-        """TODO add docstring."""
+    def forward_pass(self, x: torch.Tensor) -> Union[torch.Tensor, torch.Tensor]:
+        """Run forward pass and return encoder features and classifier logits.
+
+        Parameters
+        ----------
+        x
+            Input to the model as single image or batch of one image.
+
+        Returns
+        -------
+        self.features
+            Extracted encoder features.
+        x
+            Classifier logits.
+        """
+        assert x.shape[0] == 1, f"Allowed input shape is (1, channel, width, height): {x.shape}"
         if self.target_layer is None:
             # forward features through the conv layers
             x = self.model.forward_features(x)
@@ -104,32 +130,61 @@ class GradCamTimm:
                 if break_for:
                     break
 
-        # return logits
         return self.features, x
 
-    def backward_pass(self, x: torch.Tensor, target_cls: str = None):
-        """TODO add docstring."""
-        # specify the target
-        if target_cls is None:
-            target_cls = np.argmax(x.data.cpu().numpy())
+    def backward_pass(self, logits: torch.Tensor, target_cls: int = None) -> torch.Tensor:
+        """Run backward pass and return gradients w.r.t. target class.
 
+        When target class is None the method uses class with the highest logit.
+
+        Parameters
+        ----------
+        logits
+            Classifier logits.
+        target_cls
+            Target class for returning the attentions, the argmax of classification head is selected in default.
+
+        Returns
+        -------
+        self.gradients
+            Evaluated gradient tensor w.r.t. target class.
+        """
+        assert logits.shape[0] == 1, f"Allowed logits shape is (1, num_classes): {logits.shape}"
         # create a one-hot vector
-        y = torch.ByteTensor(1, x.size()[-1]).zero_().to(x.get_device())
-        y[0][target_cls] = 1
+        if target_cls is None:
+            y = F.one_hot(logits.argmax(), num_classes=logits.shape[1])
+        else:
+            y = F.one_hot(
+                torch.tensor(target_cls, dtype=torch.int64, device=logits.device),
+                num_classes=logits.shape[1],
+            )
 
-        # zero gradients
+        # zero gradients and backward the target to get the gradient
         self.model.zero_grad()
+        logits.backward(gradient=y, retain_graph=True)
 
-        # backward the target to get the gradient
-        x.backward(gradient=y, retain_graph=True)
-
-        # return gradients
         return self.gradients
 
     def weight_features(
-        self, features: Union[torch.Tensor, np.ndarray], gradients: Union[torch.Tensor, np.ndarray]
+        self, features: Union[np.ndarray, torch.Tensor], gradients: Union[np.ndarray, torch.Tensor]
     ) -> np.ndarray:
-        """TODO add docstring."""
+        """Combing features with gradients.
+
+        Parameters
+        ----------
+        features
+            Extracted encoder features.
+        gradients
+            Evaluated gradient tensor w.r.t. target class.
+
+        Returns
+        -------
+        weighted_features
+            Weighted Features (attentions).
+        """
+        assert features.shape == gradients.shape
+        assert len(features.shape) == len(gradients.shape) == 4
+        assert features.shape[0] == 1, f"Allowed features shape is (1, ...): {features.shape}"
         if isinstance(features, torch.Tensor):
             features = features.cpu().detach().numpy()
         if isinstance(gradients, torch.Tensor):
@@ -138,8 +193,6 @@ class GradCamTimm:
         # take only the first image from the batch -> batch size must be 1!
         features = features[0]
         gradients = gradients[0]
-        # check the shape of the features and gradients
-        assert len(gradients.shape) == 3, len(features.shape) == 3
 
         # average through width and height -> getting weight for channels
         weights = np.mean(gradients, axis=(1, 2))
@@ -147,48 +200,62 @@ class GradCamTimm:
         # (channel, 1, 1) -> (channel, width, height)
         weights = np.expand_dims(weights, axis=(-1, -2))
 
-        # return the weighted features
-        return weights * features
+        weighted_features = weights * features
+        return weighted_features
 
-    def get_possible_target_layers(self):
-        """TODO add docstring."""
-        target_layers = list()
-        for m, _ in self.model._modules.items():
-            target_layers.append(m)
+    def get_possible_target_layers(self) -> list:
+        """Get a list of all possible values to use as `target_layer` argument."""
+        return [m for m, _ in self.model._modules.items()]
 
-        return target_layers
-
-    def set_target_layer(self, target_layer):
-        """TODO add docstring."""
+    def set_target_layer(self, target_layer: str):
+        """Set `target_layer`."""
         self.target_layer = target_layer
 
-    def get_features(self):
-        """TODO add docstring."""
+    def get_features(self) -> np.ndarray:
+        """Get NumPy array with extracted features from a forward pass."""
         return self.features[0].cpu().detach().numpy()
 
-    def get_gradients(self):
-        """TODO add docstring."""
+    def get_gradients(self) -> np.ndarray:
+        """Get NumPy array with evaluated gradients from a backward pass."""
         return self.gradients[0].cpu().detach().numpy()
 
     @staticmethod
-    def visualize_as_colorbar(ax_i, features, cmap="viridis", num_ticks=5, scale_format="%.4f", labelsize="xx-small"):
-        """Visualize features as colorbar."""
+    def visualize_as_heatmap(
+        features: Union[np.ndarray, torch.Tensor],
+        *,
+        ax=None,
+        cmap: str = "viridis",
+        num_ticks: int = 5,
+        scale_format: str = "%.4f",
+        labelsize: str = "xx-small",
+    ):
+        """Visualize attention as heatmap."""
         if isinstance(features, torch.Tensor):
             features = features.cpu().detach().numpy()
 
+        # plot results
+        if ax is None:
+            ax = plt.gca()
+        im = ax.imshow(features, cmap=cmap)
         plt.colorbar(
-            ax_i.imshow(features, cmap=cmap),
+            im,
             ticks=np.linspace(np.min(features), np.max(features), num_ticks, endpoint=True),
             format=scale_format,
-        ).ax.tick_params(labelsize=labelsize)
+        )
+        ax.tick_params(labelsize=labelsize)
 
     @staticmethod
-    def visualize_as_image(ax_i, weighted_features, single_image, rescale_only=False):
-        """Visualize weighted features as image."""
-        if isinstance(single_image, torch.Tensor):
-            image = single_image.cpu().detach().numpy()
-        else:
-            image = single_image
+    def visualize_as_image(
+        weighted_features: Union[np.ndarray, torch.Tensor],
+        image: Union[np.ndarray, torch.Tensor],
+        *,
+        ax=None,
+        rescale_only: bool = False,
+    ):
+        """Visualize attention as image."""
+        assert len(image.shape) == 3
+        if isinstance(image, torch.Tensor):
+            image = image.cpu().detach().numpy()
 
         # scale between 0-255
         cam = np.maximum(weighted_features, 0)
@@ -196,14 +263,17 @@ class GradCamTimm:
         cam = np.uint8(cam * 255)
 
         # resize into the image shape
-        cam = np.uint8(Image.fromarray(cam).resize((image.shape[2], image.shape[1]), Image.ANTIALIAS)) / 255
+        ch, h, w = image.shape
+        cam = np.uint8(Image.fromarray(cam).resize((w, h), Image.ANTIALIAS)) / 255
 
         # if required, show attentions in the image
         if not rescale_only:
             cam = cam * image
-
             if min(cam.shape) == cam.shape[0]:
                 # channel last
                 cam = np.moveaxis(cam, 0, -1)
 
-        ax_i.imshow(cam)
+        # plot results
+        if ax is None:
+            ax = plt.gca()
+        ax.imshow(cam)
