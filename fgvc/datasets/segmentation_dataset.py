@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 
 class BinarySegmentationDataset(Dataset):
-    def __init__(self, coco_dict: dict, transform: A.Compose = None):
+    def __init__(self, coco_dict: dict, transform: A.Compose = None, **kwargs):
         super().__init__()
         assert "images" in coco_dict
         assert "annotations" in coco_dict
@@ -42,14 +42,14 @@ class BinarySegmentationDataset(Dataset):
         return image, mask, file_path
 
     def get_image(self, idx: int) -> Tuple[np.ndarray, str]:
-        """TODO add docstring."""
+        """Get i-th image and its file path in the dataset."""
         file_path = self.images[idx]["file_path"]
         image_pil = Image.open(file_path).convert("RGB")
         image_np = np.asarray(image_pil)
         return image_np, file_path
 
     def get_image_bboxes(self, idx: int) -> Tuple[np.ndarray, np.ndarray, str]:
-        """TODO add docstring."""
+        """Get image and detection bounding boxes of i-th element in the dataset."""
         image, file_path = self.get_image(idx)
         annotations = self.annotations[idx]
 
@@ -67,7 +67,7 @@ class BinarySegmentationDataset(Dataset):
         return image, bboxes, file_path
 
     def get_image_mask(self, idx: int) -> Tuple[np.ndarray, np.ndarray, str]:
-        """TODO add docstring."""
+        """Get image and segmentation mask of i-th element in the dataset."""
         image, bboxes, file_path = self.get_image_bboxes(idx)
 
         # create mask
@@ -79,9 +79,9 @@ class BinarySegmentationDataset(Dataset):
         return image, mask, file_path
 
     def plot_image_bboxes(self, idx: int, *, preds: List[dict] = None, ax=None, plot_text=True):
-        """TODO add docstring."""
+        """Visualize image with detection bounding boxes of i-th element in the dataset."""
 
-        def plot_bbox(ax, xmin, ymin, xmax, ymax, color):
+        def _plot_bbox(ax, xmin, ymin, xmax, ymax, color):
             ax.plot(
                 [xmin, xmax, xmax, xmin, xmin],
                 [ymin, ymin, ymax, ymax, ymin],
@@ -90,7 +90,7 @@ class BinarySegmentationDataset(Dataset):
                 ms=10,
             )
 
-        def plot_text(ax, xmin, ymin, text):
+        def _plot_text(ax, xmin, ymin, text):
             ax.text(
                 xmin,
                 ymin,
@@ -115,10 +115,10 @@ class BinarySegmentationDataset(Dataset):
             for bbox in bboxes:
                 xmin, ymin, xmax, ymax, category_id = bbox
                 color = cmap(category_id)
-                plot_bbox(ax, xmin, ymin, xmax, ymax, color)
+                _plot_bbox(ax, xmin, ymin, xmax, ymax, color)
                 if plot_text:
                     class_name = self.cat_id2name[category_id]
-                    plot_text(ax, xmin, ymin, text=f"({category_id}) {class_name}")
+                    _plot_text(ax, xmin, ymin, text=f"({category_id}) {class_name}")
         else:
             # plot predicted bounding boxes, stored in COCO
             image_id = self.images[idx]["id"]
@@ -129,15 +129,15 @@ class BinarySegmentationDataset(Dataset):
                 category_id = pred["category_id"]
                 conf = pred["score"]
                 color = cmap(category_id)
-                plot_bbox(ax, xmin, ymin, xmax, ymax, color)
+                _plot_bbox(ax, xmin, ymin, xmax, ymax, color)
                 if plot_text:
                     class_name = self.cat_id2name[category_id]
-                    plot_text(ax, xmin, ymin, text=f"({category_id}) {class_name} - {conf:.1%}")
+                    _plot_text(ax, xmin, ymin, text=f"({category_id}) {class_name} - {conf:.1%}")
         # ax.axis("off")
         return ax
 
     def plot_image_mask(self, idx: int, apply_transform: bool = False, ax1=None, ax2=None):
-        """TODO add docstring."""
+        """Visualize image with segmentation mask of i-th element in the dataset."""
         image, mask, _ = self.get_image_mask(idx)
         if apply_transform:
             transform = A.Compose([t for t in self.transform if not isinstance(t, (A.Normalize, ToTensorV2))])

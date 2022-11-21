@@ -9,7 +9,7 @@ from fgvc.datasets.image_dataset import ImageDataset
 
 
 class TaxonomyDataset(ImageDataset):
-    def __init__(self, df: pd.DataFrame, transform: A.Compose = None):
+    def __init__(self, df: pd.DataFrame, transform: A.Compose = None, **kwargs):
         assert "genus_id" in df
         assert "family_id" in df
         super().__init__(df, transform)
@@ -27,11 +27,11 @@ class TaxonomyDataset(ImageDataset):
         return image, target, file_path
 
     def get_genus_id(self, idx: int) -> int:
-        """TODO add docstring."""
+        """Get genus id of i-th element in the dataset."""
         return self.df["genus_id"].iloc[idx]
 
     def get_family_id(self, idx: int) -> int:
-        """TODO add docstring."""
+        """Get family id of i-th element in the dataset."""
         return self.df["family_id"].iloc[idx]
 
 

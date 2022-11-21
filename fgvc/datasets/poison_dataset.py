@@ -8,7 +8,7 @@ from fgvc.datasets.image_dataset import ImageDataset
 
 
 class PoisonDataset(ImageDataset):
-    def __init__(self, df: pd.DataFrame, transform: A.Compose = None):
+    def __init__(self, df: pd.DataFrame, transform: A.Compose = None, **kwargs):
         assert "poisonous" in df
         super().__init__(df, transform)
 

@@ -9,7 +9,7 @@ from torch.utils.data import Dataset
 
 
 class ImageDataset(Dataset):
-    def __init__(self, df: pd.DataFrame, transform: A.Compose = None):
+    def __init__(self, df: pd.DataFrame, transform: A.Compose = None, **kwargs):
         assert "image_path" in df
         assert "class_id" in df
         self.df = df
@@ -25,7 +25,7 @@ class ImageDataset(Dataset):
         return image, class_id, file_path
 
     def get_image(self, idx: int) -> Tuple[np.ndarray, str]:
-        """TODO add docstring."""
+        """Get i-th image and its file path in the dataset."""
         file_path = self.df["image_path"].iloc[idx]
         image_pil = Image.open(file_path).convert("RGB")
         image_np = np.asarray(image_pil)
@@ -37,11 +37,11 @@ class ImageDataset(Dataset):
         return image_np, file_path
 
     def get_class_id(self, idx: int) -> int:
-        """TODO add docstring."""
+        """Get class id of i-th element in the dataset."""
         return self.df["class_id"].iloc[idx]
 
     def apply_transforms(self, image: np.ndarray) -> torch.Tensor:
-        """TODO add docstring."""
+        """Apply augmentation transformations on the image."""
         if self.transform is not None:
             image = self.transform(image=image)["image"]
         return image
