@@ -54,7 +54,6 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
         accumulation_steps: int = 1,
         device: torch.device = None,
     ):
-        self.validate_scheduler(scheduler)
         super().__init__(
             model=model,
             trainloader=trainloader,
@@ -65,6 +64,7 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
             accumulation_steps=accumulation_steps,
             device=device,
         )
+        self.validate_scheduler(scheduler)
 
     def train_epoch(self, epoch: int, dataloader: DataLoader) -> Tuple[float, dict]:
         """Train one epoch.

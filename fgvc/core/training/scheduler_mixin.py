@@ -26,7 +26,7 @@ class SchedulerMixin:
             assert isinstance(scheduler, (ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR))
             if isinstance(scheduler, ReduceLROnPlateau):
                 assert (
-                    self.validloader is not None
+                    getattr(self, "validloader", None) is not None
                 ), "Scheduler ReduceLROnPlateau requires validation set to update learning rate."
 
     def make_timm_scheduler_update(self, num_updates: int):
