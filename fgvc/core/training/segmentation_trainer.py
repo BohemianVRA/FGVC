@@ -136,7 +136,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
         scores_monitor = ScoresMonitor(
             scores_fn=lambda preds, targs: binary_segmentation_scores(preds, targs, reduction="sum"),
             num_samples=len(dataloader.dataset),
-            store_preds_targs=True,
+            store_preds_targs=return_preds,
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.predict_batch(batch)

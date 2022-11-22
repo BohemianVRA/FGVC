@@ -138,7 +138,7 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
             scores_fn=lambda preds, targs: classification_scores(preds, targs, top_k=3, return_dict=True),
             num_samples=len(dataloader.dataset),
             eval_batches=False,
-            store_preds_targs=True,
+            store_preds_targs=return_preds,
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.predict_batch(batch)

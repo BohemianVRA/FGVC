@@ -104,13 +104,9 @@ class ScoresMonitor:
     @property
     def preds_all(self) -> np.ndarray:
         """Get stored predictions from the full dataset."""
-        if self.eval_batches and not self.store_preds_targs:
-            raise ValueError("ScoresMonitor is not storing predictions. Set argument `store_preds_targs=True`.")
         return self._preds_all
 
     @property
     def targs_all(self) -> np.ndarray:
         """Get stored predictions from the full dataset."""
-        if self.eval_batches and not self.store_preds_targs:
-            raise ValueError("ScoresMonitor is not storing targets. Set argument `store_preds_targs=True`.")
         return self._targs_all
