@@ -16,7 +16,6 @@ from .base_trainer import BaseTrainer
 from .scheduler_mixin import SchedulerMixin, SchedulerType
 from .scores_monitor import ScoresMonitor
 from .training_state import TrainingState
-from .training_utils import concat_arrays
 
 
 class ClassificationTrainer(BaseTrainer, SchedulerMixin):
@@ -94,6 +93,7 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
         scores_monitor = ScoresMonitor(
             scores_fn=lambda preds, targs: classification_scores(preds, targs, top_k=None, return_dict=True),
             num_samples=len(dataloader.dataset),
+            eval_batches=False,
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.train_batch(batch)
@@ -110,7 +110,7 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
 
         return avg_loss, scores_monitor.avg_scores
 
-    def predict(self, dataloader: DataLoader, return_preds: bool = True) -> Tuple[np.ndarray, np.ndarray, float, float]:
+    def predict(self, dataloader: DataLoader, return_preds: bool = True) -> Tuple[np.ndarray, np.ndarray, float, dict]:
         """Run inference.
 
         Parameters
@@ -137,17 +137,14 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
         scores_monitor = ScoresMonitor(
             scores_fn=lambda preds, targs: classification_scores(preds, targs, top_k=3, return_dict=True),
             num_samples=len(dataloader.dataset),
+            eval_batches=False,
+            store_preds_targs=True,
         )
-        preds_all, targs_all = [], []
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.predict_batch(batch)
             avg_loss += loss / len(dataloader)
             scores_monitor.update(preds, targs)
-            if return_preds and preds is not None and targs is not None:
-                preds_all.append(preds)
-                targs_all.append(targs)
-        preds_all, targs_all = concat_arrays(preds_all, targs_all)
-        return preds_all, targs_all, avg_loss, scores_monitor.avg_scores
+        return scores_monitor.preds_all, scores_monitor.targs_all, avg_loss, scores_monitor.avg_scores
 
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777, exp_name: str = None):
         """Train neural network.
