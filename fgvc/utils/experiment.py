@@ -200,7 +200,7 @@ def load_model(config: dict) -> Tuple[nn.Module, tuple, tuple]:
     ----------
     config
         A dictionary with experiment configuration.
-        It should contain `architecture` and `number_of_classes`.
+        It should contain `architecture`, `number_of_classes`, and optionally `multigpu`.
 
     Returns
     -------
@@ -216,6 +216,8 @@ def load_model(config: dict) -> Tuple[nn.Module, tuple, tuple]:
     model = get_model(config["architecture"], config["number_of_classes"], pretrained=True)
     model_mean = tuple(model.default_cfg["mean"])
     model_std = tuple(model.default_cfg["std"])
+    if config.get("multigpu", False):  # multi gpu model
+        model = nn.DataParallel(model)
     return model, model_mean, model_std
 
 
