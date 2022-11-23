@@ -94,6 +94,7 @@ def log_clf_progress(
     valid_acc3: float,
     valid_f1: float,
     lr: float,
+    other_scores: dict = None,
 ):
     """Log classification scores to W&B run.
 
@@ -119,7 +120,10 @@ def log_clf_progress(
         Validation F1 score.
     lr
         Learning rate.
+    other_scores
+        A dictionary with other scores to log to W&B.
     """
+    other_scores = other_scores or {}
     wandb.log(
         {
             "Train. loss (avr.)": train_loss,
@@ -130,6 +134,7 @@ def log_clf_progress(
             "Learning Rate": lr,
             "Train. Accuracy": train_acc,
             "Train. F1": train_f1,
+            **other_scores,
         },
         step=epoch,
         commit=True,
