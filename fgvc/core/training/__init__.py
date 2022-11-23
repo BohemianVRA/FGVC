@@ -11,8 +11,9 @@ from .classification_trainer import ClassificationTrainer
 from .scheduler_mixin import SchedulerType
 from .scores_monitor import ScoresMonitor
 from .segmentation_trainer import SegmentationTrainer
+from .training_state import TrainingState
 
-__all__ = ["ClassificationTrainer", "SegmentationTrainer", "ScoresMonitor", "train", "predict"]
+__all__ = ["ClassificationTrainer", "SegmentationTrainer", "ScoresMonitor", "TrainingState", "train", "predict"]
 
 
 def train(
@@ -30,6 +31,8 @@ def train(
     seed: int = 777,
     exp_name: str = None,
     trainer_cls: Type[BaseTrainer] = ClassificationTrainer,
+    trainer_kws: dict = None,
+    **kwargs,
 ):
     """Train neural network.
 
@@ -60,7 +63,13 @@ def train(
     exp_name
         Experiment name for saving run artefacts like checkpoints or logs.
         E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
+    trainer_cls
+        Trainer class that implements `train`, `train_epoch`, and `predict` functions
+        and inherits from `BaseTrainer` PyTorch class.
+    trainer_kws
+        Additional keyword arguments for the trainer class.
     """
+    trainer_kws = trainer_kws or {}
     trainer = trainer_cls(
         model=model,
         trainloader=trainloader,
@@ -70,8 +79,9 @@ def train(
         scheduler=scheduler,
         accumulation_steps=accumulation_steps,
         device=device,
+        **trainer_kws,
     )
-    trainer.train(run_name, num_epochs, seed, exp_name)
+    trainer.train(run_name, num_epochs, seed, exp_name, **kwargs)
 
 
 def predict(
@@ -81,6 +91,8 @@ def predict(
     criterion: nn.Module = None,
     device: torch.device = None,
     trainer_cls: Type[BaseTrainer] = ClassificationTrainer,
+    trainer_kws: dict = None,
+    **kwargs,
 ) -> Tuple[np.ndarray, np.ndarray, float, float]:
     """Run inference.
 
@@ -94,6 +106,11 @@ def predict(
         Loss function.
     device
         Device to use (CPU,CUDA,CUDA:0,...).
+    trainer_cls
+        Trainer class that implements `train`, `train_epoch`, and `predict` functions
+        and inherits from `BaseTrainer` PyTorch class.
+    trainer_kws
+        Additional keyword arguments for the trainer class.
 
     Returns
     -------
@@ -106,11 +123,13 @@ def predict(
     avg_scores
         Average scores.
     """
+    trainer_kws = trainer_kws or {}
     trainer = trainer_cls(
         model=model,
         trainloader=None,
         criterion=criterion,
         optimizer=None,
         device=device,
+        **trainer_kws,
     )
-    return trainer.predict(testloader, return_preds=True)
+    return trainer.predict(testloader, return_preds=True, **kwargs)

@@ -109,7 +109,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
 
         return avg_loss, scores_monitor.avg_scores
 
-    def predict(self, dataloader: DataLoader, return_preds: bool = True) -> Tuple[np.ndarray, np.ndarray, float, float]:
+    def predict(self, dataloader: DataLoader, return_preds: bool = True) -> Tuple[np.ndarray, np.ndarray, float, dict]:
         """Run inference.
 
         Parameters
@@ -136,21 +136,13 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
         scores_monitor = ScoresMonitor(
             scores_fn=lambda preds, targs: binary_segmentation_scores(preds, targs, reduction="sum"),
             num_samples=len(dataloader.dataset),
+            store_preds_targs=return_preds,
         )
-        preds_all, targs_all = None, None
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.predict_batch(batch)
             avg_loss += loss / len(dataloader)
             scores_monitor.update(preds, targs)
-            if return_preds and preds is not None and targs is not None:
-                if preds_all is None and targs_all is None:
-                    n = len(dataloader.dataset)
-                    preds_all = np.zeros((n, *preds.shape[1:]), dtype=preds.dtype)
-                    targs_all = np.zeros((n, *targs.shape[1:]), dtype=targs.dtype)
-                bs = dataloader.batch_size
-                preds_all[i * bs : (i + 1) * bs] = preds
-                targs_all[i * bs : (i + 1) * bs] = targs
-        return preds_all, targs_all, avg_loss, scores_monitor.avg_scores
+        return scores_monitor.preds_all, scores_monitor.targs_all, avg_loss, scores_monitor.avg_scores
 
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777, exp_name: str = None):
         """Train neural network.
