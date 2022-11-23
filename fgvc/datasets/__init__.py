@@ -78,7 +78,9 @@ def get_dataloaders(
         Dataset class that implements `__len__` and `__getitem__` functions
         and inherits from `torch.utils.data.Dataset` PyTorch class.
     dataset_kws
-        Additional keyword arguments for the dataset class.
+        Additional keyword arguments for the Dataset class.
+    dataloader_kws
+        Additional keyword arguments for the DataLoader class.
 
     Returns
     -------
@@ -109,13 +111,10 @@ def get_dataloaders(
     # create training dataset and dataloader
     if train_data is not None:
         trainset = dataset_cls(train_data, transform=train_tfm, **dataset_kws)
-        trainloader = DataLoader(
-            trainset,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            shuffle=True if "shuffle" not in dataloader_kws else None,
-            **dataloader_kws,
-        )
+        trainloader_kws = dataloader_kws.copy()
+        if "shuffle" not in trainloader_kws:
+            trainloader_kws["shuffle"] = True
+        trainloader = DataLoader(trainset, batch_size=batch_size, num_workers=num_workers, **trainloader_kws)
     else:
         trainset = None
         trainloader = None
@@ -123,13 +122,10 @@ def get_dataloaders(
     # create validation dataset and dataloader
     if val_data is not None:
         valset = dataset_cls(val_data, transform=val_tfm, **dataset_kws)
-        valloader = DataLoader(
-            valset,
-            batch_size=batch_size,
-            num_workers=num_workers,
-            shuffle=False if "shuffle" not in dataloader_kws else None,
-            **dataloader_kws,
-        )
+        valloader_kws = dataloader_kws.copy()
+        if "shuffle" not in valloader_kws:
+            valloader_kws["shuffle"] = False
+        valloader = DataLoader(valset, batch_size=batch_size, num_workers=num_workers, **valloader_kws)
     else:
         valset = None
         valloader = None
