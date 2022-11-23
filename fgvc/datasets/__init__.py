@@ -45,6 +45,7 @@ def get_dataloaders(
     transforms_kws: dict = None,
     dataset_cls: Type[ImageDataset] = ImageDataset,
     dataset_kws: dict = None,
+    dataloader_kws: dict = None,
 ) -> Tuple[DataLoader, DataLoader, tuple, tuple]:
     """For given input training and validation data create augmentation transforms, Datasets, and DataLoaders.
 
@@ -94,6 +95,7 @@ def get_dataloaders(
     assert len(transforms_fns) > 0
     transforms_kws = transforms_kws or {}
     dataset_kws = dataset_kws or {}
+    dataloader_kws = dataloader_kws or {}
 
     # create training and validation augmentations
     if augmentations in transforms_fns:
@@ -111,7 +113,8 @@ def get_dataloaders(
             trainset,
             batch_size=batch_size,
             num_workers=num_workers,
-            shuffle=True,
+            shuffle=True if "shuffle" not in dataloader_kws else None,
+            **dataloader_kws,
         )
     else:
         trainset = None
@@ -124,7 +127,8 @@ def get_dataloaders(
             valset,
             batch_size=batch_size,
             num_workers=num_workers,
-            shuffle=False,
+            shuffle=False if "shuffle" not in dataloader_kws else None,
+            **dataloader_kws,
         )
     else:
         valset = None
