@@ -43,7 +43,7 @@ def classification_scores(
         out = {}
         out["Acc"] = acc
         if top_k is not None:
-            out["Recall@{top_k}"] = acc_k
+            out[f"Recall@{top_k}"] = acc_k
         out["F1"] = f1
     else:
         out = acc, acc_k, f1
