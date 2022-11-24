@@ -2,11 +2,12 @@ from typing import Tuple
 
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+
+from fgvc.datasets import IMAGENET_MEAN, IMAGENET_STD
 
 
 def light_transforms(
-    *, image_size: tuple, mean: tuple = IMAGENET_DEFAULT_MEAN, std: tuple = IMAGENET_DEFAULT_STD, **kwargs
+    *, image_size: tuple, mean: tuple = IMAGENET_MEAN, std: tuple = IMAGENET_STD, **kwargs
 ) -> Tuple[A.Compose, A.Compose]:
     """Create light training and validation transforms."""
     train_tfms = A.Compose(
@@ -31,7 +32,7 @@ def light_transforms(
 
 
 def heavy_transforms(
-    *, image_size: tuple, mean: tuple = IMAGENET_DEFAULT_MEAN, std: tuple = IMAGENET_DEFAULT_STD, **kwargs
+    *, image_size: tuple, mean: tuple = IMAGENET_MEAN, std: tuple = IMAGENET_STD, **kwargs
 ) -> Tuple[A.Compose, A.Compose]:
     """Create heavy training and validation transforms."""
     train_tfms = A.Compose(
@@ -63,7 +64,7 @@ def heavy_transforms(
 
 
 def light_transforms_rcrop(
-    *, image_size: tuple, mean: tuple = IMAGENET_DEFAULT_MEAN, std: tuple = IMAGENET_DEFAULT_STD, **kwargs
+    *, image_size: tuple, mean: tuple = IMAGENET_MEAN, std: tuple = IMAGENET_STD, **kwargs
 ) -> Tuple[A.Compose, A.Compose]:
     """Create light training and validation transforms with a random crop."""
     train_tfms = A.Compose(
@@ -91,7 +92,7 @@ def light_transforms_rcrop(
 
 
 def tta_transforms(
-    *, data: str, image_size: tuple, mean: tuple = IMAGENET_DEFAULT_MEAN, std: tuple = IMAGENET_DEFAULT_STD, **kwargs
+    *, data: str, image_size: tuple, mean: tuple = IMAGENET_MEAN, std: tuple = IMAGENET_STD, **kwargs
 ) -> A.Compose:
     """TODO add docstring."""
     assert data in (
