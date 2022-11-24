@@ -3,18 +3,13 @@ import logging
 import os
 
 from fgvc.utils.experiment import get_experiment_path
-
-try:
-    import wandb
-
-    assert hasattr(wandb, "__version__")  # verify package import not local dir
-except (ImportError, AssertionError):
-    wandb = None
+from fgvc.utils.wandb import wandb
 
 logger = logging.getLogger("script")
 
 
-def load_args(args: str = None):
+def load_args(args: str = None) -> argparse.Namespace:
+    """Load script arguments using `argparse` library."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--wandb-run-id",
@@ -44,6 +39,7 @@ def log_model(
     wandb_project: str = None,
     wandb_run_id: str = None,
 ):
+    """Log model from W&B experiment run as a W&B artifact."""
     if wandb is None:
         raise ImportError("Package wandb is not installed.")
 

@@ -1,3 +1,4 @@
+import argparse
 import logging
 from typing import Tuple
 
@@ -9,25 +10,79 @@ from fgvc.core.optimizers import get_optimizer, get_scheduler
 from fgvc.core.training import train
 from fgvc.datasets import get_dataloaders
 from fgvc.losses import FocalLossWithLogits, SeesawLossWithLogits
-from fgvc.utils.experiment import load_args, load_config
+from fgvc.utils.experiment import load_config, parse_unknown_args
 from fgvc.utils.utils import set_cuda_device, set_random_seed
 from fgvc.utils.wandb import finish_wandb, init_wandb, set_best_scores_in_summary
 
 logger = logging.getLogger("script")
 
 
-def load_metadata(train_metadata: str, valid_metadata: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Load metadata of the traning and validation sets."""
-    train_df = pd.read_csv(train_metadata)
-    logger.info(f"Loaded training metadata. Number of samples: {len(train_df)}")
-    valid_df = pd.read_csv(valid_metadata)
-    logger.info(f"Loaded validation metadata. Number of samples: {len(valid_df)}")
+def load_args(args: list = None) -> Tuple[argparse.Namespace, dict]:
+    """Load script arguments using `argparse` library."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--train-metadata",
+        help="Path to a training metadata file.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--valid-metadata",
+        help="Path to a validation metadata file.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--config-path",
+        help="Path to a training config yaml file.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--cuda-devices",
+        help="Visible cuda devices (cpu,0,1,2,...).",
+        type=str,
+        default=None,
+    )
+    parser.add_argument(
+        "--wandb-entity",
+        help="Entity name for logging experiment to wandb.",
+        type=str,
+        required=False,
+    )
+    parser.add_argument(
+        "--wandb-project",
+        help="Project name for logging experiment to wandb.",
+        type=str,
+        required=False,
+    )
+    args, unknown_args = parser.parse_known_args(args)
+    extra_args = parse_unknown_args(unknown_args)
+    return args, extra_args
 
+
+def load_metadata(train_metadata: str, valid_metadata: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Load metadata of the training and validation sets."""
+
+    def read_file(metadata):
+        if metadata.lower().endswith(".csv"):
+            df = pd.read_csv(metadata)
+        elif metadata.lower().endswith(".parquet"):
+            df = pd.read_parquet(metadata)
+        else:
+            raise ValueError(f"Unknown metadata file extension: {metadata}. Use either '.csv' or '.parquet'.")
+        return df
+
+    train_df = read_file(train_metadata)
+    logger.info(f"Loaded training metadata. Number of samples: {len(train_df)}")
+    valid_df = read_file(valid_metadata)
+    logger.info(f"Loaded validation metadata. Number of samples: {len(valid_df)}")
     return train_df, valid_df
 
 
 def add_metadata_info_to_config(config: dict, train_df: pd.DataFrame, valid_df: pd.DataFrame) -> dict:
     """Include information from metadata to the traning configuration."""
+    assert "class_id" in train_df and "class_id" in valid_df
     config["number_of_classes"] = len(train_df["class_id"].unique())
     config["training_samples"] = len(train_df)
     config["test_samples"] = len(valid_df)
@@ -57,11 +112,13 @@ def get_optimizer_and_scheduler(model: nn.Module, config: dict):
     return optimizer, scheduler
 
 
-if __name__ == "__main__":
+def train_clf():
+    """Train model on the classification task."""
     # load script args
     args, extra_args = load_args()
 
     # load training config
+    logger.info("Loading training config.")
     config, run_name = load_config(args.config_path, extra_args, run_name_fmt="architecture-loss-augmentations")
 
     # set device and random seed
@@ -69,14 +126,17 @@ if __name__ == "__main__":
     set_random_seed(config["random_seed"])
 
     # load metadata
-    train_df, valid_df = load_metadata()
+    logger.info("Loading training and validation metadata.")
+    train_df, valid_df = load_metadata(train_metadata=args.train_metadata, valid_metadata=args.valid_metadata)
     config = add_metadata_info_to_config(config, train_df, valid_df)
 
     # load model and create optimizer and lr scheduler
+    logger.info("Creating model, optimizer, and scheduler.")
     model, model_mean, model_std = load_model(config)
     optimizer, scheduler = get_optimizer_and_scheduler(model, config)
 
     # create dataloaders
+    logger.info("Creating DataLoaders.")
     trainloader, validloader, _, _ = get_dataloaders(
         train_df,
         valid_df,
@@ -89,6 +149,7 @@ if __name__ == "__main__":
     )
 
     # create loss function
+    logger.info("Creating loss function.")
     if config["loss"] == "CrossEntropyLoss":
         criterion = nn.CrossEntropyLoss()
     elif config["loss"] == "FocalLoss":
@@ -111,6 +172,7 @@ if __name__ == "__main__":
         )
 
     # train model
+    logger.info("Training the model.")
     train(
         run_name=run_name,
         exp_name=config["exp_name"],
@@ -129,8 +191,13 @@ if __name__ == "__main__":
     # finish wandb run
     run_id = finish_wandb()
     if run_id is not None:
+        logger.info("Setting the best scores in the W&B run summary.")
         set_best_scores_in_summary(
             run_path=f"{args.wandb_entity}/{args.wandb_project}/{run_id}",
             primary_score="Val. F1",
             scores=lambda df: [col for col in df if col.startswith("Val.")],
         )
+
+
+if __name__ == "__main__":
+    train_clf()
