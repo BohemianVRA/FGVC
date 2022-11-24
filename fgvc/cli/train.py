@@ -5,12 +5,10 @@ from typing import Tuple
 import pandas as pd
 import torch.nn as nn
 
-from fgvc.core.models import get_model
-from fgvc.core.optimizers import get_optimizer, get_scheduler
 from fgvc.core.training import train
 from fgvc.datasets import get_dataloaders
 from fgvc.losses import FocalLossWithLogits, SeesawLossWithLogits
-from fgvc.utils.experiment import load_config, parse_unknown_args
+from fgvc.utils.experiment import get_optimizer_and_scheduler, load_config, load_model, parse_unknown_args
 from fgvc.utils.utils import set_cuda_device, set_random_seed
 from fgvc.utils.wandb import finish_wandb, init_wandb, set_best_scores_in_summary
 
@@ -87,29 +85,6 @@ def add_metadata_info_to_config(config: dict, train_df: pd.DataFrame, valid_df: 
     config["training_samples"] = len(train_df)
     config["test_samples"] = len(valid_df)
     return config
-
-
-def load_model(config: dict) -> Tuple[nn.Module, tuple, tuple]:
-    """Load model with pretrained checkpoint."""
-    assert "architecture" in config
-    assert "number_of_classes" in config
-    model = get_model(config["architecture"], config["number_of_classes"], pretrained=True)
-    model_mean = list(model.default_cfg["mean"])
-    model_std = list(model.default_cfg["std"])
-    if config.get("multigpu", False):  # multi gpu model
-        model = nn.DataParallel(model)
-    return model, model_mean, model_std
-
-
-def get_optimizer_and_scheduler(model: nn.Module, config: dict):
-    """Create optimizer and learning rate scheduler."""
-    assert "optimizer" in config
-    assert "learning_rate" in config
-    assert "scheduler" in config
-    assert "epochs" in config
-    optimizer = get_optimizer(name=config["optimizer"], params=model.parameters(), lr=config["learning_rate"])
-    scheduler = get_scheduler(name=config["scheduler"], optimizer=optimizer, epochs=config["epochs"])
-    return optimizer, scheduler
 
 
 def train_clf():

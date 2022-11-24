@@ -58,10 +58,9 @@ def log_model(
         save_code=False,
         resume="must",
     ) as run:
-        run_name = run.name
         model_weights = os.path.join(
-            get_experiment_path(run_name, run.config["exp_name"]),
-            f"{run_name}_best_loss.pth",
+            get_experiment_path(run.name, run.config["exp_name"]),
+            f"{run.name}_best_loss.pth",
         )
         if not os.path.isfile(model_weights):
             raise ValueError(f"Model checkpoint '{model_weights}' not found.")
@@ -69,7 +68,7 @@ def log_model(
         arch_name = run.config["architecture"]
 
         # log artifact
-        artifact_name = f"{run_name}-{arch_name}"
+        artifact_name = f"{run.name}-{arch_name}"
         artifact = wandb.Artifact(artifact_name, type="model", metadata=None)
         artifact.add_file(local_path=model_weights)
         run.log_artifact(artifact)

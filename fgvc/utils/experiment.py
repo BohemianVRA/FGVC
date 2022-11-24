@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Tuple
 
+import torch
 import torch.nn as nn
 import yaml
 
@@ -193,7 +194,7 @@ def load_config(
     return config, run_name
 
 
-def load_model(config: dict) -> Tuple[nn.Module, tuple, tuple]:
+def load_model(config: dict, model_weights: str = None) -> Tuple[nn.Module, tuple, tuple]:
     """Load model with pretrained checkpoint.
 
     Parameters
@@ -201,6 +202,8 @@ def load_model(config: dict) -> Tuple[nn.Module, tuple, tuple]:
     config
         A dictionary with experiment configuration.
         It should contain `architecture`, `number_of_classes`, and optionally `multigpu`.
+    model_weights
+        Path to the pre-trained model checkpoint.
 
     Returns
     -------
@@ -213,11 +216,17 @@ def load_model(config: dict) -> Tuple[nn.Module, tuple, tuple]:
     """
     assert "architecture" in config
     assert "number_of_classes" in config
-    model = get_model(config["architecture"], config["number_of_classes"], pretrained=True)
+    model = get_model(
+        config["architecture"],
+        config["number_of_classes"],
+        pretrained=model_weights is None,
+    )
     model_mean = tuple(model.default_cfg["mean"])
     model_std = tuple(model.default_cfg["std"])
     if config.get("multigpu", False):  # multi gpu model
         model = nn.DataParallel(model)
+    if model_weights is not None:
+        model.load_state_dict(torch.load(model_weights, map_location="cpu"))
     return model, model_mean, model_std
 
 

@@ -4,7 +4,6 @@ import os
 import sys
 
 import pandas as pd
-import torch
 
 from fgvc.core.training import predict
 from fgvc.datasets import get_dataloaders
@@ -95,14 +94,12 @@ def test_clf():
         sys.exit(0)
 
     # load model
-    run_name = run.name
     model_weights = os.path.join(
-        get_experiment_path(run_name, run.config["exp_name"]),
-        f"{run_name}_best_loss.pth",
+        get_experiment_path(run.name, run.config["exp_name"]),
+        f"{run.name}_best_loss.pth",
     )
     logger.info(f"Loading fine-tuned model. Using model checkpoint from the file: {model_weights}")
-    model, model_mean, model_std = load_model(config)
-    model.load_state_dict(torch.load(model_weights, map_location="cpu"))
+    model, model_mean, model_std = load_model(config, model_weights)
 
     # create dataloaders
     logger.info("Creating DataLoaders.")
