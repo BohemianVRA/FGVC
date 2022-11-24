@@ -1,3 +1,4 @@
+import math
 from typing import Callable, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -17,13 +18,15 @@ def _minmax_normalize(x: np.ndarray, eps: float = 1e-6) -> np.ndarray:
 class GradCamTimm:
     def __init__(self, model: nn.Module, target_layer: str = None, device: torch.device = None):
         self.model = model
+        if target_layer is not None:
+            target_layers = self.get_possible_target_layers()
+            assert target_layer in target_layers, f"Unknown target layer '{target_layer}'. Use one of: {target_layers}"
         self.target_layer = target_layer
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = device
 
-        self.gradients = None
-        self.features = None
+        self._gradients = None
 
     def __call__(
         self, image: torch.Tensor, target_cls: int = None, reduction: Union[str, callable] = "mean"
@@ -62,11 +65,41 @@ class GradCamTimm:
         assert image.shape[0] == 1, f"Allowed input shape is (1, channel, width, height): {image.shape}"
 
         # forward features and backward target
-        feats, logits = self.forward_pass(image)
-        grads = self.backward_pass(logits, target_cls)
+        features, logits = self.forward_pass(image)
+        gradients = self.backward_pass(logits, target_cls)
+
+        # remove batch dimension and convert features and gradients to numpy
+        features = features.cpu().detach().numpy()
+        gradients = gradients.cpu().detach().numpy()
+
+        if len(gradients.shape) == 3:
+            # apply changes to Vision Transformer embeddings
+            # reshape embedding features into spatial map to make output similar to CNNs
+            bs, patch_dim, emb_dim = gradients.shape
+            sqrt = math.sqrt(patch_dim)
+            if sqrt % 1 != 0:
+                sqrt = math.sqrt(patch_dim - 1)
+                if sqrt % 1 == 0:
+                    # ignore first element (positional embedding) in the output embedding
+                    features = features[:, 1:]
+                    gradients = gradients[:, 1:]
+                else:
+                    raise ValueError(f"Unsupported patch dimension: {patch_dim}")
+            sqrt = int(sqrt)
+            # [bs, patch_dim, emb_dim] -> [bs, width, height, emb_dim]
+            features = features.reshape(bs, sqrt, sqrt, emb_dim)
+            gradients = gradients.reshape(bs, sqrt, sqrt, emb_dim)
+
+            # [bs, width, height, emb_dim] -> [bs, emb_dim, width, height]
+            features = features.transpose(0, 3, 1, 2)
+            gradients = gradients.transpose(0, 3, 1, 2)
+
+            # # [bs, patch_dim, emb_dim] -> [bs, emb_dim, width, height]
+            # features = features.reshape(bs, emb_dim, sqrt, sqrt)
+            # gradients = gradients.reshape(bs, emb_dim, sqrt, sqrt)
 
         # return weighted features (attentions)
-        weighted_features = self.weight_features(feats, grads)
+        weighted_features = self.weight_features(features, gradients)
         if isinstance(reduction, str):
             # return_method parameter as string
             if "mean" in reduction.lower():
@@ -84,42 +117,48 @@ class GradCamTimm:
             weighted_features = reduction(weighted_features)
 
         # return the features and gradients (useful for visualization)
-        feats = np.mean(self.get_features(), axis=0)
-        grads = np.mean(self.get_gradients(), axis=0)
+        features = features[0].mean(axis=0)
+        gradients = gradients[0].mean(axis=0)
 
-        return weighted_features, (feats, grads)
+        return weighted_features, (features, gradients)
 
     def _save_gradients(self, gradients: torch.Tensor):
         """Tensor hook for saving gradients."""
-        self.gradients = gradients
+        self._gradients = gradients
 
-    def forward_pass(self, x: torch.Tensor) -> Union[torch.Tensor, torch.Tensor]:
+    def forward_pass(self, image: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Run forward pass and return encoder features and classifier logits.
 
         Parameters
         ----------
-        x
+        image
             Input to the model as single image or batch of one image.
 
         Returns
         -------
-        self.features
+        features
             Extracted encoder features.
-        x
+        logits
             Classifier logits.
         """
-        assert x.shape[0] == 1, f"Allowed input shape is (1, channel, width, height): {x.shape}"
+        assert image.shape[0] == 1, f"Allowed input shape is (1, channel, width, height): {image.shape}"
         if self.target_layer is None:
             # forward features through the conv layers
-            x = self.model.forward_features(x)
             # save the features and gradients from the last conv
-            self.features = x
-            x.register_hook(self._save_gradients)
+            features = self.model.forward_features(image)
+            features.register_hook(self._save_gradients)
 
             # forward features through the classification head
-            x = self.model.forward_head(x)
+            logits = self.model.forward_head(features)
         else:
+            target_layers = self.get_possible_target_layers()
+            assert (
+                self.target_layer in target_layers
+            ), f"Unknown target layer '{self.target_layer}'. Use one of: {target_layers}"
+
+            x = image
             break_for = False
+            features, logits = None, None
             for m, module in self.model._modules.items():
                 # forward features
                 if m in ["head", "global_pool"]:
@@ -132,14 +171,16 @@ class GradCamTimm:
 
                 # save the features and gradients from the last conv
                 if str(m) == str(self.target_layer):
-                    self.features = x
-                    x.register_hook(self._save_gradients)
+                    features = x
+                    features.register_hook(self._save_gradients)
 
                 # features was passed through the classification head
                 if break_for:
+                    logits = x
                     break
+            assert features is not None and logits is not None
 
-        return self.features, x
+        return features, logits
 
     def backward_pass(self, logits: torch.Tensor, target_cls: int = None) -> torch.Tensor:
         """Run backward pass and return gradients w.r.t. target class.
@@ -155,7 +196,7 @@ class GradCamTimm:
 
         Returns
         -------
-        self.gradients
+        gradients
             Evaluated gradient tensor w.r.t. target class.
         """
         assert logits.shape[0] == 1, f"Allowed logits shape is (1, num_classes): {logits.shape}"
@@ -170,12 +211,11 @@ class GradCamTimm:
         # zero gradients and backward the target to get the gradient
         self.model.zero_grad()
         logits.backward(gradient=y, retain_graph=True)
+        gradients = self._gradients
 
-        return self.gradients
+        return gradients
 
-    def weight_features(
-        self, features: Union[np.ndarray, torch.Tensor], gradients: Union[np.ndarray, torch.Tensor]
-    ) -> np.ndarray:
+    def weight_features(self, features: np.ndarray, gradients: np.ndarray) -> np.ndarray:
         """Combing features with gradients.
 
         Parameters
@@ -191,24 +231,18 @@ class GradCamTimm:
             Weighted Features (attentions).
         """
         assert features.shape == gradients.shape
-        assert len(features.shape) == len(gradients.shape) == 4
-        assert features.shape[0] == 1, f"Allowed features shape is (1, ...): {features.shape}"
-        if isinstance(features, torch.Tensor):
-            features = features.cpu().detach().numpy()
-        if isinstance(gradients, torch.Tensor):
-            gradients = gradients.cpu().detach().numpy()
+        assert len(features.shape) == len(gradients.shape) == 4, (len(features.shape), len(gradients.shape))
+        assert features.shape[0] == 1, f"Allowed features shape is (1, channel, width, height): {features.shape}"
 
-        # take only the first image from the batch -> batch size must be 1!
-        features = features[0]
-        gradients = gradients[0]
+        # take only the first image from the batch
+        features, gradients = features[0], gradients[0]
 
-        # average through width and height -> getting weight for channels
-        weights = np.mean(gradients, axis=(1, 2))
+        # average through width and height in vector of shape [channel, width, height]
+        weights = np.mean(gradients, axis=(1, 2), keepdims=True)
 
-        # (channel, 1, 1) -> (channel, width, height)
-        weights = np.expand_dims(weights, axis=(-1, -2))
-
+        # weight features with gradient average weights
         weighted_features = weights * features
+
         return weighted_features
 
     def get_possible_target_layers(self) -> list:
@@ -218,14 +252,6 @@ class GradCamTimm:
     def set_target_layer(self, target_layer: str):
         """Set `target_layer`."""
         self.target_layer = target_layer
-
-    def get_features(self) -> np.ndarray:
-        """Get NumPy array with extracted features from a forward pass."""
-        return self.features[0].cpu().detach().numpy()
-
-    def get_gradients(self) -> np.ndarray:
-        """Get NumPy array with evaluated gradients from a backward pass."""
-        return self.gradients[0].cpu().detach().numpy()
 
     @staticmethod
     def visualize_as_heatmap(
@@ -247,7 +273,7 @@ class GradCamTimm:
         im = ax.imshow(features, cmap=cmap)
         plt.colorbar(
             im,
-            ticks=np.linspace(np.min(features), np.max(features), num_ticks, endpoint=True),
+            ticks=np.linspace(features.min(), features.max(), num_ticks, endpoint=True),
             format=scale_format,
         )
         ax.tick_params(labelsize=labelsize)
@@ -304,7 +330,7 @@ def plot_grad_cam(
     """
     # create Grad-CAM instance and get the attentions
     grad_cam = GradCamTimm(model, target_layer, device)
-    attn, (feats, grads) = grad_cam(image, target_cls, reduction)
+    weighted_features, (features, gradients) = grad_cam(image, target_cls, reduction)
 
     # create numpy image
     image_np = np.uint8(image.permute(1, 2, 0).cpu().numpy() * 255)
@@ -323,25 +349,25 @@ def plot_grad_cam(
     # show the attentions as heatmap
     ax21 = fig.add_subplot(gs[1, 0])
     ax21.set_title("Model's Attentions")
-    grad_cam.visualize_as_heatmap(attn, labelsize="small", ax=ax21)
+    grad_cam.visualize_as_heatmap(weighted_features, labelsize="small", ax=ax21)
     ax21.axis("off")
 
     # show resized attentions and applied on the image
-    ax22 = fig.add_subplot(gs[2, 0])
+    ax22 = fig.add_subplot(gs[1, 1])
     ax22.set_title("Applied Attentions on Image")
-    grad_cam.visualize_as_image(attn, image, ax=ax22)
+    grad_cam.visualize_as_image(weighted_features, image, ax=ax22)
     ax22.axis("off")
 
     # show original features
-    ax31 = fig.add_subplot(gs[1, 1])
+    ax31 = fig.add_subplot(gs[2, 0])
     ax31.set_title("Features of the Last Conv")
-    grad_cam.visualize_as_heatmap(feats, labelsize="small", ax=ax31)
+    grad_cam.visualize_as_heatmap(features, labelsize="small", ax=ax31)
     ax31.axis("off")
 
     # show original gradients
     ax32 = fig.add_subplot(gs[2, 1])
     ax32.set_title("Gradients (const causes the global pooling)")
-    grad_cam.visualize_as_heatmap(grads, labelsize="small", ax=ax32)
+    grad_cam.visualize_as_heatmap(gradients, labelsize="small", ax=ax32)
     ax32.axis("off")
 
     plt.show()
