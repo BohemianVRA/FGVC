@@ -125,7 +125,7 @@ def test_clf():
     logger.info(f"Scores - {scores_str}")
     logger.info("Logging scores to wandb.")
     log_clf_test_scores(
-        args.run_path,
+        args.wandb_run_path,
         test_acc=scores["Acc"],
         test_acc3=scores["Recall@3"],
         test_f1=scores["F1"],
