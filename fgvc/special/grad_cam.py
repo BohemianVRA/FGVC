@@ -51,8 +51,7 @@ class GradCamTimm:
         """
         allowed_reductions = ["norm_mean", "norm_max", "mean", "max"]
         assert isinstance(reduction, Callable) or (
-            isinstance(reduction, str)
-            and reduction.lower() in allowed_reductions
+            isinstance(reduction, str) and reduction.lower() in allowed_reductions
         ), f"Argument `reduction` should be one of {allowed_reductions}, or a callable function. "
 
         self.model.eval()
