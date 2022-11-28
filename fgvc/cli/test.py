@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 
+import numpy as np
 import pandas as pd
 
 from fgvc.core.training import predict
@@ -94,8 +95,9 @@ def test_clf():
         sys.exit(0)
 
     # load model
+    exp_path = get_experiment_path(run.name, run.config["exp_name"])
     model_weights = os.path.join(
-        get_experiment_path(run.name, run.config["exp_name"]),
+        exp_path,
         f"{run.name}_best_loss.pth",
     )
     logger.info(f"Loading fine-tuned model. Using model checkpoint from the file: {model_weights}")
@@ -116,7 +118,7 @@ def test_clf():
 
     # run inference
     logger.info("Evaluating the model.")
-    _, _, _, scores = predict(model, testloader, device=device)
+    preds, targs, _, scores = predict(model, testloader, device=device)
 
     # log scores
     scores_str = "\t".join([f"{k}: {v:.2%}" for k, v in scores.items()])
@@ -128,6 +130,15 @@ def test_clf():
         test_acc3=scores["Recall@3"],
         test_f1=scores["F1"],
         allow_new=True,
+    )
+
+    # store predictions and targets in the experiment dir
+    eval_path = os.path.join(exp_path, "evaluation")
+    os.makedirs(eval_path, exist_ok=True)
+    preds_filepath = os.path.join(eval_path, "predictions.npy")
+    np.save(
+        preds_filepath,
+        {"metadata_file": args.test_metadata, "wandb_run_path": args.wandb_run_path, "preds": preds, "targs": targs},
     )
 
 
