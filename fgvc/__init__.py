@@ -8,4 +8,3 @@ __all__ = ["core", "datasets", "losses", "special", "utils", "__version__"]
 
 setup_logging()
 logger = logging.getLogger("fgvc")
-logger.debug("Logger was set up.")

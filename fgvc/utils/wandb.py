@@ -1,7 +1,7 @@
 import logging
 import warnings
 from functools import wraps
-from typing import List, Tuple
+from typing import List, Union
 
 import pandas as pd
 
@@ -234,7 +234,42 @@ def log_summary_scores(
 
 
 @if_wandb_is_installed
-def set_best_scores_in_summary(run_path: str, primary_score: str, scores: Tuple[list, callable]):
+def log_clf_test_scores(
+    run_path: str,
+    test_acc: float,
+    test_acc3: float,
+    test_f1: float,
+    allow_new: bool = True,
+):
+    """Log classification scores on the test set to W&B run summary, after the W&B run is finished.
+
+    Parameters
+    ----------
+    run_path
+        A W&B path to run in the form `entity/project/run_id`.
+    test_acc
+        Test Top-1 accuracy.
+    test_acc3
+        Test Top-3 accuracy.
+    test_f1
+        Test F1 score.
+    allow_new
+        If false the method checks if each passed score already exists in W&B run summary
+        and raises ValueError if the score does not exist.
+    """
+    log_summary_scores(
+        run_path,
+        scores={
+            "Test. F1": test_f1,
+            "Test. Accuracy": test_acc,
+            "Test. Recall@3": test_acc3,
+        },
+        allow_new=allow_new,
+    )
+
+
+@if_wandb_is_installed
+def set_best_scores_in_summary(run_path: str, primary_score: str, scores: Union[list, callable]):
     """Update W&B run summary with the best scores achieved during training instead of last epoch scores.
 
     The method is executed if the `wandb` library is installed.
