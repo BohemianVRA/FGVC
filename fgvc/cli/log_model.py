@@ -38,6 +38,7 @@ def log_model(
     wandb_entity: str = None,
     wandb_project: str = None,
     wandb_run_id: str = None,
+    **kwargs,
 ):
     """Log model from W&B experiment run as a W&B artifact."""
     if wandb is None:

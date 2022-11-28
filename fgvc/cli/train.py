@@ -88,6 +88,7 @@ def add_metadata_info_to_config(config: dict, train_df: pd.DataFrame, valid_df: 
 
 
 def train_clf(
+    *,
     train_metadata: str = None,
     valid_metadata: str = None,
     config_path: str = None,

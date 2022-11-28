@@ -65,6 +65,7 @@ def load_metadata(test_metadata: str) -> pd.DataFrame:
 
 
 def test_clf(
+    *,
     test_metadata: str = None,
     wandb_run_path: str = None,
     cuda_devices: str = None,
