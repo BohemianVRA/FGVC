@@ -15,7 +15,8 @@ class ScoresMonitor:
         Number of samples in the dataset.
     eval_batches
         If true the method evaluates scores on each mini-batch during training.
-        Otherwise, it stores predictions and targets (`preds`, `targs`) and evaluates scores on full dataset.
+        Otherwise, it stores predictions and targets (`preds`, `targs`)
+        and evaluates scores on full dataset.
         Set `eval_batches=False` in cases where all data points are needed to compute a score,
         e.g. F1 score in classification.
     store_preds_targs

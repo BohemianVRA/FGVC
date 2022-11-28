@@ -1,4 +1,5 @@
-# https://github.com/sipkatom/The-Hitchhiker-s-Guide-to-Prior-Shift-Adaptation/blob/main/algorithms.py
+# https://github.com/sipkatom/...
+#    .../The-Hitchhiker-s-Guide-to-Prior-Shift-Adaptation/blob/main/algorithms.py
 
 
 import numpy as np
@@ -27,8 +28,12 @@ def correct_predictions(predictions, train_set_distribution, test_set_distributi
     Returns:
         corrected_predictions: numpy array (num_classes, num_data) with corrected predictions
     """
-    corrected_predictions = predictions.T * test_set_distribution[:, None] / train_set_distribution[:, None]
-    corrected_predictions = corrected_predictions / np.sum(corrected_predictions, axis=0)  # normalize to sum to 1
+    corrected_predictions = (
+        predictions.T * test_set_distribution[:, None] / train_set_distribution[:, None]
+    )
+    corrected_predictions = corrected_predictions / np.sum(
+        corrected_predictions, axis=0
+    )  # normalize to sum to 1
     return corrected_predictions
 
 
@@ -64,7 +69,8 @@ def iteratively_correct_predictions(
         termination_error: float defining the distance of posterior predictions for termination.
     Returns:
         new_predictions: numpy array (num_classes, num_data) with corrected predictions
-        new_test_set_distribution: numpy array (num_classes,) with the estimated test set distribution
+        new_test_set_distribution:
+            numpy array (num_classes,) with the estimated test set distribution
     """
     if test_init_distribution is None:
         test_init_distribution = np.copy(train_set_distribution)
@@ -74,7 +80,9 @@ def iteratively_correct_predictions(
 
     while True:
         step += 1
-        new_predictions = correct_predictions(predictions, train_set_distribution, test_set_distribution)
+        new_predictions = correct_predictions(
+            predictions, train_set_distribution, test_set_distribution
+        )
         new_test_set_distribution = estimate_priors_from_predictions(new_predictions)
 
         difference = np.sum(np.square(new_test_set_distribution - test_set_distribution))
@@ -107,7 +115,9 @@ def hard_confusion_matrix(predictions, targets):
 
     y = torch.argmax(predictions, dim=1)
 
-    mat = confusion_matrix(targets.numpy(), y.numpy(), normalize="true", labels=np.arange(num_classes)).T
+    mat = confusion_matrix(
+        targets.numpy(), y.numpy(), normalize="true", labels=np.arange(num_classes)
+    ).T
     mat = torch.from_numpy(mat)
 
     return mat.float()
@@ -134,7 +144,7 @@ def soft_confusion_matrix(predictions, targets):
 
 
 def joint_confusion_matrix(predictions, targets, weights):
-    """Compute joint confusion matrix (for BBSE) from classifier's predictions and ground truth labels.
+    """Compute joint confusion matrix (for BBSE) from classifier's predictions and gt labels.
 
     Args:
         predictions: torch.Tensor (num_data, num_classes) with predictions
@@ -146,7 +156,9 @@ def joint_confusion_matrix(predictions, targets, weights):
 
     y = torch.argmax(predictions, dim=1)
 
-    mat = confusion_matrix(targets.numpy(), y.numpy(), normalize="all", labels=np.arange(num_classes)).T
+    mat = confusion_matrix(
+        targets.numpy(), y.numpy(), normalize="all", labels=np.arange(num_classes)
+    ).T
     mat = torch.from_numpy(mat)
 
     mat = mat * weights
@@ -239,7 +251,9 @@ def simplex_projection(y):
     phi_obj = u + 1 / j * (1 - np.cumsum(u))
     positive = np.argwhere(phi_obj > 0)
     if positive.size == 0:
-        raise ValueError("Numerical issues - extremely large values after update.. DECREASE LEARNING RATE")
+        raise ValueError(
+            "Numerical issues - extremely large values after update.. DECREASE LEARNING RATE"
+        )
     phi = positive.max() + 1
     lam = 1 / phi * (1 - np.sum(u[:phi]))
     x = np.maximum(y + lam, 0)
@@ -319,7 +333,8 @@ def EM_priors_estimation(
     termination_difference=0.0001,
     verbose=False,
 ):
-    """EM algorithm for test set prior estimation and adjust classifier's predictions to prior shift.
+    """
+    EM algorithm for test set prior estimation and adjust classifier's predictions to prior shift.
 
     Code modified from:
         https://github.com/sulc/priors-example/blob/master/cifar-priors-example.ipynb
@@ -365,8 +380,10 @@ def EM_priors_estimation(
 #  MLE and MAP Estimate #
 #########################
 
-# Projected Gradient Ascent for ML  estimate is applied by iteratively running next_step_projectedGA()
-# Projected Gradient Ascent for MAP estimate is applied by iteratively running next_step_projectedGA_with_prior()
+# Projected Gradient Ascent for ML  estimate
+# is applied by iteratively running next_step_projectedGA()
+# Projected Gradient Ascent for MAP estimate
+# is applied by iteratively running next_step_projectedGA_with_prior()
 
 
 def compute_gradient(x, a):
@@ -399,7 +416,10 @@ def log_dirichlet_gradient(x, alpha, numerical_min_prior=1e-8):
 
 
 def next_step_projectedGA(x, a, learning_rate):
-    """Code modified from: https://github.com/sulc/priors-example/blob/master/cifar-priors-example.ipynb."""
+    """TODO - add docstring.
+
+    Modified from: https://github.com/sulc/priors-example/blob/master/cifar-priors-example.ipynb.
+    """
     g = compute_gradient(x, a)
     nx = x + learning_rate * g
     nx = simplex_projection(nx)
@@ -408,7 +428,10 @@ def next_step_projectedGA(x, a, learning_rate):
 
 
 def next_step_projectedGA_with_prior(x, a, learning_rate, alpha, prior_relative_weight=1.0):
-    """Code modified from: https://github.com/sulc/priors-example/blob/master/cifar-priors-example.ipynb."""
+    """TODO - add docstring.
+
+    Modified from: https://github.com/sulc/priors-example/blob/master/cifar-priors-example.ipynb.
+    """
     g = compute_gradient(x, a)
     g_prior = log_dirichlet_gradient(x, alpha)
     nx = x + learning_rate * (g + prior_relative_weight * g_prior)
@@ -439,7 +462,7 @@ def MLE_estimate(
         num_iter: int max. number of iterations
         test_init_distribution: torch.Tensor (num_classes,) to initialize test set distribution.
                                 If None, use trainset_priors.
-        termination_difference: float defining the distance of posterior predictions for termination.
+        termination_difference: float defining the distance of posterior predictions for termination
     Returns:
         new_predictions: torch.Tensor (num_data, num_classes) with adjusted predictions
         new_testset_priors: torch.Tensor (num_classes,) with the estimated test set distribution
@@ -488,7 +511,7 @@ def MAP_estimate(
         trainset_priors: torch.Tensor (num_classes,) with the train set distribution
         test_init_distribution: torch.Tensor (num_classes,) to initialize test set distribution.
                                 If None, use trainset_priors.
-        termination_difference: float defining the distance of posterior predictions for termination.
+        termination_difference: float defining the distance of posterior predictions for termination
     Returns:
         new_predictions: torch.Tensor (num_data, num_classes) with adjusted predictions
         new_testset_priors: torch.Tensor (num_classes,) with the estimated test set distribution
@@ -504,7 +527,9 @@ def MAP_estimate(
     map_priors = map_priors / torch.sum(map_priors)
 
     for iteration in range(int(num_iter)):
-        testset_priors = next_step_projectedGA_with_prior(map_priors, a, alpha=alpha, learning_rate=lr)
+        testset_priors = next_step_projectedGA_with_prior(
+            map_priors, a, alpha=alpha, learning_rate=lr
+        )
 
         difference = torch.sum((testset_priors - map_priors) ** 2)
         if difference < termination_difference * termination_difference:
@@ -586,8 +611,12 @@ def BBSE_estimate(predictions, confusion_matrix, soft=False):
     return w
 
 
-def matrix_correction_MLE(predictions, trainset_priors, confusion_matrix, soft=False, max_iter=1000, lr=1e-3):
-    """Maximum likelihood estimation of test set priors using confusion matrix, proposed in Section 3.1.
+def matrix_correction_MLE(
+    predictions, trainset_priors, confusion_matrix, soft=False, max_iter=1000, lr=1e-3
+):
+    """Maximum likelihood estimation of test set priors using confusion matrix.
+
+    Proposed in Section 3.1.
 
     Args:
         predictions: torch.Tensor (num_data, num_classes) with predictions
@@ -643,15 +672,18 @@ def matrix_correction_MAP(
     max_iter=1000,
     lr=0.01,
 ):
-    """Maximum a-posteriori estimation of test set priors with a Dirichlet hyperprior, using confusion matrix.
+    """Maximum a-posteriori estimation of test set priors with a Dirichlet hyperprior.
+
+    Using confusion matrix.
 
     Proposed in Section 3.2.
 
     Args:
         predictions: torch.Tensor (num_data, num_classes) with predictions
         trainset_priors: torch.Tensor (num_classes,) with the train set distribution
-        confusion_matrix: torch.Tensor (num_classes, num_classes) to initialize test set distribution.
-                                If None, use trainset_priors.
+        confusion_matrix:
+            torch.Tensor (num_classes, num_classes) to initialize test set distribution.
+            If None, use trainset_priors.
         alpha: float hyperprior of dirichlet distribution
         soft: bool indicator for soft condusion matrix
         max_iter: int max. number of iterations

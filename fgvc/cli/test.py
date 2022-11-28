@@ -56,7 +56,9 @@ def load_metadata(test_metadata: str) -> pd.DataFrame:
         elif metadata.lower().endswith(".parquet"):
             df = pd.read_parquet(metadata)
         else:
-            raise ValueError(f"Unknown metadata file extension: {metadata}. Use either '.csv' or '.parquet'.")
+            raise ValueError(
+                f"Unknown metadata file extension: {metadata}. Use either '.csv' or '.parquet'."
+            )
         return df
 
     test_df = read_file(test_metadata)
@@ -72,7 +74,7 @@ def test_clf(
     rerun: str = None,
     **kwargs,
 ):
-    """Test model on the classification task and log classification metrics as a run summary in W&B."""
+    """Test model on the classification task and log test scores as a run summary in W&B."""
     if wandb is None:
         raise ImportError("Package wandb is not installed.")
 
@@ -152,7 +154,12 @@ def test_clf(
     logger.info(f"Storing predictions to: {preds_filepath}")
     np.save(
         preds_filepath,
-        {"metadata_file": test_metadata, "wandb_run_path": wandb_run_path, "preds": preds, "targs": targs},
+        {
+            "metadata_file": test_metadata,
+            "wandb_run_path": wandb_run_path,
+            "preds": preds,
+            "targs": targs,
+        },
     )
 
 

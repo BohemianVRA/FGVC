@@ -47,7 +47,11 @@ def log_model(
     if wandb_entity is None or wandb_project is None or wandb_run_id is None:
         # load script args
         args = load_args()
-        wandb_entity, wandb_project, wandb_run_id = args.wandb_entity, args.wandb_project, args.wandb_run_id
+        wandb_entity, wandb_project, wandb_run_id = (
+            args.wandb_entity,
+            args.wandb_project,
+            args.wandb_run_id,
+        )
 
     # resume wandb run
     wandb_run_path = f"{wandb_entity}/{wandb_project}/{wandb_run_id}"

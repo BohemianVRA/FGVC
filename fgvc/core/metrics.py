@@ -2,7 +2,12 @@ from typing import Optional, Tuple
 
 import numpy as np
 from scipy.special import expit
-from sklearn.metrics import accuracy_score, f1_score, multilabel_confusion_matrix, top_k_accuracy_score
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    multilabel_confusion_matrix,
+    top_k_accuracy_score,
+)
 
 
 def classification_scores(
@@ -111,7 +116,9 @@ def binary_segmentation_tp_fp_fn_tn(
     return tp, fp, fn, tn
 
 
-def binary_segmentation_scores(preds: np.ndarray, targs: np.ndarray, reduction: str = "mean") -> dict:
+def binary_segmentation_scores(
+    preds: np.ndarray, targs: np.ndarray, reduction: str = "mean"
+) -> dict:
     """Compute segmentation scores Balanced Accuracy, Precision, Recall, F1, and IoU.
 
     Parameters

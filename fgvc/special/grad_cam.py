@@ -35,10 +35,12 @@ class GradCamTimm:
         image : torch.Tensor
             Input to the model as single image or batch of one image.
         target_cls : int
-            Target class for returning the attentions, the argmax of classification head is selected in default.
+            Target class for returning the attentions.
+            As a default, the argmax of classification head is selected.
         reduction : str or function
             Specifies the reduction method to apply to the output.
-            One of "norm_mean", "norm_max", "mean", "max" or user defined function for transferring the output.
+            One of "norm_mean", "norm_max", "mean", "max"
+            or user defined function for transferring the output.
 
         Returns
         -------
@@ -47,9 +49,10 @@ class GradCamTimm:
         (feats, grads) : Tuple[np.ndarray, np.ndarray]
             Extracted encoder features and evaluated gradients.
         """
+        allowed_reductions = ["norm_mean", "norm_max", "mean", "max"]
         assert isinstance(reduction, Callable) or (
-            isinstance(reduction, str) and reduction.lower() in ["norm_mean", "norm_max", "mean", "max"]
-        ), "Argument `reduction` should be one of norm_mean, norm_max, mean, max, or a callable function. "
+            isinstance(reduction, str) and reduction.lower() in allowed_reductions
+        ), f"Argument `reduction` should be one of {allowed_reductions}, or a callable function. "
 
         self.model.eval()
         self.model = self.model.to(self.device)
@@ -59,7 +62,9 @@ class GradCamTimm:
         if len(image.shape) == 3:
             image = torch.unsqueeze(image, dim=0)
         # check the batch size
-        assert image.shape[0] == 1, f"Allowed input shape is (1, channel, width, height): {image.shape}"
+        assert (
+            image.shape[0] == 1
+        ), f"Allowed input shape is (1, channel, width, height): {image.shape}"
 
         # forward features and backward target
         feats, logits = self.forward_pass(image)
@@ -151,7 +156,8 @@ class GradCamTimm:
         logits
             Classifier logits.
         target_cls
-            Target class for returning the attentions, the argmax of classification head is selected in default.
+            Target class for returning the attentions.
+            As a default, the argmax of classification head is selected.
 
         Returns
         -------

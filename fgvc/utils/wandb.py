@@ -16,7 +16,7 @@ logger = logging.getLogger("fgvc")
 
 
 def if_wandb_is_installed(func: callable):
-    """A decorator function that checks if the `wandb` library is installed."""
+    """A decorator function that checks if the W&B library is installed."""
 
     @wraps(func)
     def decorator(*args, **kwargs):
@@ -29,7 +29,7 @@ def if_wandb_is_installed(func: callable):
 
 
 def if_wandb_run_started(func: callable):
-    """A decorator function that checks if the `wandb` library is installed and W&B run is initialized."""
+    """A decorator function that checks if a W&B run is initialized."""
 
     @wraps(func)
     def decorator(*args, **kwargs):
@@ -48,7 +48,7 @@ W&B methods used during training, before W&B run is finished.
 def init_wandb(config: dict, run_name: str, entity: str, project: str, **kwargs):
     """Initialize a new W&B run.
 
-    The method is executed if the `wandb` library is installed.
+    The method is executed if the W&B library is installed.
 
     Parameters
     ----------
@@ -163,10 +163,12 @@ W&B methods used after training - after W&B run is finished.
 
 
 @if_wandb_is_installed
-def get_runs_df(entity: str, project: str, config_cols: List[str] = [], summary_cols: List[str] = []) -> pd.DataFrame:
+def get_runs_df(
+    entity: str, project: str, config_cols: List[str] = [], summary_cols: List[str] = []
+) -> pd.DataFrame:
     """Get a DataFrame with W&B runs for the given entity/project.
 
-    The method is executed if the `wandb` library is installed.
+    The method is executed if the W&B library is installed.
 
     Parameters
     ----------
@@ -212,7 +214,7 @@ def log_summary_scores(
 ):
     """Log scores to W&B run summary, after the W&B run is finished.
 
-    The method is executed if the `wandb` library is installed.
+    The method is executed if the W&B library is installed.
 
     Parameters
     ----------
@@ -270,9 +272,9 @@ def log_clf_test_scores(
 
 @if_wandb_is_installed
 def set_best_scores_in_summary(run_path: str, primary_score: str, scores: Union[list, callable]):
-    """Update W&B run summary with the best scores achieved during training instead of last epoch scores.
+    """Update W&B run summary with the best validation scores instead of the last epoch scores.
 
-    The method is executed if the `wandb` library is installed.
+    The method is executed if the W&B library is installed.
 
     Parameters
     ----------
@@ -296,19 +298,3 @@ def set_best_scores_in_summary(run_path: str, primary_score: str, scores: Union[
         run.summary[k] = v
     run.summary["best_epoch"] = best_epoch
     run.update()
-
-
-# def update_wandb_run_test_performance(run, performance_2017, performance_2018):
-#     run.summary["PlantCLEF2017 | Test Acc. (img.)"] = performance_2017["acc"]
-#     run.summary["PlantCLEF2017 | Test Acc. (obs. - max logit)"] = performance_2017["max_logits_acc"]
-#     run.summary["PlantCLEF2017 | Test Acc. (obs. - mean logits)"] = performance_2017["mean_logits_acc"]
-#     run.summary["PlantCLEF2017 | Test Acc. (obs. - max softmax)"] = performance_2017["max_softmax_acc"]
-#     run.summary["PlantCLEF2017 | Test Acc. (obs. - mean softmax)"] = performance_2017["mean_softmax_acc"]
-#
-#     run.summary["PlantCLEF2018 | Test Acc. (img.)"] = performance_2018["acc"]
-#     run.summary["PlantCLEF2018 | Test Acc. (obs. - max logit)"] = performance_2018["max_logits_acc"]
-#     run.summary["PlantCLEF2018 | Test Acc. (obs. - mean logits)"] = performance_2018["mean_logits_acc"]
-#     run.summary["PlantCLEF2018 | Test Acc. (obs. - max softmax)"] = performance_2018["max_softmax_acc"]
-#     run.summary["PlantCLEF2018 | Test Acc. (obs. - mean softmax)"] = performance_2018["mean_softmax_acc"]
-#
-#     run.update()
