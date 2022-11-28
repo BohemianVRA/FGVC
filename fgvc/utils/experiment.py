@@ -86,7 +86,8 @@ def load_args(args: list = None) -> Tuple[argparse.Namespace, dict]:
     Returns
     -------
     args
-        Namespace with parsed known args like `--config-path`, `--cuda-devices`, `--wandb-entity`, `--wandb-project`.
+        Namespace with parsed known args like
+        `--config-path`, `--cuda-devices`, `--wandb-entity`, `--wandb-project`.
     extra_args
         Dictionary with parsed unknown args.
     """
@@ -145,7 +146,8 @@ def load_config(
     extra_args
         Optional dictionary with parsed unknown args.
     run_name_fmt
-        Format of a run name. It should contain attribute names from configuration file separated by "-".
+        Format of a run name.
+        It should contain attribute names from configuration file separated by "-".
     create_dirs
         If True, the method will create run and experiment directory.
 
@@ -252,6 +254,10 @@ def get_optimizer_and_scheduler(model: nn.Module, config: dict) -> Tuple[Optimiz
     assert "learning_rate" in config
     assert "scheduler" in config
     assert "epochs" in config
-    optimizer = get_optimizer(name=config["optimizer"], params=model.parameters(), lr=config["learning_rate"])
-    scheduler = get_scheduler(name=config["scheduler"], optimizer=optimizer, epochs=config["epochs"])
+    optimizer = get_optimizer(
+        name=config["optimizer"], params=model.parameters(), lr=config["learning_rate"]
+    )
+    scheduler = get_scheduler(
+        name=config["scheduler"], optimizer=optimizer, epochs=config["epochs"]
+    )
     return optimizer, scheduler

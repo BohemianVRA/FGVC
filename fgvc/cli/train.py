@@ -8,7 +8,12 @@ import torch.nn as nn
 from fgvc.core.training import train
 from fgvc.datasets import get_dataloaders
 from fgvc.losses import FocalLossWithLogits, SeesawLossWithLogits
-from fgvc.utils.experiment import get_optimizer_and_scheduler, load_config, load_model, parse_unknown_args
+from fgvc.utils.experiment import (
+    get_optimizer_and_scheduler,
+    load_config,
+    load_model,
+    parse_unknown_args,
+)
 from fgvc.utils.utils import set_cuda_device, set_random_seed
 from fgvc.utils.wandb import finish_wandb, init_wandb, set_best_scores_in_summary
 
@@ -68,7 +73,9 @@ def load_metadata(train_metadata: str, valid_metadata: str) -> Tuple[pd.DataFram
         elif metadata.lower().endswith(".parquet"):
             df = pd.read_parquet(metadata)
         else:
-            raise ValueError(f"Unknown metadata file extension: {metadata}. Use either '.csv' or '.parquet'.")
+            raise ValueError(
+                f"Unknown metadata file extension: {metadata}. Use either '.csv' or '.parquet'."
+            )
         return df
 
     train_df = read_file(train_metadata)
@@ -78,7 +85,9 @@ def load_metadata(train_metadata: str, valid_metadata: str) -> Tuple[pd.DataFram
     return train_df, valid_df
 
 
-def add_metadata_info_to_config(config: dict, train_df: pd.DataFrame, valid_df: pd.DataFrame) -> dict:
+def add_metadata_info_to_config(
+    config: dict, train_df: pd.DataFrame, valid_df: pd.DataFrame
+) -> dict:
     """Include information from metadata to the traning configuration."""
     assert "class_id" in train_df and "class_id" in valid_df
     config["number_of_classes"] = len(train_df["class_id"].unique())
@@ -113,7 +122,9 @@ def train_clf(
 
     # load training config
     logger.info("Loading training config.")
-    config, run_name = load_config(config_path, extra_args, run_name_fmt="architecture-loss-augmentations")
+    config, run_name = load_config(
+        config_path, extra_args, run_name_fmt="architecture-loss-augmentations"
+    )
 
     # set device and random seed
     device = set_cuda_device(cuda_devices)

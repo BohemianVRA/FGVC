@@ -34,7 +34,9 @@ class TrainingState:
         os.makedirs(self.path, exist_ok=True)
 
         # setup training logger
-        self.t_logger = setup_training_logger(training_log_file=os.path.join(self.path, f"{run_name}.log"))
+        self.t_logger = setup_training_logger(
+            training_log_file=os.path.join(self.path, f"{run_name}.log")
+        )
 
         # create training state variables
         self.best_loss = np.inf
@@ -59,7 +61,8 @@ class TrainingState:
             Value of metric based on which checkpoint is saved.
         """
         self.t_logger.info(
-            f"Epoch {epoch} - " f"Save checkpoint with best validation {metric_name}: {metric_value:.6f}"
+            f"Epoch {epoch} - "
+            f"Save checkpoint with best validation {metric_name}: {metric_value:.6f}"
         )
         torch.save(
             self.model.state_dict(),

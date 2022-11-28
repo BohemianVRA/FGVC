@@ -93,7 +93,12 @@ def light_transforms_rcrop(
 
 
 def tta_transforms(
-    *, data: str, image_size: tuple, mean: tuple = IMAGENET_MEAN, std: tuple = IMAGENET_STD, **kwargs
+    *,
+    data: str,
+    image_size: tuple,
+    mean: tuple = IMAGENET_MEAN,
+    std: tuple = IMAGENET_STD,
+    **kwargs
 ) -> A.Compose:
     """TODO add docstring."""
     assert data in (

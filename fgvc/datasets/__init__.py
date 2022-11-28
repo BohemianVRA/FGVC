@@ -51,9 +51,9 @@ def get_dataloaders(
     dataset_kws: dict = None,
     dataloader_kws: dict = None,
 ) -> Tuple[DataLoader, DataLoader, tuple, tuple]:
-    """For given input training and validation data create augmentation transforms, Datasets, and DataLoaders.
+    """Create training and validation augmentation transformations, datasets, and DataLoaders.
 
-    The method is generic and allows to create Transforms and Datasets of any given type or class.
+    The method is generic and allows to create augmentations and datasets of any given class.
 
     Parameters
     ----------
@@ -64,18 +64,18 @@ def get_dataloaders(
     augmentations
         Name of augmentations to use (light, heavy, ...).
     image_size
-        Image size used for resizing in augmentation transforms.
+        Image size used for resizing in augmentations.
     model_mean
-        Model mean used for input normalization in augmentation transforms.
+        Model mean used for input normalization in augmentations.
     model_std
-        Model mean used for input normalization in augmentation transforms.
+        Model mean used for input normalization in augmentations.
     batch_size
         Batch size used in DataLoader.
     num_workers
         Number of workers used in DataLoader.
     transforms_fns
         A dictionary with names of augmentations (light, heavy, ...) as keys
-        and corresponding functions to create training and validation augmentation transformations as values.
+        and corresponding functions to create training and validation augmentations as values.
     transforms_kws
         Additional keyword arguments for the transformation function.
     dataset_cls
@@ -95,7 +95,7 @@ def get_dataloaders(
     (trainset, valset)
         Tuple with training and validation dataset instances.
     (train_tfm, val_tfm)
-        Tuple with training and validation augmentation transforms.
+        Tuple with training and validation augmentation transformations.
     """
     transforms_fns = transforms_fns or default_tranforms
     assert len(transforms_fns) > 0
@@ -106,10 +106,13 @@ def get_dataloaders(
     # create training and validation augmentations
     if augmentations in transforms_fns:
         transforms_fn = transforms_fns[augmentations]
-        train_tfm, val_tfm = transforms_fn(image_size=image_size, mean=model_mean, std=model_std, **transforms_kws)
+        train_tfm, val_tfm = transforms_fn(
+            image_size=image_size, mean=model_mean, std=model_std, **transforms_kws
+        )
     else:
         raise ValueError(
-            f"Augmentation {augmentations} is not recognized. Available options are {list(transforms_fns.keys())}."
+            f"Augmentation {augmentations} is not recognized. "
+            f"Available options are {list(transforms_fns.keys())}."
         )
 
     # create training dataset and dataloader
@@ -118,7 +121,9 @@ def get_dataloaders(
         trainloader_kws = dataloader_kws.copy()
         if "shuffle" not in trainloader_kws:
             trainloader_kws["shuffle"] = True
-        trainloader = DataLoader(trainset, batch_size=batch_size, num_workers=num_workers, **trainloader_kws)
+        trainloader = DataLoader(
+            trainset, batch_size=batch_size, num_workers=num_workers, **trainloader_kws
+        )
     else:
         trainset = None
         trainloader = None
@@ -129,7 +134,9 @@ def get_dataloaders(
         valloader_kws = dataloader_kws.copy()
         if "shuffle" not in valloader_kws:
             valloader_kws["shuffle"] = False
-        valloader = DataLoader(valset, batch_size=batch_size, num_workers=num_workers, **valloader_kws)
+        valloader = DataLoader(
+            valset, batch_size=batch_size, num_workers=num_workers, **valloader_kws
+        )
     else:
         valset = None
         valloader = None
