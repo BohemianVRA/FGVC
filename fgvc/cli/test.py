@@ -43,7 +43,7 @@ def load_args() -> argparse.Namespace:
         help="Re-runs evaluation on test set even if the run already has test scores.",
         action="store_true",
     )
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
     return args
 
 
