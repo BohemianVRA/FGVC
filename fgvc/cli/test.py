@@ -64,24 +64,36 @@ def load_metadata(test_metadata: str) -> pd.DataFrame:
     return test_df
 
 
-def test_clf():
-    """Test model on the test set and log classification metrics as a run summary in W&B."""
+def test_clf(
+    test_metadata: str = None,
+    wandb_run_path: str = None,
+    cuda_devices: str = None,
+    rerun: str = None,
+    **kwargs,
+):
+    """Test model on the classification task and log classification metrics as a run summary in W&B."""
     if wandb is None:
         raise ImportError("Package wandb is not installed.")
 
-    # load script args
-    args = load_args()
+    if test_metadata is None or wandb_run_path is None:
+        # load script args
+        args = load_args()
+
+        test_metadata = args.test_metadata
+        wandb_run_path = args.wandb_run_path
+        cuda_devices = args.cuda_devices
+        rerun = args.rerun
 
     # set device
-    device = set_cuda_device(args.cuda_devices)
+    device = set_cuda_device(cuda_devices)
 
     # load metadata
-    test_df = load_metadata(test_metadata=args.test_metadata)
+    test_df = load_metadata(test_metadata=test_metadata)
 
     # connect to wandb and load run
-    logger.info(f"Loading W&B experiment run: {args.wandb_run_path}")
+    logger.info(f"Loading W&B experiment run: {wandb_run_path}")
     api = wandb.Api()
-    run = api.run(args.wandb_run_path)
+    run = api.run(wandb_run_path)
     config = run.config
 
     run_is_finished = len(run.history()) >= config["epochs"] and run.state == "finished"
@@ -90,7 +102,7 @@ def test_clf():
         sys.exit(0)
 
     has_test_scores = "Test. Accuracy" in run.summary
-    if has_test_scores and not args.rerun:
+    if has_test_scores and not rerun:
         logger.warning(f"Run '{run.name}' already has test scores. Exiting.")
         sys.exit(0)
 
@@ -125,7 +137,7 @@ def test_clf():
     logger.info(f"Scores - {scores_str}")
     logger.info("Logging scores to wandb.")
     log_clf_test_scores(
-        args.wandb_run_path,
+        wandb_run_path,
         test_acc=scores["Acc"],
         test_acc3=scores["Recall@3"],
         test_f1=scores["F1"],
@@ -136,9 +148,10 @@ def test_clf():
     eval_path = os.path.join(exp_path, "evaluation")
     os.makedirs(eval_path, exist_ok=True)
     preds_filepath = os.path.join(eval_path, "predictions.npy")
+    logger.info(f"Storing predictions to: {preds_filepath}")
     np.save(
         preds_filepath,
-        {"metadata_file": args.test_metadata, "wandb_run_path": args.wandb_run_path, "preds": preds, "targs": targs},
+        {"metadata_file": test_metadata, "wandb_run_path": wandb_run_path, "preds": preds, "targs": targs},
     )
 
 
