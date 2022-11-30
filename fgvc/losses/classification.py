@@ -4,11 +4,15 @@ import torch.nn.functional as F
 
 
 class BCEWithLogitsLoss(nn.Module):
-    """A wapper class for `torch.nn.BCEWithLogitsLoss` that aligns prediction and target shapes and dtypes."""
+    """A wapper class for `torch.nn.BCEWithLogitsLoss` that aligns shapes and dtypes of inputs."""
 
-    def __init__(self, weight: torch.Tensor = None, reduction: str = "mean", pos_weight: torch.Tensor = None):
+    def __init__(
+        self, weight: torch.Tensor = None, reduction: str = "mean", pos_weight: torch.Tensor = None
+    ):
         super().__init__()
-        self.criterion = nn.BCEWithLogitsLoss(weight=weight, reduction=reduction, pos_weight=pos_weight)
+        self.criterion = nn.BCEWithLogitsLoss(
+            weight=weight, reduction=reduction, pos_weight=pos_weight
+        )
 
     def forward(self, logits: torch.Tensor, targs: torch.Tensor) -> torch.Tensor:
         """Evaluate Binary Cross Entropy Loss."""
@@ -67,9 +71,9 @@ class SeesawLossWithLogits(nn.Module):
         logits = logits - max_element[:, None]  # to prevent overflow
 
         numerator = torch.exp(logits)
-        denominator = ((1 - targs)[:, None, :] * self.s[None, :, :] * torch.exp(logits)[:, None, :]).sum(
-            axis=-1
-        ) + torch.exp(logits)
+        denominator = (
+            (1 - targs)[:, None, :] * self.s[None, :, :] * torch.exp(logits)[:, None, :]
+        ).sum(axis=-1) + torch.exp(logits)
 
         sigma = numerator / (denominator + self.eps)
         loss = (-targs * torch.log(sigma + self.eps)).sum(-1)

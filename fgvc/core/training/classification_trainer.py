@@ -91,7 +91,9 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
         num_updates = epoch * len(dataloader)
         avg_loss = 0.0
         scores_monitor = ScoresMonitor(
-            scores_fn=lambda preds, targs: classification_scores(preds, targs, top_k=None, return_dict=True),
+            scores_fn=lambda preds, targs: classification_scores(
+                preds, targs, top_k=None, return_dict=True
+            ),
             num_samples=len(dataloader.dataset),
             eval_batches=False,
         )
@@ -110,7 +112,9 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
 
         return avg_loss, scores_monitor.avg_scores
 
-    def predict(self, dataloader: DataLoader, return_preds: bool = True) -> Tuple[np.ndarray, np.ndarray, float, dict]:
+    def predict(
+        self, dataloader: DataLoader, return_preds: bool = True
+    ) -> Tuple[np.ndarray, np.ndarray, float, dict]:
         """Run inference.
 
         Parameters
@@ -135,7 +139,9 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
         self.model.eval()
         avg_loss = 0.0
         scores_monitor = ScoresMonitor(
-            scores_fn=lambda preds, targs: classification_scores(preds, targs, top_k=3, return_dict=True),
+            scores_fn=lambda preds, targs: classification_scores(
+                preds, targs, top_k=3, return_dict=True
+            ),
             num_samples=len(dataloader.dataset),
             eval_batches=False,
             store_preds_targs=return_preds,
@@ -144,7 +150,12 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
             preds, targs, loss = self.predict_batch(batch)
             avg_loss += loss / len(dataloader)
             scores_monitor.update(preds, targs)
-        return scores_monitor.preds_all, scores_monitor.targs_all, avg_loss, scores_monitor.avg_scores
+        return (
+            scores_monitor.preds_all,
+            scores_monitor.targs_all,
+            avg_loss,
+            scores_monitor.avg_scores,
+        )
 
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777, exp_name: str = None):
         """Train neural network.
@@ -204,7 +215,10 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
                 epoch + 1,
                 scores_str=scores_str,
                 valid_loss=valid_loss,
-                valid_metrics={"accuracy": valid_scores.get("Acc", 0), "f1": valid_scores.get("F1", 0)},
+                valid_metrics={
+                    "accuracy": valid_scores.get("Acc", 0),
+                    "f1": valid_scores.get("F1", 0),
+                },
             )
 
         # save last checkpoint, log best scores and total training time

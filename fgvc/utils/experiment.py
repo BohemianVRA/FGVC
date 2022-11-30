@@ -4,7 +4,12 @@ import logging
 import os
 from typing import Tuple
 
+import torch
+import torch.nn as nn
 import yaml
+
+from fgvc.core.models import get_model
+from fgvc.core.optimizers import Optimizer, SchedulerType, get_optimizer, get_scheduler
 
 logger = logging.getLogger("fgvc")
 
@@ -81,7 +86,8 @@ def load_args(args: list = None) -> Tuple[argparse.Namespace, dict]:
     Returns
     -------
     args
-        Namespace with parsed known args like `--config-path`, `--cuda-devices`, `--wandb-entity`, `--wandb-project`.
+        Namespace with parsed known args like
+        `--config-path`, `--cuda-devices`, `--wandb-entity`, `--wandb-project`.
     extra_args
         Dictionary with parsed unknown args.
     """
@@ -140,7 +146,8 @@ def load_config(
     extra_args
         Optional dictionary with parsed unknown args.
     run_name_fmt
-        Format of a run name. It should contain attribute names from configuration file separated by "-".
+        Format of a run name.
+        It should contain attribute names from configuration file separated by "-".
     create_dirs
         If True, the method will create run and experiment directory.
 
@@ -187,3 +194,70 @@ def load_config(
     logger.info(f"Using experiment directory: {exp_path}")
     logger.info(f"Using training config: {json.dumps(config, indent=4)}")
     return config, run_name
+
+
+def load_model(config: dict, model_weights: str = None) -> Tuple[nn.Module, tuple, tuple]:
+    """Load model with pretrained checkpoint.
+
+    Parameters
+    ----------
+    config
+        A dictionary with experiment configuration.
+        It should contain `architecture`, `number_of_classes`, and optionally `multigpu`.
+    model_weights
+        Path to the pre-trained model checkpoint.
+
+    Returns
+    -------
+    model
+        PyTorch model.
+    model_mean
+        Tuple with mean used to normalize images during training.
+    model_std
+        Tuple with standard deviation used to normalize images during training.
+    """
+    assert "architecture" in config
+    assert "number_of_classes" in config
+    model = get_model(
+        config["architecture"],
+        config["number_of_classes"],
+        pretrained=model_weights is None,
+    )
+    model_mean = tuple(model.default_cfg["mean"])
+    model_std = tuple(model.default_cfg["std"])
+    if config.get("multigpu", False):  # multi gpu model
+        model = nn.DataParallel(model)
+    if model_weights is not None:
+        model.load_state_dict(torch.load(model_weights, map_location="cpu"))
+    return model, model_mean, model_std
+
+
+def get_optimizer_and_scheduler(model: nn.Module, config: dict) -> Tuple[Optimizer, SchedulerType]:
+    """Create optimizer and learning rate scheduler.
+
+    Parameters
+    ----------
+    model
+        PyTorch model.
+    config
+        A dictionary with experiment configuration.
+        It should contain `optimizer`, `learning_rate`, `scheduler`, and `epochs`.
+
+    Returns
+    -------
+    optimizer
+        PyTorch optimizer.
+    scheduler
+        PyTorch or timm optimizer.
+    """
+    assert "optimizer" in config
+    assert "learning_rate" in config
+    assert "scheduler" in config
+    assert "epochs" in config
+    optimizer = get_optimizer(
+        name=config["optimizer"], params=model.parameters(), lr=config["learning_rate"]
+    )
+    scheduler = get_scheduler(
+        name=config["scheduler"], optimizer=optimizer, epochs=config["epochs"]
+    )
+    return optimizer, scheduler

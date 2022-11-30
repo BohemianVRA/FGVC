@@ -13,7 +13,14 @@ from .scores_monitor import ScoresMonitor
 from .segmentation_trainer import SegmentationTrainer
 from .training_state import TrainingState
 
-__all__ = ["ClassificationTrainer", "SegmentationTrainer", "ScoresMonitor", "TrainingState", "train", "predict"]
+__all__ = [
+    "ClassificationTrainer",
+    "SegmentationTrainer",
+    "ScoresMonitor",
+    "TrainingState",
+    "train",
+    "predict",
+]
 
 
 def train(

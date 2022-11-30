@@ -4,7 +4,9 @@ import numpy as np
 import torch
 
 
-def to_device(*tensors: List[Union[torch.Tensor, dict]], device: torch.device) -> List[Union[torch.Tensor, dict]]:
+def to_device(
+    *tensors: List[Union[torch.Tensor, dict]], device: torch.device
+) -> List[Union[torch.Tensor, dict]]:
     """Converts pytorch tensors to device.
 
     Parameters
@@ -50,7 +52,9 @@ def to_numpy(*tensors: List[Union[torch.Tensor, dict]]) -> List[Union[np.ndarray
     return out if len(out) > 1 else out[0]
 
 
-def concat_arrays(*lists: List[List[Union[np.ndarray, dict]]]) -> List[Optional[List[Union[np.ndarray, dict]]]]:
+def concat_arrays(
+    *lists: List[List[Union[np.ndarray, dict]]]
+) -> List[Optional[List[Union[np.ndarray, dict]]]]:
     """Concatenates lists of numpy arrays with predictions and targets to numpy arrays.
 
     Parameters

@@ -140,7 +140,9 @@ class BinarySegmentationDataset(Dataset):
         """Visualize image with segmentation mask of i-th element in the dataset."""
         image, mask, _ = self.get_image_mask(idx)
         if apply_transform:
-            transform = A.Compose([t for t in self.transform if not isinstance(t, (A.Normalize, ToTensorV2))])
+            transform = A.Compose(
+                [t for t in self.transform if not isinstance(t, (A.Normalize, ToTensorV2))]
+            )
             transformed = transform(image=image, mask=mask)
             image, mask = transformed["image"], transformed["mask"]
 

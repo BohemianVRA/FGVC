@@ -1,13 +1,18 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from scipy.special import expit
-from sklearn.metrics import accuracy_score, f1_score, multilabel_confusion_matrix, top_k_accuracy_score
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    multilabel_confusion_matrix,
+    top_k_accuracy_score,
+)
 
 
 def classification_scores(
     preds: np.ndarray, targs: np.ndarray, *, top_k: Optional[int] = 3, return_dict: bool = False
-) -> Tuple[float, float, float]:
+) -> Union[Tuple[float, float, float], dict]:
     """Compute top-1 and top-k accuracy and f1 score.
 
     Parameters
@@ -111,7 +116,9 @@ def binary_segmentation_tp_fp_fn_tn(
     return tp, fp, fn, tn
 
 
-def binary_segmentation_scores(preds: np.ndarray, targs: np.ndarray, reduction: str = "mean") -> dict:
+def binary_segmentation_scores(
+    preds: np.ndarray, targs: np.ndarray, reduction: str = "mean"
+) -> dict:
     """Compute segmentation scores Balanced Accuracy, Precision, Recall, F1, and IoU.
 
     Parameters

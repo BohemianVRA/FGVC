@@ -91,7 +91,9 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
         num_updates = epoch * len(dataloader)
         avg_loss = 0.0
         scores_monitor = ScoresMonitor(
-            scores_fn=lambda preds, targs: binary_segmentation_scores(preds, targs, reduction="sum"),
+            scores_fn=lambda preds, targs: binary_segmentation_scores(
+                preds, targs, reduction="sum"
+            ),
             num_samples=len(dataloader.dataset),
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
@@ -109,7 +111,9 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
 
         return avg_loss, scores_monitor.avg_scores
 
-    def predict(self, dataloader: DataLoader, return_preds: bool = True) -> Tuple[np.ndarray, np.ndarray, float, dict]:
+    def predict(
+        self, dataloader: DataLoader, return_preds: bool = True
+    ) -> Tuple[np.ndarray, np.ndarray, float, dict]:
         """Run inference.
 
         Parameters
@@ -134,7 +138,9 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
         self.model.eval()
         avg_loss = 0.0
         scores_monitor = ScoresMonitor(
-            scores_fn=lambda preds, targs: binary_segmentation_scores(preds, targs, reduction="sum"),
+            scores_fn=lambda preds, targs: binary_segmentation_scores(
+                preds, targs, reduction="sum"
+            ),
             num_samples=len(dataloader.dataset),
             store_preds_targs=return_preds,
         )
@@ -142,7 +148,12 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
             preds, targs, loss = self.predict_batch(batch)
             avg_loss += loss / len(dataloader)
             scores_monitor.update(preds, targs)
-        return scores_monitor.preds_all, scores_monitor.targs_all, avg_loss, scores_monitor.avg_scores
+        return (
+            scores_monitor.preds_all,
+            scores_monitor.targs_all,
+            avg_loss,
+            scores_monitor.avg_scores,
+        )
 
     def train(self, run_name: str, num_epochs: int = 1, seed: int = 777, exp_name: str = None):
         """Train neural network.

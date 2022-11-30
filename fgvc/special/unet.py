@@ -23,7 +23,8 @@ class Unet(nn.Module):
     Parameters
     ----------
     encoder
-        Classification model (without last dense layers) used as feature extractor to build segmentation model.
+        Classification model (without last dense layers)
+        used as feature extractor to build segmentation model.
     num_classes
         Number of classes for output (output shape - `(batch, classes, h, w)`).
     decoder_channels

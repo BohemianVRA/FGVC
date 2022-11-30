@@ -43,7 +43,9 @@ class SchedulerMixin:
             self.scheduler.step_update(num_updates=num_updates)
 
     def make_scheduler_step(self, epoch: int = None, valid_loss: float = None):
-        """Make scheduler step after training one epoch. Use different arguments depending on the scheduler type.
+        """Make scheduler step after training one epoch.
+
+        The method uses different arguments depending on the scheduler type.
 
         Parameters
         ----------
@@ -57,13 +59,18 @@ class SchedulerMixin:
                 if valid_loss is not None:
                     self.scheduler.step(valid_loss)  # pytorch implementation
                 else:
-                    warnings.warn("Scheduler ReduceLROnPlateau requires validation set to update learning rate.")
+                    warnings.warn(
+                        "Scheduler ReduceLROnPlateau requires validation set "
+                        "to update learning rate."
+                    )
             elif isinstance(self.scheduler, CosineAnnealingLR):
                 self.scheduler.step()  # pytorch implementation
             elif isinstance(self.scheduler, CosineLRScheduler):
                 if epoch is not None:
                     self.scheduler.step(epoch)  # timm implementation
                 else:
-                    warnings.warn("Scheduler CosineLRScheduler requires epoch number to update learning rate.")
+                    warnings.warn(
+                        "Scheduler CosineLRScheduler requires epoch number to update learning rate."
+                    )
             else:
                 raise ValueError(f"Unsupported scheduler type: {self.scheduler}")

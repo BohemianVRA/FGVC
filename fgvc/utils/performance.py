@@ -126,13 +126,17 @@ def test_loop(test_metadata, test_loader, model, device, batch_size, disable_tqd
     preds = np.zeros((len(test_metadata)))
     preds_raw = []
 
-    for i, (images, _, _) in tqdm.tqdm(enumerate(test_loader), total=len(test_loader), disable=disable_tqdm):
+    for i, (images, _, _) in tqdm.tqdm(
+        enumerate(test_loader), total=len(test_loader), disable=disable_tqdm
+    ):
 
         images = images.to(device)
 
         with torch.no_grad():
             y_preds = model(images)
-        preds[i * batch_size : min((i + 1) * batch_size, len(test_metadata))] = y_preds.argmax(1).to("cpu").numpy()
+        preds[i * batch_size : min((i + 1) * batch_size, len(test_metadata))] = (
+            y_preds.argmax(1).to("cpu").numpy()
+        )
         preds_raw.extend(y_preds.to("cpu").numpy())
 
     test_metadata["logits"] = preds_raw
@@ -142,18 +146,24 @@ def test_loop(test_metadata, test_loader, model, device, batch_size, disable_tqd
     return test_metadata
 
 
-def test_loop_performance(test_metadata, test_loader, model, device, batch_size, disable_tqdm=False):
+def test_loop_performance(
+    test_metadata, test_loader, model, device, batch_size, disable_tqdm=False
+):
     """TODO add docstring."""
     preds = np.zeros((len(test_metadata)))
     preds_raw = []
 
-    for i, (images, _, _) in tqdm.tqdm(enumerate(test_loader), total=len(test_loader), disable=disable_tqdm):
+    for i, (images, _, _) in tqdm.tqdm(
+        enumerate(test_loader), total=len(test_loader), disable=disable_tqdm
+    ):
 
         images = images.to(device)
 
         with torch.no_grad():
             y_preds = model(images)
-        preds[i * batch_size : min((i + 1) * batch_size, len(test_metadata))] = y_preds.argmax(1).to("cpu").numpy()
+        preds[i * batch_size : min((i + 1) * batch_size, len(test_metadata))] = (
+            y_preds.argmax(1).to("cpu").numpy()
+        )
         preds_raw.extend(y_preds.to("cpu").numpy())
 
     test_metadata["logits"] = preds_raw
@@ -165,18 +175,24 @@ def test_loop_performance(test_metadata, test_loader, model, device, batch_size,
     return performance
 
 
-def test_loop_full_performance(test_metadata, test_loader, model, device, batch_size, disable_tqdm=False):
+def test_loop_full_performance(
+    test_metadata, test_loader, model, device, batch_size, disable_tqdm=False
+):
     """TODO add docstring."""
     preds = np.zeros((len(test_metadata)))
     preds_raw = []
 
-    for i, (images, _, _) in tqdm.tqdm(enumerate(test_loader), total=len(test_loader), disable=disable_tqdm):
+    for i, (images, _, _) in tqdm.tqdm(
+        enumerate(test_loader), total=len(test_loader), disable=disable_tqdm
+    ):
 
         images = images.to(device)
 
         with torch.no_grad():
             y_preds = model(images)
-        preds[i * batch_size : min((i + 1) * batch_size, len(test_metadata))] = y_preds.argmax(1).to("cpu").numpy()
+        preds[i * batch_size : min((i + 1) * batch_size, len(test_metadata))] = (
+            y_preds.argmax(1).to("cpu").numpy()
+        )
         preds_raw.extend(y_preds.to("cpu").numpy())
 
     test_metadata["logits"] = preds_raw
@@ -193,13 +209,17 @@ def test_loop_insights(test_metadata, test_loader, model, device, batch_size, di
     preds = np.zeros((len(test_metadata)))
     preds_raw = []
 
-    for i, (images, _, _) in tqdm.tqdm(enumerate(test_loader), total=len(test_loader), disable=disable_tqdm):
+    for i, (images, _, _) in tqdm.tqdm(
+        enumerate(test_loader), total=len(test_loader), disable=disable_tqdm
+    ):
 
         images = images.to(device)
 
         with torch.no_grad():
             y_preds = model(images)
-        preds[i * batch_size : min((i + 1) * batch_size, len(test_metadata))] = y_preds.argmax(1).to("cpu").numpy()
+        preds[i * batch_size : min((i + 1) * batch_size, len(test_metadata))] = (
+            y_preds.argmax(1).to("cpu").numpy()
+        )
         preds_raw.extend(y_preds.to("cpu").numpy())
 
     test_metadata["logits"] = preds_raw
@@ -224,13 +244,17 @@ def test_loop_priors(
     preds = np.zeros((len(test_metadata)))
     preds_raw = []
 
-    for i, (images, _, _) in tqdm.tqdm(enumerate(test_loader), total=len(test_loader), disable=disable_tqdm):
+    for i, (images, _, _) in tqdm.tqdm(
+        enumerate(test_loader), total=len(test_loader), disable=disable_tqdm
+    ):
 
         images = images.to(device)
 
         with torch.no_grad():
             y_preds = model(images)
-        preds[i * batch_size : min((i + 1) * batch_size, len(test_metadata))] = y_preds.argmax(1).to("cpu").numpy()
+        preds[i * batch_size : min((i + 1) * batch_size, len(test_metadata))] = (
+            y_preds.argmax(1).to("cpu").numpy()
+        )
         preds_raw.extend(y_preds.to("cpu").numpy())
 
     test_metadata["logits"] = preds_raw
