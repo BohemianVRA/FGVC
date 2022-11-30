@@ -11,6 +11,8 @@ from fgvc.core.metrics import classification_scores
 def confidence_threshold_report(
     preds: np.ndarray,
     targs: np.ndarray,
+    *,
+    step: float = 0.02,
 ) -> pd.DataFrame:
     """Evaluates classification scores for different confidence thresholds.
 
@@ -20,6 +22,8 @@ def confidence_threshold_report(
         Numpy array with predictions.
     targs
         Numpy array with ground-truth targets.
+    step
+        Spacing between threshold values used in `np.arange` function.
 
     Returns
     -------
@@ -31,7 +35,7 @@ def confidence_threshold_report(
     probs = softmax(preds, 1)
 
     scores_per_th = {}
-    for th in np.arange(0, 1, 0.02):
+    for th in np.arange(0, 1, step):
         # use predictions with probability above threshold
         cond = (probs >= th).any(1)
 
