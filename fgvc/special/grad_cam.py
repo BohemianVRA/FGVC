@@ -20,7 +20,9 @@ class GradCamTimm:
         self.model = model
         if target_layer is not None:
             target_layers = self.get_possible_target_layers()
-            assert target_layer in target_layers, f"Unknown target layer '{target_layer}'. Use one of: {target_layers}"
+            assert (
+                target_layer in target_layers
+            ), f"Unknown target layer '{target_layer}'. Use one of: {target_layers}"
         self.target_layer = target_layer
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -146,7 +148,9 @@ class GradCamTimm:
         logits
             Classifier logits.
         """
-        assert image.shape[0] == 1, f"Allowed input shape is (1, channel, width, height): {image.shape}"
+        assert (
+            image.shape[0] == 1
+        ), f"Allowed input shape is (1, channel, width, height): {image.shape}"
         if self.target_layer is None:
             # forward features through the conv layers
             # save the features and gradients from the last conv
@@ -237,8 +241,13 @@ class GradCamTimm:
             Weighted Features (attentions).
         """
         assert features.shape == gradients.shape
-        assert len(features.shape) == len(gradients.shape) == 4, (len(features.shape), len(gradients.shape))
-        assert features.shape[0] == 1, f"Allowed features shape is (1, channel, width, height): {features.shape}"
+        assert len(features.shape) == len(gradients.shape) == 4, (
+            len(features.shape),
+            len(gradients.shape),
+        )
+        assert (
+            features.shape[0] == 1
+        ), f"Allowed features shape is (1, channel, width, height): {features.shape}"
 
         # take only the first image from the batch
         features, gradients = features[0], gradients[0]
