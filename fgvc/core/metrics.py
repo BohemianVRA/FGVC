@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from scipy.special import expit
@@ -12,7 +12,7 @@ from sklearn.metrics import (
 
 def classification_scores(
     preds: np.ndarray, targs: np.ndarray, *, top_k: Optional[int] = 3, return_dict: bool = False
-) -> Tuple[float, float, float]:
+) -> Union[Tuple[float, float, float], dict]:
     """Compute top-1 and top-k accuracy and f1 score.
 
     Parameters
