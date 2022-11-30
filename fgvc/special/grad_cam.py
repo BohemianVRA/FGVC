@@ -1,12 +1,14 @@
 import math
 from typing import Callable, Tuple, Union
 
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from PIL import Image
+
+from fgvc.core.augmentations import light_transforms
 
 
 def _minmax_normalize(x: np.ndarray, eps: float = 1e-6) -> np.ndarray:
@@ -31,7 +33,10 @@ class GradCamTimm:
         self._gradients = None
 
     def __call__(
-        self, image: torch.Tensor, target_cls: int = None, reduction: Union[str, callable] = "mean"
+        self,
+        image: Union[torch.Tensor, np.ndarray],
+        target_cls: int = None,
+        reduction: Union[str, callable] = "mean",
     ) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Get the attentions for the timm model.
 
@@ -59,6 +64,9 @@ class GradCamTimm:
             isinstance(reduction, str) and reduction.lower() in allowed_reductions
         ), f"Argument `reduction` should be one of {allowed_reductions}, or a callable function. "
 
+        if isinstance(image, np.ndarray):
+            image = self.image_to_torch(image)
+
         self.model.eval()
         self.model = self.model.to(self.device)
         image = image.to(self.device)
@@ -81,29 +89,7 @@ class GradCamTimm:
 
         if len(gradients.shape) == 3:
             # apply changes to Vision Transformer embeddings
-            # reshape embedding features into spatial map to make output similar to CNNs
-            bs, patch_dim, emb_dim = gradients.shape
-            sqrt = math.sqrt(patch_dim)
-            if sqrt % 1 != 0:
-                sqrt = math.sqrt(patch_dim - 1)
-                if sqrt % 1 == 0:
-                    # ignore first element (positional embedding) in the output embedding
-                    features = features[:, 1:]
-                    gradients = gradients[:, 1:]
-                else:
-                    raise ValueError(f"Unsupported patch dimension: {patch_dim}")
-            sqrt = int(sqrt)
-            # [bs, patch_dim, emb_dim] -> [bs, width, height, emb_dim]
-            features = features.reshape(bs, sqrt, sqrt, emb_dim)
-            gradients = gradients.reshape(bs, sqrt, sqrt, emb_dim)
-
-            # [bs, width, height, emb_dim] -> [bs, emb_dim, width, height]
-            features = features.transpose(0, 3, 1, 2)
-            gradients = gradients.transpose(0, 3, 1, 2)
-
-            # # [bs, patch_dim, emb_dim] -> [bs, emb_dim, width, height]
-            # features = features.reshape(bs, emb_dim, sqrt, sqrt)
-            # gradients = gradients.reshape(bs, emb_dim, sqrt, sqrt)
+            features, gradients = self.postprocess_transformer_embeddings(features, gradients)
 
         # return weighted features (attentions)
         weighted_features = self.weight_features(features, gradients)
@@ -128,6 +114,24 @@ class GradCamTimm:
         gradients = gradients[0].mean(axis=0)
 
         return weighted_features, (features, gradients)
+
+    def get_possible_target_layers(self) -> list:
+        """Get a list of all possible values to use as `target_layer` argument."""
+        return [m for m, _ in self.model._modules.items()]
+
+    def image_to_torch(self, image: np.ndarray) -> torch.Tensor:
+        """Convert input NumPy image to a torch Tensor using test-time augmentations."""
+        # create pytorch image
+        assert hasattr(
+            self.model, "default_cfg"
+        ), "Model should have default_cfg dictionary with input_size, mean, and std."
+        _, tfm = light_transforms(
+            image_size=self.model.default_cfg["input_size"][1:],
+            mean=self.model.default_cfg["mean"],
+            std=self.model.default_cfg["std"],
+        )
+        image_torch = tfm(image=image)["image"]
+        return image_torch
 
     def _save_gradients(self, gradients: torch.Tensor):
         """Tensor hook for saving gradients."""
@@ -225,6 +229,36 @@ class GradCamTimm:
 
         return gradients
 
+    def postprocess_transformer_embeddings(
+        self, features: np.ndarray, gradients: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Postprocess Vision Transformer embeddings to make them spatial."""
+        # reshape embedding features into spatial map to make output similar to CNNs
+        bs, patch_dim, emb_dim = gradients.shape
+        sqrt = math.sqrt(patch_dim)
+        if sqrt % 1 != 0:
+            sqrt = math.sqrt(patch_dim - 1)
+            if sqrt % 1 == 0:
+                # ignore first element (positional embedding) in the output embedding
+                features = features[:, 1:]
+                gradients = gradients[:, 1:]
+            else:
+                raise ValueError(f"Unsupported patch dimension: {patch_dim}")
+        sqrt = int(sqrt)
+        # [bs, patch_dim, emb_dim] -> [bs, width, height, emb_dim]
+        features = features.reshape(bs, sqrt, sqrt, emb_dim)
+        gradients = gradients.reshape(bs, sqrt, sqrt, emb_dim)
+
+        # [bs, width, height, emb_dim] -> [bs, emb_dim, width, height]
+        features = features.transpose(0, 3, 1, 2)
+        gradients = gradients.transpose(0, 3, 1, 2)
+
+        # # [bs, patch_dim, emb_dim] -> [bs, emb_dim, width, height]
+        # features = features.reshape(bs, emb_dim, sqrt, sqrt)
+        # gradients = gradients.reshape(bs, emb_dim, sqrt, sqrt)
+
+        return features, gradients
+
     def weight_features(self, features: np.ndarray, gradients: np.ndarray) -> np.ndarray:
         """Combing features with gradients.
 
@@ -260,76 +294,86 @@ class GradCamTimm:
 
         return weighted_features
 
-    def get_possible_target_layers(self) -> list:
-        """Get a list of all possible values to use as `target_layer` argument."""
-        return [m for m, _ in self.model._modules.items()]
 
-    def set_target_layer(self, target_layer: str):
-        """Set `target_layer`."""
-        self.target_layer = target_layer
+def plot_heatmap(
+    features: np.ndarray,
+    *,
+    ax=None,
+    cmap: str = "viridis",
+    scale_format: str = "%.4f",
+):
+    """Plot features, gradients, or weighted features (attentions) as a heatmap."""
+    assert len(features.shape) == 2
 
-    @staticmethod
-    def visualize_as_heatmap(
-        features: Union[np.ndarray, torch.Tensor],
-        *,
-        ax=None,
-        cmap: str = "viridis",
-        num_ticks: int = 5,
-        scale_format: str = "%.4f",
-        labelsize: str = "xx-small",
-    ):
-        """Visualize attention as heatmap."""
-        if isinstance(features, torch.Tensor):
-            features = features.cpu().detach().numpy()
+    # plot results
+    if ax is None:
+        ax = plt.gca()
+    im = ax.imshow(features, cmap=cmap)
+    plt.colorbar(
+        im,
+        ticks=np.linspace(features.min(), features.max(), 5, endpoint=True),
+        format=scale_format,
+    )
+    ax.tick_params(labelsize="xx-small")
+    return ax
 
-        # plot results
-        if ax is None:
-            ax = plt.gca()
-        im = ax.imshow(features, cmap=cmap)
-        plt.colorbar(
-            im,
-            ticks=np.linspace(features.min(), features.max(), num_ticks, endpoint=True),
-            format=scale_format,
+
+def plot_image_heatmap(
+    weighted_features: np.ndarray,
+    image: np.ndarray,
+    max_value: float = 1,
+    *,
+    ax=None,
+    scale_format: str = "%.4f",
+    use_shadow: bool = False,
+    use_min_zero: bool = True,
+):
+    """Plot image with features, gradients, or weighted features (attentions) as a heatmap."""
+    assert len(weighted_features.shape) == 2
+    assert len(image.shape) in (2, 3)
+
+    # process image
+    image = _minmax_normalize(image)
+
+    # process weighted features
+    h, w = image.shape[:2]
+    if use_min_zero:
+        weighted_features = np.maximum(weighted_features, 0)
+    weighted_features = _minmax_normalize(weighted_features)
+    weighted_features = cv2.resize(weighted_features, (w, h))
+
+    # combine image with weighted features
+    if use_shadow:
+        if len(image.shape) == 3:
+            weighted_features = weighted_features[..., None]
+        cam = image * weighted_features
+    else:
+        # create heatmap of weighted features
+        heatmap = cv2.applyColorMap(
+            np.uint8(255 * weighted_features * max_value), cv2.COLORMAP_TURBO
         )
-        ax.tick_params(labelsize=labelsize)
+        heatmap = np.float32(heatmap) / 255
+        heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
 
-    @staticmethod
-    def visualize_as_image(
-        weighted_features: Union[np.ndarray, torch.Tensor],
-        image: Union[np.ndarray, torch.Tensor],
-        *,
-        ax=None,
-        rescale_only: bool = False,
-    ):
-        """Visualize attention as image."""
-        assert len(image.shape) == 3
-        if isinstance(image, torch.Tensor):
-            image = image.cpu().detach().numpy()
+        cam = image + heatmap
+        cam = cam / cam.max()
 
-        # scale between 0-255
-        cam = np.maximum(weighted_features, 0)
-        cam = (cam - np.min(cam)) / (np.max(cam) - np.min(cam))
-        cam = np.uint8(cam * 255)
-
-        # resize into the image shape
-        ch, h, w = image.shape
-        cam = np.uint8(Image.fromarray(cam).resize((w, h), Image.ANTIALIAS)) / 255
-
-        # if required, show attentions in the image
-        if not rescale_only:
-            cam = cam * image
-            if min(cam.shape) == cam.shape[0]:
-                # channel last
-                cam = np.moveaxis(cam, 0, -1)
-
-        # plot results
-        if ax is None:
-            ax = plt.gca()
-        ax.imshow(cam)
+    # plot results
+    if ax is None:
+        ax = plt.gca()
+    ax.imshow(cam)
+    # if not use_shadow:
+    #     plt.colorbar(
+    #         im,
+    #         ticks=np.linspace(weighted_features.min(), weighted_features.max(), 5, endpoint=True),
+    #         format=scale_format,
+    #     )
+    #     ax.tick_params(labelsize="xx-small")
+    return ax
 
 
 def plot_grad_cam(
-    image: torch.Tensor,
+    image: np.ndarray,
     model: nn.Module,
     *,
     target_layer: str = None,
@@ -338,6 +382,7 @@ def plot_grad_cam(
     reduction: Union[str, callable] = "mean",
     colsize: int = 5,
     rowsize: int = 4,
+    use_min_zero: bool = True,
 ):
     """Apply Grad-CAM and visualize the results.
 
@@ -347,42 +392,47 @@ def plot_grad_cam(
     grad_cam = GradCamTimm(model, target_layer, device)
     weighted_features, (features, gradients) = grad_cam(image, target_cls, reduction)
 
-    # create numpy image
-    image_np = np.uint8(image.permute(1, 2, 0).cpu().numpy() * 255)
-
     # create figure to visualize the attentions
-    nrows, ncols = 3, 2
-    fig = plt.figure(figsize=(ncols * colsize, nrows * rowsize), tight_layout=True)
+    nrows, ncols = 2, 3
+    fig = plt.figure(figsize=(ncols * colsize, nrows * rowsize), layout="tight")
     gs = fig.add_gridspec(nrows, ncols)
 
-    # show the input image
-    ax1 = fig.add_subplot(gs[0, :])
-    ax1.set_title("Input Image")
-    ax1.imshow(image_np)
-    ax1.axis("off")
+    # plot the input image
+    ax11 = fig.add_subplot(gs[0, 0])
+    ax11.imshow(image)
+    ax11.set(title="Input image")
+    ax11.axis("off")
 
-    # show the attentions as heatmap
-    ax21 = fig.add_subplot(gs[1, 0])
-    ax21.set_title("Model's Attentions")
-    grad_cam.visualize_as_heatmap(weighted_features, labelsize="small", ax=ax21)
-    ax21.axis("off")
+    # plot the input image with the attentions as heatmap
+    ax12 = fig.add_subplot(gs[0, 1])
+    plot_image_heatmap(weighted_features, image, ax=ax12, use_min_zero=use_min_zero)
+    ax12.set(title="Input image with attentions (heatmap)")
+    ax12.axis("off")
+
+    # plot the input image with the attentions as shadow
+    ax13 = fig.add_subplot(gs[0, 2])
+    plot_image_heatmap(
+        weighted_features, image, ax=ax13, use_shadow=True, use_min_zero=use_min_zero
+    )
+    ax13.set(title="Input image with attentions (shadow)")
+    ax13.axis("off")
 
     # show resized attentions and applied on the image
-    ax22 = fig.add_subplot(gs[1, 1])
-    ax22.set_title("Applied Attentions on Image")
-    grad_cam.visualize_as_image(weighted_features, image, ax=ax22)
-    ax22.axis("off")
+    ax21 = fig.add_subplot(gs[1, 0])
+    ax21.set(title="Features")
+    plot_heatmap(features, ax=ax21)
+    ax21.axis("off")
 
     # show original features
-    ax31 = fig.add_subplot(gs[2, 0])
-    ax31.set_title("Features of the Last Conv")
-    grad_cam.visualize_as_heatmap(features, labelsize="small", ax=ax31)
+    ax31 = fig.add_subplot(gs[1, 1])
+    ax31.set(title="Gradients")
+    plot_heatmap(gradients, ax=ax31)
     ax31.axis("off")
 
     # show original gradients
-    ax32 = fig.add_subplot(gs[2, 1])
-    ax32.set_title("Gradients (const causes the global pooling)")
-    grad_cam.visualize_as_heatmap(gradients, labelsize="small", ax=ax32)
+    ax32 = fig.add_subplot(gs[1, 2])
+    ax32.set(title="Weighted features (attentions)")
+    plot_heatmap(weighted_features, ax=ax32)
     ax32.axis("off")
 
     plt.show()
