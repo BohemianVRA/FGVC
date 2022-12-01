@@ -7,7 +7,9 @@ def get_model(
     architecture_name: str,
     target_size: int = None,
     pretrained: bool = False,
+    *,
     checkpoint_path: str = None,
+    strict: bool = True,
 ) -> nn.Module:
     """Get a `timm` model.
 
@@ -22,6 +24,10 @@ def get_model(
         If true load pretrained ImageNet-1k weights.
     checkpoint_path
         Path of checkpoint to load after the model is initialized.
+    strict
+        Whether to strictly enforce the keys in state_dict to match
+        between the model and checkpoint weights from file.
+        Used when argument checkpoint_path is specified.
 
     Returns
     -------
@@ -45,6 +51,6 @@ def get_model(
 
     # load custom weights
     if checkpoint_path is not None:
-        model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
+        model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"), strict=strict)
 
     return model
