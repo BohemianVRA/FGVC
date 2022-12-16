@@ -10,7 +10,8 @@ jobs:
   black:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v3
         with:
@@ -24,7 +25,8 @@ jobs:
   isort:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v3
         with:
@@ -38,7 +40,8 @@ jobs:
   flake8:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v3
         with:

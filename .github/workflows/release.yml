@@ -27,12 +27,37 @@ jobs:
       - name: Build Python Package
         run: python -m build
 #      - name: Test Importing Python Package
-#        run: python -c "import fgvc; print(fgvc.__version__)"
+#        run: |
+#          pip install $(ls -1 dist/*.tar.gz | tail -1)
+#          python -c "import fgvc; print(fgvc.__version__)"
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
           name: dist
           path: dist/
+  pypi-upload:
+    name: Upload to PyPI Server
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+      - name: List Files
+        run: ls -R
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Dependencies
+        run: |
+          pip install -U pip
+          pip install -U twine
+      - name: Run Twine Upload
+        run: |
+          twine upload \
+            --repository-url ${{ secrets.PYPI_SERVER_URL }} \
+            --username ${{ secrets.PYPI_USERNAME }} \
+            --password ${{ secrets.PYPI_PASSWORD }} \
+          $(ls -1 dist/*.tar.gz | tail -1)
   changelog:
     name: Generate Changelog
     runs-on: ubuntu-latest
