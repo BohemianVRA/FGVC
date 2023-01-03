@@ -37,6 +37,7 @@ jobs:
           path: dist/
   pypi-upload:
     name: Upload to PyPI Server
+    needs: [build]
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifacts
