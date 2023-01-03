@@ -8,11 +8,9 @@ import pandas as pd
 
 from fgvc.core.training import predict
 from fgvc.datasets import get_dataloaders
-from fgvc.utils.experiment import get_experiment_path
+from fgvc.utils.experiment import get_experiment_path, load_model
 from fgvc.utils.utils import set_cuda_device
 from fgvc.utils.wandb import log_clf_test_scores, wandb
-
-from .train import load_model
 
 logger = logging.getLogger("script")
 

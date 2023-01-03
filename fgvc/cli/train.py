@@ -13,6 +13,7 @@ from fgvc.utils.experiment import (
     load_config,
     load_model,
     parse_unknown_args,
+    save_config,
 )
 from fgvc.utils.utils import set_cuda_device, set_random_seed
 from fgvc.utils.wandb import finish_wandb, init_wandb, set_best_scores_in_summary
@@ -134,6 +135,7 @@ def train_clf(
     logger.info("Loading training and validation metadata.")
     train_df, valid_df = load_metadata(train_metadata=train_metadata, valid_metadata=valid_metadata)
     config = add_metadata_info_to_config(config, train_df, valid_df)
+    save_config(config)
 
     # load model and create optimizer and lr scheduler
     logger.info("Creating model, optimizer, and scheduler.")

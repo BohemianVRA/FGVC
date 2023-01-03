@@ -4,7 +4,6 @@ import logging
 import os
 from typing import Tuple
 
-import torch
 import torch.nn as nn
 import yaml
 
@@ -185,18 +184,32 @@ def load_config(
         config["exp_name"] = f"exp{last_exp + 1}"
     else:
         config["exp_name"] = "exp1"
-
+    config["exp_path"] = os.path.join(path, config["exp_name"])
     if create_dirs:
-        os.makedirs(os.path.join(path, config["exp_name"]), exist_ok=False)
+        os.makedirs(config["exp_path"], exist_ok=False)
 
     logger.info(f"Setting run name: {run_name}")
-    exp_path = get_experiment_path(run_name, config["exp_name"])
-    logger.info(f"Using experiment directory: {exp_path}")
-    logger.info(f"Using training config: {json.dumps(config, indent=4)}")
+    logger.info(f"Using experiment directory: {config['exp_path']}")
+    logger.info(f"Using training configuration: {json.dumps(config, indent=4)}")
     return config, run_name
 
 
-def load_model(config: dict, model_weights: str = None) -> Tuple[nn.Module, tuple, tuple]:
+def save_config(config: dict):
+    """Save configuration JSON into experiment directory.
+
+    Parameters
+    ----------
+    config
+        Dictionary with training configuration.
+    """
+    assert "exp_path" in config
+    with open(os.path.join(config["exp_path"], "config.json"), "w") as f:
+        json.dump(config, f, indent=4)
+
+
+def load_model(
+    config: dict, model_weights: str = None, strict: bool = True
+) -> Tuple[nn.Module, tuple, tuple]:
     """Load model with pretrained checkpoint.
 
     Parameters
@@ -206,6 +219,10 @@ def load_model(config: dict, model_weights: str = None) -> Tuple[nn.Module, tupl
         It should contain `architecture`, `number_of_classes`, and optionally `multigpu`.
     model_weights
         Path to the pre-trained model checkpoint.
+    strict
+        Whether to strictly enforce the keys in state_dict to match
+        between the model and checkpoint weights from file.
+        Used when argument checkpoint_path is specified.
 
     Returns
     -------
@@ -221,14 +238,14 @@ def load_model(config: dict, model_weights: str = None) -> Tuple[nn.Module, tupl
     model = get_model(
         config["architecture"],
         config["number_of_classes"],
-        pretrained=model_weights is None,
+        pretrained=True,
+        checkpoint_path=model_weights,
+        strict=strict,
     )
     model_mean = tuple(model.default_cfg["mean"])
     model_std = tuple(model.default_cfg["std"])
     if config.get("multigpu", False):  # multi gpu model
         model = nn.DataParallel(model)
-    if model_weights is not None:
-        model.load_state_dict(torch.load(model_weights, map_location="cpu"))
     return model, model_mean, model_std
 
 
