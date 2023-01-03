@@ -184,15 +184,27 @@ def load_config(
         config["exp_name"] = f"exp{last_exp + 1}"
     else:
         config["exp_name"] = "exp1"
-
+    config["exp_path"] = os.path.join(path, config["exp_name"])
     if create_dirs:
-        os.makedirs(os.path.join(path, config["exp_name"]), exist_ok=False)
+        os.makedirs(config["exp_path"], exist_ok=False)
 
     logger.info(f"Setting run name: {run_name}")
-    exp_path = get_experiment_path(run_name, config["exp_name"])
-    logger.info(f"Using experiment directory: {exp_path}")
-    logger.info(f"Using training config: {json.dumps(config, indent=4)}")
+    logger.info(f"Using experiment directory: {config['exp_path']}")
+    logger.info(f"Using training configuration: {json.dumps(config, indent=4)}")
     return config, run_name
+
+
+def save_config(config: dict):
+    """Save configuration JSON into experiment directory.
+
+    Parameters
+    ----------
+    config
+        Dictionary with training configuration.
+    """
+    assert "exp_path" in config
+    with open(os.path.join(config["exp_path"], "config.json")) as f:
+        json.dump(config, f, indent=4)
 
 
 def load_model(
