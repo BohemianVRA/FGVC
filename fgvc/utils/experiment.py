@@ -203,7 +203,7 @@ def save_config(config: dict):
         Dictionary with training configuration.
     """
     assert "exp_path" in config
-    with open(os.path.join(config["exp_path"], "config.json")) as f:
+    with open(os.path.join(config["exp_path"], "config.json"), "w") as f:
         json.dump(config, f, indent=4)
 
 
