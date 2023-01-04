@@ -4,11 +4,10 @@ import os
 import sys
 
 import numpy as np
-import pandas as pd
 
 from fgvc.core.training import predict
 from fgvc.datasets import get_dataloaders
-from fgvc.utils.experiment import get_experiment_path, load_model
+from fgvc.utils.experiment import get_experiment_path, load_model, load_test_metadata
 from fgvc.utils.utils import set_cuda_device
 from fgvc.utils.wandb import log_clf_test_scores, wandb
 
@@ -45,25 +44,6 @@ def load_args() -> argparse.Namespace:
     return args
 
 
-def load_metadata(test_metadata: str) -> pd.DataFrame:
-    """Load metadata of the test set."""
-
-    def read_file(metadata):
-        if metadata.lower().endswith(".csv"):
-            df = pd.read_csv(metadata)
-        elif metadata.lower().endswith(".parquet"):
-            df = pd.read_parquet(metadata)
-        else:
-            raise ValueError(
-                f"Unknown metadata file extension: {metadata}. Use either '.csv' or '.parquet'."
-            )
-        return df
-
-    test_df = read_file(test_metadata)
-    logger.info(f"Loaded test metadata. Number of samples: {len(test_df)}")
-    return test_df
-
-
 def test_clf(
     *,
     test_metadata: str = None,
@@ -89,7 +69,7 @@ def test_clf(
     device = set_cuda_device(cuda_devices)
 
     # load metadata
-    test_df = load_metadata(test_metadata=test_metadata)
+    test_df = load_test_metadata(test_metadata)
 
     # connect to wandb and load run
     logger.info(f"Loading W&B experiment run: {wandb_run_path}")

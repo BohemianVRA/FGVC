@@ -1,6 +1,4 @@
-import argparse
 import logging
-from typing import Tuple
 
 import pandas as pd
 import torch.nn as nn
@@ -10,80 +8,16 @@ from fgvc.datasets import get_dataloaders
 from fgvc.losses import FocalLossWithLogits, SeesawLossWithLogits
 from fgvc.utils.experiment import (
     get_optimizer_and_scheduler,
+    load_args,
     load_config,
     load_model,
-    parse_unknown_args,
+    load_train_metadata,
     save_config,
 )
 from fgvc.utils.utils import set_cuda_device, set_random_seed
 from fgvc.utils.wandb import finish_wandb, init_wandb, set_best_scores_in_summary
 
 logger = logging.getLogger("script")
-
-
-def load_args(args: list = None) -> Tuple[argparse.Namespace, dict]:
-    """Load script arguments using `argparse` library."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--train-metadata",
-        help="Path to a training metadata file.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--valid-metadata",
-        help="Path to a validation metadata file.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--config-path",
-        help="Path to a training config yaml file.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--cuda-devices",
-        help="Visible cuda devices (cpu,0,1,2,...).",
-        type=str,
-        default=None,
-    )
-    parser.add_argument(
-        "--wandb-entity",
-        help="Entity name for logging experiment to wandb.",
-        type=str,
-        required=False,
-    )
-    parser.add_argument(
-        "--wandb-project",
-        help="Project name for logging experiment to wandb.",
-        type=str,
-        required=False,
-    )
-    args, unknown_args = parser.parse_known_args(args)
-    extra_args = parse_unknown_args(unknown_args)
-    return args, extra_args
-
-
-def load_metadata(train_metadata: str, valid_metadata: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Load metadata of the training and validation sets."""
-
-    def read_file(metadata):
-        if metadata.lower().endswith(".csv"):
-            df = pd.read_csv(metadata)
-        elif metadata.lower().endswith(".parquet"):
-            df = pd.read_parquet(metadata)
-        else:
-            raise ValueError(
-                f"Unknown metadata file extension: {metadata}. Use either '.csv' or '.parquet'."
-            )
-        return df
-
-    train_df = read_file(train_metadata)
-    logger.info(f"Loaded training metadata. Number of samples: {len(train_df)}")
-    valid_df = read_file(valid_metadata)
-    logger.info(f"Loaded validation metadata. Number of samples: {len(valid_df)}")
-    return train_df, valid_df
 
 
 def add_metadata_info_to_config(
@@ -110,7 +44,7 @@ def train_clf(
     """Train model on the classification task."""
     if train_metadata is None or valid_metadata is None or config_path is None:
         # load script args
-        args, extra_args = load_args()
+        args, extra_args = load_args(require_metadata=True)
 
         train_metadata = args.train_metadata
         valid_metadata = args.valid_metadata
@@ -133,7 +67,7 @@ def train_clf(
 
     # load metadata
     logger.info("Loading training and validation metadata.")
-    train_df, valid_df = load_metadata(train_metadata=train_metadata, valid_metadata=valid_metadata)
+    train_df, valid_df = load_train_metadata(train_metadata, valid_metadata)
     config = add_metadata_info_to_config(config, train_df, valid_df)
     save_config(config)
 
