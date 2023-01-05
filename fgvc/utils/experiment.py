@@ -319,6 +319,7 @@ def load_model(
     model_std = tuple(model.default_cfg["std"])
     if config.get("multigpu", False):  # multi gpu model
         model = nn.DataParallel(model)
+        logger.info("Using nn.DataParallel for multiple GPU support.")
     return model, model_mean, model_std
 
 
