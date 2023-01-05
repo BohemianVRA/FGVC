@@ -37,6 +37,8 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
         Scheduler algorithm.
     accumulation_steps
         Number of iterations to accumulate gradients before performing optimizer step.
+    clip_grad
+        Max norm of the gradients for the gradient clipping.
     device
         Device to use (cpu,0,1,2,...).
     """
@@ -51,6 +53,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
         validloader: DataLoader = None,
         scheduler: SchedulerType = None,
         accumulation_steps: int = 1,
+        clip_grad: float = None,
         device: torch.device = None,
     ):
         super().__init__(
@@ -61,6 +64,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
             validloader=validloader,
             scheduler=scheduler,
             accumulation_steps=accumulation_steps,
+            clip_grad=clip_grad,
             device=device,
         )
         self.validate_scheduler(scheduler)
@@ -103,6 +107,8 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
 
             # make optimizer step
             if (i - 1) % self.accumulation_steps == 0:
+                if self.clip_grad is not None:  # apply gradient clipping
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad)
                 self.optimizer.step()
                 self.optimizer.zero_grad()
                 # update lr scheduler from timm library

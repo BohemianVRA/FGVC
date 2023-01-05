@@ -29,6 +29,8 @@ class BaseTrainer:
         Scheduler algorithm.
     accumulation_steps
         Number of iterations to accumulate gradients before performing optimizer step.
+    clip_grad
+        Max norm of the gradients for the gradient clipping.
     device
         Device to use (cpu,0,1,2,...).
     """
@@ -43,17 +45,24 @@ class BaseTrainer:
         validloader: DataLoader = None,
         scheduler: SchedulerType = None,
         accumulation_steps: int = 1,
+        clip_grad: float = None,
         device: torch.device = None,
     ):
         super().__init__()
-        # training components (model, data, criterion, opt, ...)
+        # model and loss arguments
         self.model = model
+        self.criterion = criterion
+
+        # data arguments
         self.trainloader = trainloader
         self.validloader = validloader
-        self.criterion = criterion
+
+        # optimization arguments
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.accumulation_steps = accumulation_steps
+        self.clip_grad = clip_grad
+
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = device
