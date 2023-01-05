@@ -37,9 +37,9 @@ def set_cuda_device(cuda_devices: str) -> torch.device:
     torch.cuda.device_count()  # set CUDA_VISIBLE_DEVICES in PyTorch
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device} ({os.environ.get('CUDA_VISIBLE_DEVICES')})")
-    device_names = "; ".join([
-        f"{i}: {torch.cuda.get_device_name(i)}" for i in range(torch.cuda.device_count())
-    ])
+    device_names = "; ".join(
+        [f"{i}: {torch.cuda.get_device_name(i)}" for i in range(torch.cuda.device_count())]
+    )
     logger.info(f"Device names: {device_names}")
     return device
 
