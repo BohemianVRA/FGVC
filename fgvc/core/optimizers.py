@@ -48,19 +48,34 @@ def reduce_lr_on_plateau(optimizer: Optimizer, *args, **kwargs) -> ReduceLROnPla
     return ReduceLROnPlateau(optimizer, "min", factor=0.9, patience=1, verbose=True, eps=1e-6)
 
 
-def cosine_lr_scheduler(
-    optimizer: Optimizer, epochs: int, cycles: int = 5, *args, **kwargs
+def cyclic_cosine(
+    optimizer: Optimizer,
+    epochs: int,
+    cycles: int = 5,
+    cycle_decay=0.9,
+    cycle_limit=5,
+    *args,
+    **kwargs
 ) -> CosineLRScheduler:
     """Create Cyclic Cosine scheduler from `timm` library."""
-    t_initial = epochs // cycles
+    lr = optimizer.defaults.get("lr")
+    lr_min = lr * 1e-3 if lr is not None else 1e-5
     return CosineLRScheduler(
-        optimizer, t_initial=t_initial, lr_min=0.0001, cycle_decay=0.9, cycle_limit=5
+        optimizer,
+        t_initial=epochs // cycles,
+        warmup_t=5,
+        warmup_lr_init=lr_min,
+        lr_min=lr_min,
+        cycle_decay=cycle_decay,
+        cycle_limit=cycle_limit,
     )
 
 
-def cosine_annealing_lr(optimizer: Optimizer, epochs: int, *args, **kwargs) -> CosineAnnealingLR:
+def cosine(optimizer: Optimizer, epochs: int, *args, **kwargs) -> CosineAnnealingLR:
     """Create Cosine scheduler from `PyTorch` library."""
-    return CosineAnnealingLR(optimizer, T_max=epochs, eta_min=0)
+    lr = optimizer.defaults.get("lr")
+    lr_min = lr * 1e-3 if lr is not None else 1e-5
+    return CosineAnnealingLR(optimizer, T_max=epochs, eta_min=lr_min)
 
 
 def get_scheduler(name: str, optimizer: Optimizer, *args, **kwargs) -> SchedulerType:
@@ -69,9 +84,9 @@ def get_scheduler(name: str, optimizer: Optimizer, *args, **kwargs) -> Scheduler
     if name == "plateau":
         scheduler = reduce_lr_on_plateau(optimizer, *args, **kwargs)
     elif name == "cyclic_cosine":
-        scheduler = cosine_lr_scheduler(optimizer, *args, **kwargs)
+        scheduler = cyclic_cosine(optimizer, *args, **kwargs)
     elif name == "cosine":
-        scheduler = cosine_annealing_lr(optimizer, *args, **kwargs)
+        scheduler = cosine(optimizer, *args, **kwargs)
     else:
         raise ValueError(
             "Argument 'name' should be either 'plateau', 'cyclic_cosine', or 'cosine'."
