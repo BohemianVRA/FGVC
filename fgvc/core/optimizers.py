@@ -19,7 +19,9 @@ def adamw(params: Iterable, lr: float, weight_decay: float = 0, *args, **kwargs)
     )
 
 
-def sgd(params: Iterable, lr: float, momentum: float = 0.9, weight_decay: float = 0, *args, **kwargs) -> Optimizer:
+def sgd(
+    params: Iterable, lr: float, momentum: float = 0.9, weight_decay: float = 0, *args, **kwargs
+) -> Optimizer:
     """Create SGD with momentum optimizer."""
     return SGD(
         params,
