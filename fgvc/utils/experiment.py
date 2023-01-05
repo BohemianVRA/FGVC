@@ -4,13 +4,14 @@ import logging
 import os
 from typing import Tuple
 
+import pandas as pd
 import torch.nn as nn
 import yaml
 
 from fgvc.core.models import get_model
 from fgvc.core.optimizers import Optimizer, SchedulerType, get_optimizer, get_scheduler
 
-logger = logging.getLogger("fgvc")
+logger = logging.getLogger("script")
 
 
 def parse_unknown_args(unknown_args: list) -> dict:
@@ -74,7 +75,9 @@ def parse_unknown_args(unknown_args: list) -> dict:
     return extra_args
 
 
-def load_args(args: list = None) -> Tuple[argparse.Namespace, dict]:
+def load_args(
+    args: list = None, *, require_metadata: bool = False
+) -> Tuple[argparse.Namespace, dict]:
     """Load script arguments using `argparse` library.
 
     Parameters
@@ -91,6 +94,19 @@ def load_args(args: list = None) -> Tuple[argparse.Namespace, dict]:
         Dictionary with parsed unknown args.
     """
     parser = argparse.ArgumentParser()
+    if require_metadata:
+        parser.add_argument(
+            "--train-metadata",
+            help="Path to a training metadata file.",
+            type=str,
+            required=True,
+        )
+        parser.add_argument(
+            "--valid-metadata",
+            help="Path to a validation metadata file.",
+            type=str,
+            required=True,
+        )
     parser.add_argument(
         "--config-path",
         help="Path to a training config yaml file.",
@@ -205,6 +221,63 @@ def save_config(config: dict):
     assert "exp_path" in config
     with open(os.path.join(config["exp_path"], "config.json"), "w") as f:
         json.dump(config, f, indent=4)
+
+
+def _load_metadata(metadata: str) -> pd.DataFrame:
+    """Load metadata `csv` or `parquet` file."""
+    if metadata.lower().endswith(".csv"):
+        df = pd.read_csv(metadata)
+    elif metadata.lower().endswith(".parquet"):
+        df = pd.read_parquet(metadata)
+    else:
+        raise ValueError(
+            f"Unknown metadata file extension: {metadata}. Use either '.csv' or '.parquet'."
+        )
+    return df
+
+
+def load_train_metadata(
+    train_metadata: str, valid_metadata: str
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Load metadata of the training and validation sets.
+
+    Parameters
+    ----------
+    train_metadata
+        File path to the training metadata `csv` or `parquet` file.
+    valid_metadata
+        File path to the validation metadata `csv` or `parquet` file.
+
+    Returns
+    -------
+    train_df
+        Training metadata DataFrame.
+    valid_df
+        Validation metadata DataFrame.
+    """
+    train_df = _load_metadata(train_metadata)
+    logger.info(f"Loaded training metadata. Number of samples: {len(train_df)}")
+    valid_df = _load_metadata(valid_metadata)
+    logger.info(f"Loaded validation metadata. Number of samples: {len(valid_df)}")
+    return train_df, valid_df
+
+
+def load_test_metadata(test_metadata: str) -> pd.DataFrame:
+    """Load metadata of the test set.
+
+    Parameters
+    ----------
+    test_metadata
+        File path to the test metadata `csv` or `parquet` file.
+
+    Returns
+    -------
+    test_df
+        Test metadata DataFrame.
+    """
+    test_df = _load_metadata(test_metadata)
+    logger.info(f"Loaded test metadata. Number of samples: {len(test_df)}")
+    return test_df
 
 
 def load_model(
