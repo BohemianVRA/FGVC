@@ -190,9 +190,10 @@ def train_clf(
         optimizer=optimizer,
         scheduler=scheduler,
         num_epochs=config["epochs"],
-        accumulation_steps=config["accumulation_steps"],
+        accumulation_steps=config.get("accumulation_steps", 1),
+        clip_grad=config.get("clip_grad"),
         device=device,
-        seed=config["random_seed"],
+        seed=config.get("random_seed", 777),
     )
 
     # finish wandb run
