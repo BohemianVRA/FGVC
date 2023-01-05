@@ -238,7 +238,7 @@ def load_model(
     model = get_model(
         config["architecture"],
         config["number_of_classes"],
-        pretrained=True,
+        pretrained=config.get("pretrained", True),
         checkpoint_path=model_weights,
         strict=strict,
     )
