@@ -272,7 +272,10 @@ def get_optimizer_and_scheduler(model: nn.Module, config: dict) -> Tuple[Optimiz
     assert "scheduler" in config
     assert "epochs" in config
     optimizer = get_optimizer(
-        name=config["optimizer"], params=model.parameters(), lr=config["learning_rate"]
+        name=config["optimizer"],
+        params=model.parameters(),
+        lr=config["learning_rate"],
+        weight_decay=config.get("weight_decay", 0),
     )
     scheduler = get_scheduler(
         name=config["scheduler"], optimizer=optimizer, epochs=config["epochs"]
