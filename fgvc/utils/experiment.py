@@ -352,6 +352,12 @@ def get_optimizer_and_scheduler(model: nn.Module, config: dict) -> Tuple[Optimiz
         weight_decay=config.get("weight_decay", 0),
     )
     scheduler = get_scheduler(
-        name=config["scheduler"], optimizer=optimizer, epochs=config["epochs"]
+        name=config["scheduler"],
+        optimizer=optimizer,
+        epochs=config["epochs"],
+        cycles=config.get("cycles", 1),
+        warmup_epochs=config.get("warmup_epochs", 0),
+        cycle_decay=config.get("cycle_decay", 0.9),
+        cycle_limit=config.get("cycle_limit", 5),
     )
     return optimizer, scheduler

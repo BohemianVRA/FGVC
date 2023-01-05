@@ -51,7 +51,8 @@ def reduce_lr_on_plateau(optimizer: Optimizer, *args, **kwargs) -> ReduceLROnPla
 def cyclic_cosine(
     optimizer: Optimizer,
     epochs: int,
-    cycles: int = 5,
+    cycles: int = 1,
+    warmup_epochs: int = 0,
     cycle_decay=0.9,
     cycle_limit=5,
     *args,
@@ -63,7 +64,7 @@ def cyclic_cosine(
     return CosineLRScheduler(
         optimizer,
         t_initial=epochs // cycles,
-        warmup_t=5,
+        warmup_t=warmup_epochs,
         warmup_lr_init=lr_min,
         lr_min=lr_min,
         cycle_decay=cycle_decay,
