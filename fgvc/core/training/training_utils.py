@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Iterable, List, Optional, Union
 
 import numpy as np
 import torch
@@ -7,7 +7,7 @@ import torch
 def to_device(
     *tensors: List[Union[torch.Tensor, dict]], device: torch.device
 ) -> List[Union[torch.Tensor, dict]]:
-    """Converts pytorch tensors to device.
+    """Convert pytorch tensors to device.
 
     Parameters
     ----------
@@ -31,7 +31,7 @@ def to_device(
 
 
 def to_numpy(*tensors: List[Union[torch.Tensor, dict]]) -> List[Union[np.ndarray, dict]]:
-    """Converts pytorch tensors to numpy arrays.
+    """Convert pytorch tensors to numpy arrays.
 
     Parameters
     ----------
@@ -55,7 +55,7 @@ def to_numpy(*tensors: List[Union[torch.Tensor, dict]]) -> List[Union[np.ndarray
 def concat_arrays(
     *lists: List[List[Union[np.ndarray, dict]]]
 ) -> List[Optional[List[Union[np.ndarray, dict]]]]:
-    """Concatenates lists of numpy arrays with predictions and targets to numpy arrays.
+    """Concatenate lists of numpy arrays with predictions and targets to numpy arrays.
 
     Parameters
     ----------
@@ -87,3 +87,28 @@ def concat_arrays(
                 concatenated = _safer_concat(array_list)
         out.append(concatenated)
     return out if len(out) > 1 else out[0]
+
+
+def get_gradient_norm(
+    model_params: Union[torch.Tensor, Iterable[torch.Tensor]], norm_type: float = 2.0
+) -> float:
+    """Compute norm of model parameter gradients.
+
+    Parameters
+    ----------
+    model_params
+        Model parameters.
+    norm_type
+        The order of norm.
+
+    Returns
+    -------
+    Norm of model parameter gradients.
+    """
+    grads = [p.grad for p in model_params if p.grad is not None]
+    if len(grads) == 0:
+        total_norm = 0.0
+    else:
+        norms = torch.stack([torch.norm(g.detach(), norm_type) for g in grads])
+        total_norm = torch.norm(norms, norm_type).item()
+    return total_norm

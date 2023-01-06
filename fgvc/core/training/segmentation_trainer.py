@@ -15,6 +15,7 @@ from .scheduler_mixin import SchedulerMixin, SchedulerType
 from .scores_monitor import ScoresMonitor
 from .training_outputs import PredictOutput, TrainEpochOutput
 from .training_state import TrainingState
+from .training_utils import get_gradient_norm
 
 
 class SegmentationTrainer(BaseTrainer, SchedulerMixin):
@@ -86,7 +87,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
         self.model.train()
         self.optimizer.zero_grad()
         num_updates = epoch * len(dataloader)
-        avg_loss = 0.0
+        avg_loss, max_grad_norm = 0.0, 0.0
         scores_monitor = ScoresMonitor(
             scores_fn=lambda preds, targs: binary_segmentation_scores(
                 preds, targs, reduction="sum"
@@ -100,6 +101,8 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
 
             # make optimizer step
             if (i - 1) % self.accumulation_steps == 0:
+                grad_norm = get_gradient_norm(self.model.parameters(), norm_type=2)
+                max_grad_norm = max(max_grad_norm, grad_norm)  # store maximum gradient norm
                 if self.clip_grad is not None:  # apply gradient clipping
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad)
                 self.optimizer.step()
@@ -108,7 +111,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
                 num_updates += 1
                 self.make_timm_scheduler_update(num_updates)
 
-        return TrainEpochOutput(avg_loss, scores_monitor.avg_scores)
+        return TrainEpochOutput(avg_loss, scores_monitor.avg_scores, max_grad_norm)
 
     def predict(self, dataloader: DataLoader, return_preds: bool = True) -> PredictOutput:
         """Run inference.
@@ -186,6 +189,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
                 **{f"train/{k}": v for k, v in train_output.avg_scores.items()},
                 **{f"valid/{k}": v for k, v in predict_output.avg_scores.items()},
                 "Learning Rate": self.optimizer.param_groups[0]["lr"],
+                "Max Gradient Norm": train_output.max_grad_norm,
             }
             log_progress(epoch + 1, scores)
 

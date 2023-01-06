@@ -16,6 +16,7 @@ class TrainEpochOutput(NamedTuple):
 
     avg_loss: float
     avg_scores: Optional[dict] = {}
+    max_grad_norm: Optional[float] = None
 
 
 class PredictOutput(NamedTuple):

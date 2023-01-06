@@ -94,6 +94,7 @@ def log_clf_progress(
     valid_acc3: float,
     valid_f1: float,
     lr: float,
+    max_grad_norm: float = None,
     other_scores: dict = None,
 ):
     """Log classification scores to W&B run.
@@ -131,9 +132,10 @@ def log_clf_progress(
             "Val. F1": valid_f1,
             "Val. Accuracy": valid_acc,
             "Val. Recall@3": valid_acc3,
-            "Learning Rate": lr,
             "Train. Accuracy": train_acc,
             "Train. F1": train_f1,
+            "Learning Rate": lr,
+            "Max Gradient Norm": max_grad_norm,
             **other_scores,
         },
         step=epoch,
