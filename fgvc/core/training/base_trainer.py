@@ -1,12 +1,10 @@
-from typing import Any, Tuple
-
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from .scheduler_mixin import SchedulerType
+from .training_outputs import BatchOutput, PredictOutput, TrainEpochOutput
 from .training_utils import to_device, to_numpy
 
 
@@ -67,7 +65,7 @@ class BaseTrainer:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.device = device
 
-    def train_batch(self, batch: Any) -> Tuple[np.ndarray, np.ndarray, float]:
+    def train_batch(self, batch: tuple) -> BatchOutput:
         """Run a training iteration on one batch.
 
         Parameters
@@ -78,12 +76,7 @@ class BaseTrainer:
 
         Returns
         -------
-        preds
-            Numpy array with predictions.
-        targs
-            Numpy array with ground-truth targets.
-        loss
-            Average loss.
+        BatchOutput tuple with predictions, ground-truth targets, and average loss.
         """
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
@@ -99,9 +92,9 @@ class BaseTrainer:
 
         # convert to numpy
         preds, targs = to_numpy(preds, targs)
-        return preds, targs, _loss
+        return BatchOutput(preds, targs, _loss)
 
-    def predict_batch(self, batch: Any) -> Tuple[np.ndarray, np.ndarray, float]:
+    def predict_batch(self, batch: tuple) -> BatchOutput:
         """Run a prediction iteration on one batch.
 
         Parameters
@@ -112,12 +105,7 @@ class BaseTrainer:
 
         Returns
         -------
-        preds
-            Numpy array with predictions.
-        targs
-            Numpy array with ground-truth targets.
-        loss
-            Average loss.
+        BatchOutput tuple with predictions, ground-truth targets, and average loss.
         """
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
@@ -133,13 +121,13 @@ class BaseTrainer:
 
         # convert to numpy
         preds, targs = to_numpy(preds, targs)
-        return preds, targs, loss
+        return BatchOutput(preds, targs, loss)
 
-    def train_epoch(self, *args, **kwargs):
+    def train_epoch(self, *args, **kwargs) -> TrainEpochOutput:
         """Train one epoch."""
         raise NotImplementedError()
 
-    def predict(self, *args, **kwargs):
+    def predict(self, *args, **kwargs) -> PredictOutput:
         """Run inference."""
         raise NotImplementedError()
 

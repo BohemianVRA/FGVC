@@ -11,8 +11,8 @@ from sklearn.metrics import (
 
 
 def classification_scores(
-    preds: np.ndarray, targs: np.ndarray, *, top_k: Optional[int] = 3, return_dict: bool = False
-) -> Union[Tuple[float, float, float], dict]:
+    preds: np.ndarray, targs: np.ndarray, *, top_k: Optional[int] = 3, return_dict: bool = True
+) -> Union[dict, Tuple[float, float, float]]:
     """Compute top-1 and top-k accuracy and f1 score.
 
     Parameters
@@ -28,12 +28,8 @@ def classification_scores(
 
     Returns
     -------
-    acc
-        Accuracy score.
-    topk
-        Top k accuracy score.
-    f1
-        F1 score.
+    scores
+        A dictionary or tuple with classification scores.
     """
     preds_argmax = preds.argmax(1)
     labels = np.arange(preds.shape[1])
@@ -45,15 +41,15 @@ def classification_scores(
     f1 = f1_score(targs, preds_argmax, labels=labels, average="macro", zero_division=0)
 
     if return_dict:
-        out = {}
-        out["Acc"] = acc
+        scores = {}
+        scores["Acc"] = acc
         if top_k is not None:
-            out[f"Recall@{top_k}"] = acc_k
-        out["F1"] = f1
+            scores[f"Recall@{top_k}"] = acc_k
+        scores["F1"] = f1
     else:
-        out = acc, acc_k, f1
+        scores = acc, acc_k, f1
 
-    return out
+    return scores
 
 
 def binary_segmentation_tp_fp_fn_tn(
