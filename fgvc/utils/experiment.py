@@ -311,7 +311,7 @@ def load_model(
     model = get_model(
         config["architecture"],
         config["number_of_classes"],
-        pretrained=True,
+        pretrained=config.get("pretrained", True),
         checkpoint_path=model_weights,
         strict=strict,
     )
@@ -319,6 +319,7 @@ def load_model(
     model_std = tuple(model.default_cfg["std"])
     if config.get("multigpu", False):  # multi gpu model
         model = nn.DataParallel(model)
+        logger.info("Using nn.DataParallel for multiple GPU support.")
     return model, model_mean, model_std
 
 
@@ -345,9 +346,18 @@ def get_optimizer_and_scheduler(model: nn.Module, config: dict) -> Tuple[Optimiz
     assert "scheduler" in config
     assert "epochs" in config
     optimizer = get_optimizer(
-        name=config["optimizer"], params=model.parameters(), lr=config["learning_rate"]
+        name=config["optimizer"],
+        params=model.parameters(),
+        lr=config["learning_rate"],
+        weight_decay=config.get("weight_decay", 0),
     )
     scheduler = get_scheduler(
-        name=config["scheduler"], optimizer=optimizer, epochs=config["epochs"]
+        name=config["scheduler"],
+        optimizer=optimizer,
+        epochs=config["epochs"],
+        cycles=config.get("cycles", 1),
+        warmup_epochs=config.get("warmup_epochs", 0),
+        cycle_decay=config.get("cycle_decay", 0.9),
+        cycle_limit=config.get("cycle_limit", 5),
     )
     return optimizer, scheduler

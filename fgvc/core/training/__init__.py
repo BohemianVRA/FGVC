@@ -34,6 +34,7 @@ def train(
     scheduler: SchedulerType = None,
     num_epochs: int = 1,
     accumulation_steps: int = 1,
+    clip_grad: float = None,
     device: torch.device = None,
     seed: int = 777,
     exp_name: str = None,
@@ -63,8 +64,10 @@ def train(
         Number of epochs to train.
     accumulation_steps
         Number of iterations to accumulate gradients before performing optimizer step.
+    clip_grad
+        Max norm of the gradients for the gradient clipping.
     device
-        Device to use (CPU,CUDA,CUDA:0,...).
+        Device to use (cpu,0,1,2,...).
     seed
         Random seed to set.
     exp_name
@@ -85,6 +88,7 @@ def train(
         validloader=validloader,
         scheduler=scheduler,
         accumulation_steps=accumulation_steps,
+        clip_grad=clip_grad,
         device=device,
         **trainer_kws,
     )

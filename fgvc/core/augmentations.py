@@ -13,18 +13,18 @@ def light_transforms(
     """Create light training and validation transforms."""
     train_tfms = A.Compose(
         [
-            A.RandomResizedCrop(image_size[0], image_size[1], scale=(0.8, 1.0)),
+            A.RandomResizedCrop(height=image_size[0], width=image_size[1], scale=(0.8, 1.0)),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
-            A.RandomBrightnessContrast(p=0.2),
+            A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.5),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
         ]
     )
     val_tfms = A.Compose(
         [
-            A.PadIfNeeded(image_size[0], image_size[1]),
-            A.Resize(image_size[0], image_size[1]),
+            A.PadIfNeeded(min_height=image_size[0], min_width=image_size[1]),
+            A.Resize(height=image_size[0], width=image_size[1]),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
         ]
@@ -38,25 +38,25 @@ def heavy_transforms(
     """Create heavy training and validation transforms."""
     train_tfms = A.Compose(
         [
-            A.RandomResizedCrop(image_size[0], image_size[1], scale=(0.7, 1.3)),
+            A.RandomResizedCrop(height=image_size[0], width=image_size[1], scale=(0.7, 1.3)),
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
-            A.ShiftScaleRotate(shift_limit=0.10, scale_limit=0.25, rotate_limit=90, p=0.5),
-            A.JpegCompression(p=0.25, quality_lower=50, quality_upper=100),
-            A.Blur(blur_limit=(7, 7), p=0.1),
-            A.RandomGridShuffle(grid=(3, 3), p=0.1),
-            A.RandomBrightnessContrast(p=0.3),
+            A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.3),
+            A.GaussianBlur(blur_limit=(7, 7), p=0.5),
             A.HueSaturationValue(p=0.2),
-            A.MultiplicativeNoise(multiplier=[0.8, 1.2], elementwise=True, p=0.1),
-            A.Cutout(num_holes=15, max_h_size=20, max_w_size=20, fill_value=128, p=0.5),
+            A.ImageCompression(quality_lower=50, quality_upper=100, p=0.2),
+            A.CoarseDropout(max_holes=8, max_height=20, max_width=20, fill_value=128, p=0.2),
+            A.ShiftScaleRotate(shift_limit=0.10, scale_limit=0.25, rotate_limit=90, p=0.5),
+            A.RandomGridShuffle(grid=(3, 3), p=0.1),
+            A.MultiplicativeNoise(multiplier=(0.8, 1.2), elementwise=True, p=0.1),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
         ]
     )
     val_tfms = A.Compose(
         [
-            A.PadIfNeeded(image_size[0], image_size[1]),
-            A.Resize(image_size[0], image_size[1]),
+            A.PadIfNeeded(min_height=image_size[0], min_width=image_size[1]),
+            A.Resize(height=image_size[0], width=image_size[1]),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
         ]
