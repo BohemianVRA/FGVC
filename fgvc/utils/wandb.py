@@ -65,8 +65,24 @@ def init_wandb(config: dict, run_name: str, entity: str, project: str, **kwargs)
 
 
 @if_wandb_run_started
-def log_progress(epoch: int, scores: dict, commit: bool = True):
+def log_progress(
+    epoch: int,
+    *,
+    scores: dict = None,
+    train_scores: dict = None,
+    valid_scores: dict = None,
+    train_loss: float = None,
+    valid_loss: float = None,
+    lr: float = None,
+    max_grad_norm: float = None,
+    commit: bool = True,
+):
     """Log a dictionary with scores or other data to W&B run.
+
+    The scores in arguments are combined into a single dictionary in the following order:
+    1. train_scores and valid_scores
+    2. scores
+    3. train_loss, valid_loss, lr, max_grad_norm
 
     The method is executed if the W&B run was initialized.
 
@@ -76,16 +92,53 @@ def log_progress(epoch: int, scores: dict, commit: bool = True):
         Current training epoch.
     scores
         A dictionary with scores or other data to log.
+    train_scores
+        A dictionary with training scores or other data to log with `train/` prefix.
+    valid_scores
+        A dictionary with validation scores or other data to log with `valid/` prefix.
+    train_loss
+        Training loss.
+    valid_loss
+        Validation loss.
+    lr
+        Learning rate.
+    max_grad_norm
+        Maximum gradient norm.
     commit
         If true save the scores to the W&B and increment the step.
         Otherwise, only update the current score dictionary.
     """
-    wandb.log(scores, step=epoch, commit=commit)
+    scores_combined = {}
+
+    # assign training and validation scores
+    if train_scores is not None:
+        scores_combined.update({f"train/{k}": v for k, v in train_scores.items()})
+    if valid_scores is not None:
+        scores_combined.update({f"valid/{k}": v for k, v in valid_scores.items()})
+
+    # assign other scores
+    if scores is not None:
+        scores_combined.update(scores)
+
+    # assign average losses
+    if train_loss is not None:
+        scores_combined["Train. loss (avr.)"] = train_loss
+    if valid_loss is not None:
+        scores_combined["Val. loss (avr.)"] = valid_loss
+
+    # assign training stats
+    if lr is not None:
+        scores_combined["Learning Rate"] = lr
+    if max_grad_norm is not None:
+        scores_combined["Max Gradient Norm"] = max_grad_norm
+
+    wandb.log(scores_combined, step=epoch, commit=commit)
 
 
 @if_wandb_run_started
 def log_clf_progress(
     epoch: int,
+    *,
     train_loss: float,
     valid_loss: float,
     train_acc: float,
@@ -121,24 +174,26 @@ def log_clf_progress(
         Validation F1 score.
     lr
         Learning rate.
+    max_grad_norm
+        Maximum gradient norm.
     other_scores
         A dictionary with other scores to log to W&B.
     """
     other_scores = other_scores or {}
-    wandb.log(
-        {
-            "Train. loss (avr.)": train_loss,
-            "Val. loss (avr.)": valid_loss,
+    log_progress(
+        epoch,
+        train_loss=train_loss,
+        valid_loss=valid_loss,
+        scores={
             "Val. F1": valid_f1,
             "Val. Accuracy": valid_acc,
             "Val. Recall@3": valid_acc3,
             "Train. Accuracy": train_acc,
             "Train. F1": train_f1,
-            "Learning Rate": lr,
-            "Max Gradient Norm": max_grad_norm,
             **other_scores,
         },
-        step=epoch,
+        lr=lr,
+        max_grad_norm=max_grad_norm,
         commit=True,
     )
 

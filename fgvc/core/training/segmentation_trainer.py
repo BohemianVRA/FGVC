@@ -183,15 +183,15 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
             self.make_scheduler_step(epoch + 1, predict_output.avg_loss)
 
             # log scores to W&B
-            scores = {
-                "avg_train_loss": train_output.avg_loss,
-                "avg_val_loss": predict_output.avg_loss,
-                **{f"train/{k}": v for k, v in train_output.avg_scores.items()},
-                **{f"valid/{k}": v for k, v in predict_output.avg_scores.items()},
-                "Learning Rate": self.optimizer.param_groups[0]["lr"],
-                "Max Gradient Norm": train_output.max_grad_norm,
-            }
-            log_progress(epoch + 1, scores)
+            log_progress(
+                epoch + 1,
+                train_loss=train_output.avg_loss,
+                valid_loss=predict_output.avg_loss,
+                train_scores=train_output.avg_scores,
+                valid_scores=predict_output.avg_scores,
+                lr=self.optimizer.param_groups[0]["lr"],
+                max_grad_norm=train_output.max_grad_norm,
+            )
 
             # log scores to file and save model checkpoints
             _scores = {
@@ -207,7 +207,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
                 epoch + 1,
                 scores_str="\t".join([f"{k}: {v}" for k, v in _scores.items()]),
                 valid_loss=predict_output.avg_loss,
-                valid_metrics={"f1": scores.get("valid/F1", 0)},
+                valid_metrics={"f1": predict_output.avg_scores.get("F1", 0)},
             )
 
         # save last checkpoint, log best scores and total training time
