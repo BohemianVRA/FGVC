@@ -43,6 +43,7 @@ class BaseTrainer:
         accumulation_steps: int = 1,
         clip_grad: float = None,
         device: torch.device = None,
+        **kwargs,
     ):
         super().__init__()
         # model and loss arguments

@@ -1,4 +1,5 @@
 import time
+import warnings
 from typing import Union
 
 import torch
@@ -69,6 +70,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
         swa: str = None,
         swa_lr: float = 0.05,
         swa_epochs: Union[int, float] = 0.75,
+        **kwargs,
     ):
         super().__init__(
             model=model,
@@ -87,6 +89,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
             swa_lr=swa_lr,
             swa_epochs=swa_epochs,
         )
+        warnings.warn(f"Class {self.__class__.__name__} got unused key arguments: {kwargs}")
 
     def train_epoch(self, epoch: int, dataloader: DataLoader) -> TrainEpochOutput:
         """Train one epoch.

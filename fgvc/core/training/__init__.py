@@ -40,6 +40,7 @@ def train(
     exp_name: str = None,
     trainer_cls: Type[BaseTrainer] = ClassificationTrainer,
     trainer_kws: dict = None,
+    train_kws: dict = None,
     **kwargs,
 ):
     """Train neural network.
@@ -78,8 +79,11 @@ def train(
         and inherits from `BaseTrainer` PyTorch class.
     trainer_kws
         Additional keyword arguments for the trainer class.
+    train_kws
+        Additional keyword arguments for the train method.
     """
     trainer_kws = trainer_kws or {}
+    train_kws = train_kws or {}
     trainer = trainer_cls(
         model=model,
         trainloader=trainloader,
@@ -91,8 +95,9 @@ def train(
         clip_grad=clip_grad,
         device=device,
         **trainer_kws,
+        **kwargs,
     )
-    trainer.train(run_name, num_epochs, seed, exp_name, **kwargs)
+    trainer.train(run_name, num_epochs, seed, exp_name, **train_kws)
 
 
 def predict(

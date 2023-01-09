@@ -81,7 +81,7 @@ class SchedulerMixin:
         if swa is not None:
             swa = swa.lower()
             assert swa in ("swa", "ema")
-            assert isinstance(swa_epochs, int) or 0. < swa_epochs < 1.
+            assert isinstance(swa_epochs, int) or 0.0 < swa_epochs < 1.0
             assert trainloader is not None
             self.swa_epochs = swa_epochs
             if swa == "swa":
@@ -90,9 +90,9 @@ class SchedulerMixin:
                     optimizer, swa_lr=swa_lr, anneal_epochs=5, anneal_strategy="linear"
                 )
             else:
-                assert 0. < ema_decay < 1.
+                assert 0.0 < ema_decay < 1.0
                 self.swa_model = AveragedModel(
-                    model, avg_fn=lambda e, m, num_averaged: ema_decay * e + (1. - ema_decay) * m
+                    model, avg_fn=lambda e, m, num_averaged: ema_decay * e + (1.0 - ema_decay) * m
                 )
 
         # call parent class to initialize trainer
@@ -139,7 +139,7 @@ class SchedulerMixin:
 
             # decide if to apply SWA or EMA
             abs_swa_epochs = self.swa_epochs
-            if 0. < self.swa_epochs < 1.:
+            if 0.0 < self.swa_epochs < 1.0:
                 if num_epochs is None:
                     # set very large number to make following conditions false
                     abs_swa_epochs = 100_000

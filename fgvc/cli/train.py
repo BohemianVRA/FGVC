@@ -128,6 +128,12 @@ def train_clf(
         clip_grad=config.get("clip_grad"),
         device=device,
         seed=config.get("random_seed", 777),
+        mixup=config.get("mixup"),
+        cutmix=config.get("cutmix"),
+        mixup_prob=config.get("mixup_prob"),
+        swa=config.get("swa"),
+        swa_lr=config.get("swa_lr", 0.05),
+        swa_epochs=config.get("swa_epochs", 0.75),
     )
 
     # finish wandb run
