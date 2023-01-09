@@ -180,6 +180,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
             elapsed_epoch_time = time.time() - start_epoch_time
 
             # make a scheduler step
+            lr = self.optimizer.param_groups[0]["lr"]
             self.make_scheduler_step(epoch + 1, predict_output.avg_loss)
 
             # log scores to W&B
@@ -189,7 +190,7 @@ class SegmentationTrainer(BaseTrainer, SchedulerMixin):
                 valid_loss=predict_output.avg_loss,
                 train_scores=train_output.avg_scores,
                 valid_scores=predict_output.avg_scores,
-                lr=self.optimizer.param_groups[0]["lr"],
+                lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
             )
 
