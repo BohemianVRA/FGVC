@@ -186,6 +186,7 @@ class SegmentationTrainer(SchedulerMixin, BaseTrainer):
             elapsed_epoch_time = time.time() - start_epoch_time
 
             # make a scheduler step
+            lr = self.optimizer.param_groups[0]["lr"]
             self.make_scheduler_step(
                 epoch + 1, valid_loss=predict_output.avg_loss, num_epochs=num_epochs
             )
@@ -197,7 +198,7 @@ class SegmentationTrainer(SchedulerMixin, BaseTrainer):
                 valid_loss=predict_output.avg_loss,
                 train_scores=train_output.avg_scores,
                 valid_scores=predict_output.avg_scores,
-                lr=self.optimizer.param_groups[0]["lr"],
+                lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
             )
 

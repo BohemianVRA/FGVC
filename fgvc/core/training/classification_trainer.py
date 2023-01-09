@@ -201,6 +201,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
             elapsed_epoch_time = time.time() - start_epoch_time
 
             # make a scheduler step
+            lr = self.optimizer.param_groups[0]["lr"]
             self.make_scheduler_step(
                 epoch + 1, valid_loss=predict_output.avg_loss, num_epochs=num_epochs
             )
@@ -215,7 +216,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
                 valid_acc=predict_output.avg_scores.get("Acc", 0),
                 valid_acc3=predict_output.avg_scores.get("Recall@3", 0),
                 valid_f1=predict_output.avg_scores.get("F1", 0),
-                lr=self.optimizer.param_groups[0]["lr"],
+                lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
             )
 
