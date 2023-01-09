@@ -96,7 +96,14 @@ class SchedulerMixin:
                 )
 
         # call parent class to initialize trainer
-        super().__init__(*args, model=model, optimizer=optimizer, validloader=validloader, **kwargs)
+        super().__init__(
+            *args,
+            model=model,
+            optimizer=optimizer,
+            trainloader=trainloader,
+            validloader=validloader,
+            **kwargs,
+        )
 
     def make_timm_scheduler_update(self, num_updates: int):
         """Make scheduler step update after training one iteration.

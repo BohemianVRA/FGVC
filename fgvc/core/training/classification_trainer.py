@@ -105,7 +105,8 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
             swa_lr=swa_lr,
             ema_decay=ema_decay,
         )
-        warnings.warn(f"Class {self.__class__.__name__} got unused key arguments: {kwargs}")
+        if len(kwargs) > 0:
+            warnings.warn(f"Class {self.__class__.__name__} got unused key arguments: {kwargs}")
 
     def train_epoch(self, epoch: int, dataloader: DataLoader) -> TrainEpochOutput:
         """Train one epoch.
