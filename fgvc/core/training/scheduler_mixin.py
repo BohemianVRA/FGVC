@@ -35,12 +35,15 @@ class SchedulerMixin:
     swa
         Model weight averaging strategy:
         Stochastic Weight Averaging ("swa"), Exponential Moving Average ("ema"), or None.
-    swa_lr
-        Learning Rate to use during averaged epochs for "swa" strategy.
-        The parameter is ignored for "ema" strategy which uses the same LR scheduler for all epochs.
     swa_epochs
         Epoch number when to start model averaging.
         Either absolute (int) or relative (float (0.0, 1.0)) number can be used.
+    swa_lr
+        Learning Rate to use during averaged epochs for "swa" strategy.
+        The parameter is ignored for "ema" strategy which uses the same LR scheduler for all epochs.
+    ema_decay
+        Model parameter weight decay used for "ema" strategy.
+        The parameter is ignored for "swa" strategy which uses equal weight assignment.
     """
 
     def __init__(
@@ -55,8 +58,9 @@ class SchedulerMixin:
         trainloader: DataLoader = None,
         # swa parameters
         swa: str = None,
-        swa_lr: float = 0.05,
         swa_epochs: Union[int, float] = 0.75,
+        swa_lr: float = 0.05,
+        ema_decay: 0.9999,
         **kwargs,
     ):
         # validate scheduler
@@ -77,13 +81,18 @@ class SchedulerMixin:
         if swa is not None:
             swa = swa.lower()
             assert swa in ("swa", "ema")
-            assert isinstance(swa_epochs, int) or 0.0 < swa_epochs < 1.0
+            assert isinstance(swa_epochs, int) or 0. < swa_epochs < 1.
             assert trainloader is not None
             self.swa_epochs = swa_epochs
-            self.swa_model = AveragedModel(model)
             if swa == "swa":
+                self.swa_model = AveragedModel(model)
                 self.swa_scheduler = SWALR(
                     optimizer, swa_lr=swa_lr, anneal_epochs=5, anneal_strategy="linear"
+                )
+            else:
+                assert 0. < ema_decay < 1.
+                self.swa_model = AveragedModel(
+                    model, avg_fn=lambda e, m, num_averaged: ema_decay * e + (1. - ema_decay) * m
                 )
 
         # call parent class to initialize trainer
@@ -130,7 +139,7 @@ class SchedulerMixin:
 
             # decide if to apply SWA or EMA
             abs_swa_epochs = self.swa_epochs
-            if 0.0 < self.swa_epochs < 1.0:
+            if 0. < self.swa_epochs < 1.:
                 if num_epochs is None:
                     # set very large number to make following conditions false
                     abs_swa_epochs = 100_000
