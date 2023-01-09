@@ -18,7 +18,7 @@ from .training_state import TrainingState
 from .training_utils import get_gradient_norm
 
 
-class ClassificationTrainer(BaseTrainer, SchedulerMixin):
+class ClassificationTrainer(SchedulerMixin, BaseTrainer):
     """Class to perform training of a classification neural network and/or run inference.
 
     Parameters
@@ -67,7 +67,6 @@ class ClassificationTrainer(BaseTrainer, SchedulerMixin):
             clip_grad=clip_grad,
             device=device,
         )
-        self.validate_scheduler(scheduler)
 
     def train_epoch(self, epoch: int, dataloader: DataLoader) -> TrainEpochOutput:
         """Train one epoch.

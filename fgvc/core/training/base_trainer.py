@@ -3,7 +3,6 @@ import torch.nn as nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
-from .scheduler_mixin import SchedulerType
 from .training_outputs import BatchOutput, PredictOutput, TrainEpochOutput
 from .training_utils import to_device, to_numpy
 
@@ -23,8 +22,6 @@ class BaseTrainer:
         Optimizer algorithm.
     validloader
         Pytorch dataloader with validation data.
-    scheduler
-        Scheduler algorithm.
     accumulation_steps
         Number of iterations to accumulate gradients before performing optimizer step.
     clip_grad
@@ -41,7 +38,6 @@ class BaseTrainer:
         optimizer: Optimizer = None,
         *,
         validloader: DataLoader = None,
-        scheduler: SchedulerType = None,
         accumulation_steps: int = 1,
         clip_grad: float = None,
         device: torch.device = None,
@@ -57,7 +53,6 @@ class BaseTrainer:
 
         # optimization arguments
         self.optimizer = optimizer
-        self.scheduler = scheduler
         self.accumulation_steps = accumulation_steps
         self.clip_grad = clip_grad
 
