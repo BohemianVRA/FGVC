@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
@@ -50,6 +52,18 @@ class BaseTrainer:
         # data arguments
         self.trainloader = trainloader
         self.validloader = validloader
+        if trainloader is not None and validloader is not None:
+            trainset = trainloader.dataset
+            validset = validloader.dataset
+            if (
+                hasattr(trainset, "num_classes")
+                and hasattr(validset, "num_classes")
+                and trainset.num_classes != validset.num_classes
+            ):
+                warnings.warn(
+                    f"Number of classes in training set ({trainset.num_classes}) "
+                    f"does not match validation set ({validset.num_classes})."
+                )
 
         # optimization arguments
         self.optimizer = optimizer
@@ -76,6 +90,9 @@ class BaseTrainer:
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
         imgs, targs = to_device(imgs, targs, device=self.device)
+        # apply Mixup or Cutmix if MixupMixin is used in the final class
+        if hasattr(self, "apply_mixup"):
+            imgs, targs = self.apply_mixup(imgs, targs)
 
         preds = self.model(imgs)
         loss = self.criterion(preds, targs)

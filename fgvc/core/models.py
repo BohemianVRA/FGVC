@@ -1,3 +1,5 @@
+import warnings
+
 import timm
 import torch
 import torch.nn as nn
@@ -54,3 +56,37 @@ def get_model(
         model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"), strict=strict)
 
     return model
+
+
+def get_model_target_size(model: nn.Module) -> int:
+    """Get target size (number of output classes) of `timm` model.
+
+    Parameters
+    ----------
+    model
+        PyTorch `nn.Module` instance.
+
+    Returns
+    -------
+    target_size
+        Output feature size of a classification head.
+    """
+    target_size = None
+    cls_name = model.default_cfg["classifier"]
+
+    # iterate through nested modules
+    parts = cls_name.split(".")
+    module = model
+    for i, part_name in enumerate(parts):
+        if i == len(parts) - 1:
+            target_size = getattr(module, part_name).out_features
+        else:
+            module = getattr(module, part_name)
+
+    if target_size is None:
+        warnings.warn(
+            "Could not find target size (number of classes) "
+            f"of the model {model.__class__.__name__}."
+        )
+
+    return target_size

@@ -22,12 +22,16 @@ class SchedulerMixin:
         SchedulerMixin uses it to validate it is not None when `scheduler=ReduceLROnPlateau`.
     """
 
-    def __init__(self,  *args, scheduler: SchedulerType = None, validloader: DataLoader = None, **kwargs):
+    def __init__(
+        self, *args, scheduler: SchedulerType = None, validloader: DataLoader = None, **kwargs
+    ):
         # validate scheduler
         if scheduler is not None:
             assert isinstance(scheduler, (ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR))
             if isinstance(scheduler, ReduceLROnPlateau):
-                assert validloader is not None, "Scheduler ReduceLROnPlateau requires validation set to update learning rate."
+                assert (
+                    validloader is not None
+                ), "Scheduler ReduceLROnPlateau requires validation set to update learning rate."
         self.scheduler = scheduler
         self.validloader = validloader
 

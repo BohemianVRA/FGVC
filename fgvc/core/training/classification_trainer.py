@@ -11,6 +11,7 @@ from fgvc.utils.utils import set_random_seed
 from fgvc.utils.wandb import log_clf_progress
 
 from .base_trainer import BaseTrainer
+from .mixup_mixin import MixupMixin
 from .scheduler_mixin import SchedulerMixin, SchedulerType
 from .scores_monitor import ScoresMonitor
 from .training_outputs import PredictOutput, TrainEpochOutput
@@ -18,7 +19,7 @@ from .training_state import TrainingState
 from .training_utils import get_gradient_norm
 
 
-class ClassificationTrainer(SchedulerMixin, BaseTrainer):
+class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
     """Class to perform training of a classification neural network and/or run inference.
 
     Parameters
@@ -41,6 +42,12 @@ class ClassificationTrainer(SchedulerMixin, BaseTrainer):
         Max norm of the gradients for the gradient clipping.
     device
         Device to use (cpu,0,1,2,...).
+    mixup
+        Mixup alpha value, mixup is active if > 0.
+    cutmix
+        Cutmix alpha value, cutmix is active if > 0.
+    mixup_prob
+        Probability of applying mixup or cutmix per batch.
     """
 
     def __init__(
@@ -55,6 +62,9 @@ class ClassificationTrainer(SchedulerMixin, BaseTrainer):
         accumulation_steps: int = 1,
         clip_grad: float = None,
         device: torch.device = None,
+        mixup: float = None,
+        cutmix: float = None,
+        mixup_prob: float = None,
     ):
         super().__init__(
             model=model,
@@ -66,6 +76,9 @@ class ClassificationTrainer(SchedulerMixin, BaseTrainer):
             accumulation_steps=accumulation_steps,
             clip_grad=clip_grad,
             device=device,
+            mixup=mixup,
+            cutmix=cutmix,
+            mixup_prob=mixup_prob,
         )
 
     def train_epoch(self, epoch: int, dataloader: DataLoader) -> TrainEpochOutput:
