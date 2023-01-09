@@ -132,8 +132,9 @@ def train_clf(
         cutmix=config.get("cutmix"),
         mixup_prob=config.get("mixup_prob"),
         swa=config.get("swa"),
-        swa_lr=config.get("swa_lr", 0.05),
         swa_epochs=config.get("swa_epochs", 0.75),
+        swa_lr=config.get("swa_lr", 0.05),
+        ema_decay=config.get("ema_decay", 0.9999),
     )
 
     # finish wandb run

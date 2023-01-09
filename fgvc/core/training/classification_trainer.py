@@ -50,6 +50,18 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
         Cutmix alpha value, cutmix is active if > 0.
     mixup_prob
         Probability of applying mixup or cutmix per batch.
+    swa
+        Model weight averaging strategy:
+        Stochastic Weight Averaging ("swa"), Exponential Moving Average ("ema"), or None.
+    swa_epochs
+        Epoch number when to start model averaging.
+        Either absolute (int) or relative (float (0.0, 1.0)) number can be used.
+    swa_lr
+        Learning Rate to use during averaged epochs for "swa" strategy.
+        The parameter is ignored for "ema" strategy which uses the same LR scheduler for all epochs.
+    ema_decay
+        Model parameter weight decay used for "ema" strategy.
+        The parameter is ignored for "swa" strategy which uses equal weight assignment.
     """
 
     def __init__(
@@ -64,12 +76,15 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
         accumulation_steps: int = 1,
         clip_grad: float = None,
         device: torch.device = None,
+        # mixup parameters
         mixup: float = None,
         cutmix: float = None,
         mixup_prob: float = None,
+        # swa parameters
         swa: str = None,
-        swa_lr: float = 0.05,
         swa_epochs: Union[int, float] = 0.75,
+        swa_lr: float = 0.05,
+        ema_decay: 0.9999,
         **kwargs,
     ):
         super().__init__(
@@ -86,8 +101,9 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
             cutmix=cutmix,
             mixup_prob=mixup_prob,
             swa=swa,
-            swa_lr=swa_lr,
             swa_epochs=swa_epochs,
+            swa_lr=swa_lr,
+            ema_decay=ema_decay,
         )
         warnings.warn(f"Class {self.__class__.__name__} got unused key arguments: {kwargs}")
 
