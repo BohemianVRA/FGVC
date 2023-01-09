@@ -1,4 +1,5 @@
 import time
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -55,6 +56,9 @@ class SegmentationTrainer(SchedulerMixin, BaseTrainer):
         accumulation_steps: int = 1,
         clip_grad: float = None,
         device: torch.device = None,
+        swa: str = None,
+        swa_lr: float = 0.05,
+        swa_epochs: Union[int, float] = 0.75,
     ):
         super().__init__(
             model=model,
@@ -66,6 +70,9 @@ class SegmentationTrainer(SchedulerMixin, BaseTrainer):
             accumulation_steps=accumulation_steps,
             clip_grad=clip_grad,
             device=device,
+            swa=swa,
+            swa_lr=swa_lr,
+            swa_epochs=swa_epochs,
         )
 
     def train_epoch(self, epoch: int, dataloader: DataLoader) -> TrainEpochOutput:
@@ -164,7 +171,7 @@ class SegmentationTrainer(SchedulerMixin, BaseTrainer):
             E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
         """
         # create training state
-        training_state = TrainingState(self.model, run_name, num_epochs, exp_name)
+        training_state = TrainingState(self.model, run_name, exp_name, swa_model=self.swa_model)
 
         # run training loop
         set_random_seed(seed)
@@ -179,7 +186,9 @@ class SegmentationTrainer(SchedulerMixin, BaseTrainer):
             elapsed_epoch_time = time.time() - start_epoch_time
 
             # make a scheduler step
-            self.make_scheduler_step(epoch + 1, predict_output.avg_loss)
+            self.make_scheduler_step(
+                epoch + 1, valid_loss=predict_output.avg_loss, num_epochs=num_epochs
+            )
 
             # log scores to W&B
             log_progress(
