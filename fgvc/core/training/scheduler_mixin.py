@@ -195,6 +195,9 @@ class SchedulerMixin:
                 if epoch >= abs_swa_epochs:
                     self.swa_model.update_parameters(self.model)
                     self.swa_scheduler.step()
+                else:
+                    # make scheduler step
+                    self._make_scheduler_step(epoch, valid_loss)
 
             # update bn statistics for the swa_model at the end
             if num_epochs is not None and epoch == num_epochs:
