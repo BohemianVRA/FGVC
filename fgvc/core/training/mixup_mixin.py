@@ -58,7 +58,7 @@ class MixupMixin:
                 mixup_alpha=mixup,
                 cutmix_alpha=cutmix,
                 cutmix_minmax=None,
-                prob=mixup_prob,
+                prob=mixup_prob or 1.0,
                 switch_prob=0.5,
                 mode="batch",
                 correct_lam=True,
