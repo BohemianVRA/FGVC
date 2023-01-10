@@ -64,9 +64,14 @@ class SchedulerMixin:
         swa: str = None,
         swa_epochs: Union[int, float] = 0.75,
         swa_lr: float = 0.05,
-        ema_decay: 0.9999,
+        ema_decay: float = 0.9999,
         **kwargs,
     ):
+        # set default values (in case of script sets them as None)
+        swa_epochs = swa_epochs or 0.75
+        swa_lr = swa_lr or 0.05
+        ema_decay = ema_decay or 0.9999
+
         # validate scheduler
         if scheduler is not None:
             assert isinstance(scheduler, (ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR))

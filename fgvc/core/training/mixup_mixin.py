@@ -35,11 +35,16 @@ class MixupMixin:
         model: nn.Module,
         trainloader: DataLoader = None,
         *args,
-        mixup: float = None,
-        cutmix: float = None,
-        mixup_prob: float = None,
+        mixup: float = 0.0,
+        cutmix: float = 0.0,
+        mixup_prob: float = 1.0,
         **kwargs,
     ):
+        # set default values (in case of script sets them as None)
+        mixup = mixup or 0.0
+        cutmix = cutmix or 0.0
+        mixup_prob = mixup_prob or 1.0
+
         # get number of classes from model and trainset for Mixup method
         num_classes = get_model_target_size(model)
         if trainloader is not None and hasattr(trainloader.dataset, "num_classes"):
@@ -51,14 +56,12 @@ class MixupMixin:
                 )
 
         # create mixup class
-        mixup = mixup or 0.0
-        cutmix = cutmix or 0.0
         if mixup > 0.0 or cutmix > 0.0:
             self.mixup_fn = Mixup(
                 mixup_alpha=mixup,
                 cutmix_alpha=cutmix,
                 cutmix_minmax=None,
-                prob=mixup_prob or 1.0,
+                prob=mixup_prob,
                 switch_prob=0.5,
                 mode="batch",
                 correct_lam=True,
