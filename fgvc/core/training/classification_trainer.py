@@ -153,7 +153,9 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
 
         return TrainEpochOutput(avg_loss, scores_monitor.avg_scores, max_grad_norm)
 
-    def predict(self, dataloader: DataLoader, return_preds: bool = True) -> PredictOutput:
+    def predict(
+        self, dataloader: DataLoader, return_preds: bool = True, *, model: nn.Module = None
+    ) -> PredictOutput:
         """Run inference.
 
         Parameters
@@ -162,14 +164,17 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
             PyTorch dataloader with validation/test data.
         return_preds
             If True, the method returns predictions and ground-truth targets.
+        model
+            Alternative PyTorch model to use for prediction like SWA model.
 
         Returns
         -------
         PredictOutput tuple with predictions, ground-truth targets,
         average loss, and average scores.
         """
-        self.model.to(self.device)
-        self.model.eval()
+        model = model or self.model
+        model.to(self.device)
+        model.eval()
         avg_loss = 0.0
         scores_monitor = ScoresMonitor(
             scores_fn=lambda preds, targs: classification_scores(
@@ -180,7 +185,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
             store_preds_targs=return_preds,
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-            preds, targs, loss = self.predict_batch(batch)
+            preds, targs, loss = self.predict_batch(batch, model=model)
             avg_loss += loss / len(dataloader)
             scores_monitor.update(preds, targs)
         return PredictOutput(
@@ -214,8 +219,13 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
             # apply training and validation on one epoch
             start_epoch_time = time.time()
             train_output = self.train_epoch(epoch, self.trainloader)
+            swa_predict_output = None
             if self.validloader is not None:
                 predict_output = self.predict(self.validloader, return_preds=False)
+                if getattr(self, "swa_model") is not None:
+                    swa_predict_output = self.predict(
+                        self.validloader, return_preds=False, model=self.swa_model
+                    )
             else:
                 predict_output = PredictOutput()
             elapsed_epoch_time = time.time() - start_epoch_time
@@ -236,6 +246,14 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
                 valid_acc=predict_output.avg_scores.get("Acc", 0),
                 valid_acc3=predict_output.avg_scores.get("Recall@3", 0),
                 valid_f1=predict_output.avg_scores.get("F1", 0),
+                other_scores=(
+                    swa_predict_output
+                    and {
+                        "Val. Accuracy (SWA)": swa_predict_output.avg_scores["Acc"],
+                        "Val. Recall@3 (SWA)": swa_predict_output.avg_scores["Recall@3"],
+                        "Val. F1 (SWA)": swa_predict_output.avg_scores["F1"],
+                    }
+                ),
                 lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
             )

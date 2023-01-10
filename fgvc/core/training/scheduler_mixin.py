@@ -5,7 +5,7 @@ import torch.nn as nn
 from timm.scheduler import CosineLRScheduler
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
-from torch.optim.swa_utils import SWALR, AveragedModel, update_bn
+from torch.optim.swa_utils import SWALR, AveragedModel
 from torch.utils.data import DataLoader
 
 SchedulerType = Union[ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR]
@@ -95,14 +95,16 @@ class SchedulerMixin:
             self.swa = swa
             self.swa_epochs = swa_epochs
             if swa == "swa":
-                self.swa_model = AveragedModel(model)
+                self.swa_model = AveragedModel(model, use_buffers=True)
                 self.swa_scheduler = SWALR(
                     optimizer, swa_lr=swa_lr, anneal_epochs=5, anneal_strategy="linear"
                 )
             else:
                 assert 0.0 < ema_decay < 1.0
                 self.swa_model = AveragedModel(
-                    model, avg_fn=lambda e, m, num_averaged: ema_decay * e + (1.0 - ema_decay) * m
+                    model,
+                    avg_fn=lambda e, m, num_averaged: ema_decay * e + (1.0 - ema_decay) * m,
+                    use_buffers=True,
                 )
 
         # call parent class to initialize trainer
@@ -205,5 +207,6 @@ class SchedulerMixin:
                     self._make_scheduler_step(epoch, valid_loss)
 
             # update bn statistics for the swa_model at the end
-            if num_epochs is not None and epoch == num_epochs:
-                update_bn(self.trainloader, self.swa_model)
+            # bn statistics are updated using argument `use_buffers=True`
+            # if num_epochs is not None and epoch == num_epochs:
+            #     update_bn(self.trainloader, self.swa_model)

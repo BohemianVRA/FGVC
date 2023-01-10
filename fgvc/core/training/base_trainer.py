@@ -107,7 +107,7 @@ class BaseTrainer:
         preds, targs = to_numpy(preds, targs)
         return BatchOutput(preds, targs, _loss)
 
-    def predict_batch(self, batch: tuple) -> BatchOutput:
+    def predict_batch(self, batch: tuple, *, model: nn.Module = None) -> BatchOutput:
         """Run a prediction iteration on one batch.
 
         Parameters
@@ -115,18 +115,21 @@ class BaseTrainer:
         batch
             Tuple of arbitrary size with image and target pytorch tensors
             and optionally additional items depending on the dataloaders.
+        model
+            Alternative PyTorch model to use for prediction like SWA model.
 
         Returns
         -------
         BatchOutput tuple with predictions, ground-truth targets, and average loss.
         """
+        model = model or self.model
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
         imgs = to_device(imgs, device=self.device)
 
         # run inference and compute loss
         with torch.no_grad():
-            preds = self.model(imgs)
+            preds = model(imgs)
         loss = 0.0
         if self.criterion is not None:
             targs = to_device(targs, device=self.device)
