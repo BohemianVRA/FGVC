@@ -4,7 +4,13 @@ import pandas as pd
 from PIL import ImageFile
 from torch.utils.data import DataLoader
 
-from fgvc.core.augmentations import heavy_transforms, light_transforms
+from fgvc.core.augmentations import (
+    heavy_transforms,
+    light_transforms,
+    vit_heavy_transforms,
+    vit_light_transforms,
+    vit_medium_transforms,
+)
 from fgvc.core.augmentations.const import IMAGENET_MEAN, IMAGENET_STD
 
 from .image_dataset import ImageDataset
@@ -30,6 +36,9 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 default_tranforms = {
     "light": light_transforms,
     "heavy": heavy_transforms,
+    "vit_light": vit_light_transforms,
+    "vit_medium": vit_medium_transforms,
+    "vit_heavy": vit_heavy_transforms,
 }
 
 
