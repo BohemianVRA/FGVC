@@ -3,8 +3,7 @@ from typing import Tuple
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
+from .const import IMAGENET_MEAN, IMAGENET_STD
 
 
 def light_transforms(

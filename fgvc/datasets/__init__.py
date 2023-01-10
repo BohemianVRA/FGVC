@@ -5,6 +5,7 @@ from PIL import ImageFile
 from torch.utils.data import DataLoader
 
 from fgvc.core.augmentations import heavy_transforms, light_transforms
+from fgvc.core.augmentations.const import IMAGENET_MEAN, IMAGENET_STD
 
 from .image_dataset import ImageDataset
 from .poison_dataset import PoisonDataset
@@ -23,9 +24,6 @@ __all__ = (
     "IMAGENET_MEAN",
     "IMAGENET_STD",
 )
-
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
