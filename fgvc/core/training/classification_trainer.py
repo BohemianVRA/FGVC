@@ -84,7 +84,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
         swa: str = None,
         swa_epochs: Union[int, float] = 0.75,
         swa_lr: float = 0.05,
-        ema_decay: 0.9999,
+        ema_decay: float = 0.9999,
         **kwargs,
     ):
         super().__init__(
