@@ -114,7 +114,10 @@ class RandAugment(A.DualTransform):
         *,
         num_magnitude_bins: int = 31,
         interpolation: InterpolationMode = InterpolationMode.NEAREST,
+        always_apply=False,
+        p=1.0,
     ):
+        super().__init__(always_apply, p)
         self.magnitude = magnitude
         self.num_layers = num_layers
         self.num_magnitude_bins = num_magnitude_bins
@@ -124,7 +127,7 @@ class RandAugment(A.DualTransform):
         num_bins = self.num_magnitude_bins
         return {
             # op_name: (magnitudes, signed)
-            "Identity": (0.0, False),
+            "Identity": (None, False),
             "ShearX": (np.linspace(0.0, 0.3, num_bins), True),
             "ShearY": (np.linspace(0.0, 0.3, num_bins), True),
             "TranslateX": (np.linspace(0.0, 150.0 / 331.0 * image_width, num_bins), True),
@@ -136,8 +139,8 @@ class RandAugment(A.DualTransform):
             "Sharpness": (np.linspace(0.0, 0.9, num_bins), True),
             "Posterize": (8 - (np.arange(num_bins) / ((num_bins - 1) / 4)).round(), False),
             "Solarize": (np.linspace(255.0, 0.0, num_bins), False),
-            "AutoContrast": (0.0, False),
-            "Equalize": (0.0, False),
+            "AutoContrast": (None, False),
+            "Equalize": (None, False),
         }
 
     def apply(
@@ -146,11 +149,12 @@ class RandAugment(A.DualTransform):
         """Apply transformation on image or segmentation mask."""
         assert len(img.shape) in (2, 3), f"Got image shape: {img.shape}"
         if len(img.shape) == 2:
-            img = img[..., None]  # add channel dimension
+            img = img[..., None]  # [h, w] -> [h, w, 1]
         h, w, ch = img.shape
+        dtype = img.dtype
 
         # convert image to torch tensor
-        img = torch.as_tensor(img.transpose(2, 0, 1))
+        img = torch.as_tensor(img.transpose(2, 0, 1), dtype=torch.uint8)  # [h, w, ch] -> [ch, h, w]
 
         # apply transforms
         op_meta = self._augmentation_space(h, w)
@@ -158,13 +162,15 @@ class RandAugment(A.DualTransform):
         for op_index, apply_signed in zip(op_ids, signed_mask):
             op_name = op_names[op_index]
             magnitudes, signed = op_meta[op_name]
-            magnitude = float(magnitudes[self.magnitude]) if magnitudes.ndim > 0 else 0.0
+            magnitude = float(magnitudes[self.magnitude]) if magnitudes is not None else 0.0
             if signed and apply_signed:
                 magnitude *= -1.0
             img = _apply_op(img, op_name, magnitude, interpolation=self.interpolation, fill=None)
 
         # convert to numpy
-        img = img.numpy().transpose(1, 2, 0)
+        img = img.numpy().transpose(1, 2, 0).astype(dtype)  # [ch, h, w] -> [h, w, ch]
+        if ch == 1:
+            img = img[..., 0]  # [h, w, 1] -> [h, s]
 
         return img
 
