@@ -134,7 +134,9 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
 
         return TrainEpochOutput(avg_loss, scores_monitor.avg_scores, max_grad_norm)
 
-    def predict(self, dataloader: DataLoader, return_preds: bool = True) -> PredictOutput:
+    def predict(
+        self, dataloader: DataLoader, return_preds: bool = True, *, model: nn.Module = None
+    ) -> PredictOutput:
         """Run inference.
 
         Parameters
@@ -143,6 +145,8 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
             PyTorch dataloader with validation/test data.
         return_preds
             If True, the method returns predictions and ground-truth targets.
+        model
+            Alternative PyTorch model to use for prediction like EMA model.
 
         Returns
         -------
@@ -160,7 +164,7 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
             store_preds_targs=return_preds,
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-            preds, targs, loss = self.predict_batch(batch)
+            preds, targs, loss = self.predict_batch(batch, model=model)
             avg_loss += loss / len(dataloader)
             scores_monitor.update(preds, targs)
         return PredictOutput(
@@ -209,9 +213,7 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
 
             # make a scheduler step
             lr = self.optimizer.param_groups[0]["lr"]
-            self.make_scheduler_step(
-                epoch + 1, valid_loss=predict_output.avg_loss, num_epochs=num_epochs
-            )
+            self.make_scheduler_step(epoch + 1, valid_loss=predict_output.avg_loss)
 
             # log scores to W&B
             log_progress(

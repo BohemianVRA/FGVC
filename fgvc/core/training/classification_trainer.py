@@ -230,9 +230,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
 
             # make a scheduler step
             lr = self.optimizer.param_groups[0]["lr"]
-            self.make_scheduler_step(
-                epoch + 1, valid_loss=predict_output.avg_loss, num_epochs=num_epochs
-            )
+            self.make_scheduler_step(epoch + 1, valid_loss=predict_output.avg_loss)
 
             # log scores to W&B
             log_clf_progress(
