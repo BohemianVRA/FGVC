@@ -1,6 +1,5 @@
 import time
 import warnings
-from typing import Union
 
 import torch
 import torch.nn as nn
@@ -13,6 +12,7 @@ from fgvc.utils.utils import set_random_seed
 from fgvc.utils.wandb import log_clf_progress
 
 from .base_trainer import BaseTrainer
+from .ema_mixin import EMAMixin
 from .mixup_mixin import MixupMixin
 from .scheduler_mixin import SchedulerMixin, SchedulerType
 from .scores_monitor import ScoresMonitor
@@ -21,7 +21,7 @@ from .training_state import TrainingState
 from .training_utils import get_gradient_norm
 
 
-class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
+class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
     """Class to perform training of a classification neural network and/or run inference.
 
     Parameters
@@ -50,18 +50,12 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
         Cutmix alpha value, cutmix is active if > 0.
     mixup_prob
         Probability of applying mixup or cutmix per batch.
-    swa
-        Model weight averaging strategy:
-        Stochastic Weight Averaging ("swa"), Exponential Moving Average ("ema"), or None.
-    swa_epochs
+    apply_ema
+        Apply EMA model weight averaging if true.
+    ema_start_epoch
         Epoch number when to start model averaging.
-        Either absolute (int) or relative (float (0.0, 1.0)) number can be used.
-    swa_lr
-        Learning Rate to use during averaged epochs for "swa" strategy.
-        The parameter is ignored for "ema" strategy which uses the same LR scheduler for all epochs.
     ema_decay
-        Model parameter weight decay used for "ema" strategy.
-        The parameter is ignored for "swa" strategy which uses equal weight assignment.
+        Model weight decay.
     """
 
     def __init__(
@@ -80,10 +74,9 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
         mixup: float = None,
         cutmix: float = None,
         mixup_prob: float = None,
-        # swa parameters
-        swa: str = None,
-        swa_epochs: Union[int, float] = 0.75,
-        swa_lr: float = 0.05,
+        # ema parameters
+        apply_ema: bool = False,
+        ema_start_epoch: int = 0,
         ema_decay: float = 0.9999,
         **kwargs,
     ):
@@ -100,9 +93,8 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
             mixup=mixup,
             cutmix=cutmix,
             mixup_prob=mixup_prob,
-            swa=swa,
-            swa_epochs=swa_epochs,
-            swa_lr=swa_lr,
+            apply_ema=apply_ema,
+            ema_start_epoch=ema_start_epoch,
             ema_decay=ema_decay,
         )
         if len(kwargs) > 0:
@@ -147,6 +139,10 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad)
                 self.optimizer.step()
                 self.optimizer.zero_grad()
+
+                # update average model
+                self.make_ema_update(epoch)
+
                 # update lr scheduler from timm library
                 num_updates += 1
                 self.make_timm_scheduler_update(num_updates)
@@ -165,7 +161,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
         return_preds
             If True, the method returns predictions and ground-truth targets.
         model
-            Alternative PyTorch model to use for prediction like SWA model.
+            Alternative PyTorch model to use for prediction like EMA model.
 
         Returns
         -------
@@ -211,7 +207,9 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
             E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
         """
         # create training state
-        training_state = TrainingState(self.model, run_name, exp_name, swa_model=self.swa_model)
+        training_state = TrainingState(
+            self.model, run_name, exp_name, ema_model=self.get_ema_model()
+        )
 
         # run training loop
         set_random_seed(seed)
@@ -219,12 +217,12 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
             # apply training and validation on one epoch
             start_epoch_time = time.time()
             train_output = self.train_epoch(epoch, self.trainloader)
-            swa_predict_output = None
+            ema_predict_output = None
             if self.validloader is not None:
                 predict_output = self.predict(self.validloader, return_preds=False)
-                if getattr(self, "swa_model") is not None:
-                    swa_predict_output = self.predict(
-                        self.validloader, return_preds=False, model=self.swa_model
+                if getattr(self, "ema_model") is not None:
+                    ema_predict_output = self.predict(
+                        self.validloader, return_preds=False, model=self.get_ema_model()
                     )
             else:
                 predict_output = PredictOutput()
@@ -247,11 +245,11 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, BaseTrainer):
                 valid_acc3=predict_output.avg_scores.get("Recall@3", 0),
                 valid_f1=predict_output.avg_scores.get("F1", 0),
                 other_scores=(
-                    swa_predict_output
+                    ema_predict_output
                     and {
-                        "Val. Accuracy (SWA)": swa_predict_output.avg_scores["Acc"],
-                        "Val. Recall@3 (SWA)": swa_predict_output.avg_scores["Recall@3"],
-                        "Val. F1 (SWA)": swa_predict_output.avg_scores["F1"],
+                        "Val. Accuracy (EMA)": ema_predict_output.avg_scores["Acc"],
+                        "Val. Recall@3 (EMA)": ema_predict_output.avg_scores["Recall@3"],
+                        "Val. F1 (EMA)": ema_predict_output.avg_scores["F1"],
                     }
                 ),
                 lr=lr,

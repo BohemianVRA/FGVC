@@ -24,11 +24,11 @@ class TrainingState:
     """
 
     def __init__(
-        self, model: nn.Module, run_name: str, exp_name: str = None, *, swa_model: nn.Module = None
+        self, model: nn.Module, run_name: str, exp_name: str = None, *, ema_model: nn.Module = None
     ):
         assert "/" not in run_name, "Arg 'run_name' should not contain character /"
         self.model = model
-        self.swa_model = swa_model
+        self.ema_model = ema_model
         self.run_name = run_name
         self.exp_path = get_experiment_path(run_name, exp_name)
         os.makedirs(self.exp_path, exist_ok=True)
@@ -120,11 +120,11 @@ class TrainingState:
             self.model.state_dict(),
             os.path.join(self.exp_path, f"{self.run_name}-{self._last_epoch}E.pth"),
         )
-        if self.swa_model is not None:
-            self.t_logger.info("Save checkpoint of the SWA model")
+        if self.ema_model is not None:
+            self.t_logger.info("Save checkpoint of the EMA model")
             torch.save(
-                self.swa_model.state_dict(),
-                os.path.join(self.exp_path, f"{self.run_name}-SWA.pth"),
+                self.ema_model.state_dict(),
+                os.path.join(self.exp_path, f"{self.run_name}-EMA.pth"),
             )
 
         self.t_logger.info(f"Best scores (validation loss): {self.best_scores_loss}")

@@ -116,7 +116,7 @@ class BaseTrainer:
             Tuple of arbitrary size with image and target pytorch tensors
             and optionally additional items depending on the dataloaders.
         model
-            Alternative PyTorch model to use for prediction like SWA model.
+            Alternative PyTorch model to use for prediction like EMA model.
 
         Returns
         -------

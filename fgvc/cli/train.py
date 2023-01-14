@@ -131,9 +131,8 @@ def train_clf(
         mixup=config.get("mixup"),
         cutmix=config.get("cutmix"),
         mixup_prob=config.get("mixup_prob"),
-        swa=config.get("swa"),
-        swa_epochs=config.get("swa_epochs", 0.75),
-        swa_lr=config.get("swa_lr", 0.05),
+        apply_ema=config.get("apply_ema"),
+        ema_start_epoch=config.get("ema_start_epoch", 0),
         ema_decay=config.get("ema_decay", 0.9999),
     )
 
