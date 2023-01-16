@@ -126,7 +126,7 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
                 self.optimizer.zero_grad()
 
                 # update average model
-                self.make_ema_update(epoch)
+                self.make_ema_update(epoch + 1)
 
                 # update lr scheduler from timm library
                 num_updates += 1

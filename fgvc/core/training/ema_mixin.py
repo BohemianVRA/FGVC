@@ -66,7 +66,7 @@ class EMAMixin:
 
     def get_ema_model(self):
         """Get EMA averaged model."""
-        return self.ema_model and self.ema_model.model
+        return self.ema_model and self.ema_model.module
 
     def make_ema_update(self, epoch: int):
         """Update weights of the EMA averaged model."""
