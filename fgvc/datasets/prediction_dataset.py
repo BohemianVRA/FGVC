@@ -1,14 +1,15 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 import albumentations as A
 import numpy as np
 import torch
+import torchvision.transforms as T
 from PIL import Image
 from torch.utils.data import Dataset
 
 
 class PredictionDataset(Dataset):
-    def __init__(self, image_paths: list, transform: A.Compose = None, **kwargs):
+    def __init__(self, image_paths: list, transform: Union[A.Compose, T.Compose], **kwargs):
         self.image_paths = image_paths
         self.transform = transform
 
@@ -17,7 +18,10 @@ class PredictionDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, str]:
         file_path = self.image_paths[idx]
-        image = np.asarray(Image.open(file_path).convert("RGB"))
+        image = Image.open(file_path).convert("RGB")
         if self.transform is not None:
-            image = self.transform(image=image)["image"]
+            if isinstance(self.transform, A.Compose):
+                image = self.transform(image=np.asarray(image))["image"]
+            else:
+                image = self.transform(image)
         return image, file_path

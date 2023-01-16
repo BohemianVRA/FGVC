@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from fgvc.core.augmentations import (
     heavy_transforms,
     light_transforms,
+    tv_light_transforms,
     vit_heavy_transforms,
     vit_light_transforms,
     vit_medium_transforms,
@@ -36,6 +37,7 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 default_tranforms = {
     "light": light_transforms,
     "heavy": heavy_transforms,
+    "tv_light": tv_light_transforms,
     "vit_light": vit_light_transforms,
     "vit_medium": vit_medium_transforms,
     "vit_heavy": vit_heavy_transforms,
