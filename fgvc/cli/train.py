@@ -104,18 +104,12 @@ def train_clf(
 
     # init wandb
     if wandb_entity is not None and wandb_project is not None:
-        init_wandb(
-            config,
-            run_name,
-            entity=wandb_entity,
-            project=wandb_project,
-            tags=config.get("tags"),
-        )
+        init_wandb(config, config["run_name"], entity=wandb_entity, project=wandb_project)
 
     # train model
     logger.info("Training the model.")
     train(
-        run_name=run_name,
+        run_name=config["run_name"],
         exp_name=config["exp_name"],
         model=model,
         trainloader=trainloader,
