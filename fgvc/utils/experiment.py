@@ -191,6 +191,7 @@ def load_config(
         assert attr in config, f"Unknown attribute {attr} in configuration file."
         _run_name_vals.append(config[attr])
     run_name = "-".join(_run_name_vals)
+    config["run_name"] = run_name
 
     # create experiment name and experiment directory
     path = f"runs/{run_name}"

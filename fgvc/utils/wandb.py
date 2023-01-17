@@ -45,7 +45,16 @@ W&B methods used during training, before W&B run is finished.
 
 
 @if_wandb_is_installed
-def init_wandb(config: dict, run_name: str, entity: str, project: str, **kwargs):
+def init_wandb(
+    config: dict,
+    run_name: str,
+    entity: str,
+    project: str,
+    *,
+    tags: list = None,
+    notes: str = None,
+    **kwargs,
+):
     """Initialize a new W&B run.
 
     The method is executed if the W&B library is installed.
@@ -54,14 +63,33 @@ def init_wandb(config: dict, run_name: str, entity: str, project: str, **kwargs)
     ----------
     config
         A dictionary with experiment configuration.
+        Keys like "tags" and "notes" in the config dictionary
+        are passed to W&B init method as arguments.
     run_name
         Name of W&B run.
     entity
         Name of W&B entity.
     project
         Name of W&B project.
+    tags
+        A list of strings that populates tags of the run in W&B UI.
+    notes
+        A longer description of the W&B run.
     """
-    wandb.init(project=project, entity=entity, name=run_name, config=config, **kwargs)
+    # get tags and notes from config
+    if tags is None and "tags" in config:
+        tags = config["tags"]
+    if notes is None and "notes" in config:
+        notes = config["notes"]
+    wandb.init(
+        project=project,
+        entity=entity,
+        name=run_name,
+        config={k: v for k, v in config.items() if k not in ("tags", "notes")},
+        tags=tags,
+        notes=notes,
+        **kwargs,
+    )
 
 
 @if_wandb_run_started
