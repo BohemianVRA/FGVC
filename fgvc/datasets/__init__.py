@@ -18,7 +18,7 @@ from .image_dataset import ImageDataset
 from .poison_dataset import PoisonDataset
 from .prediction_dataset import PredictionDataset
 from .segmentation_dataset import BinarySegmentationDataset
-from .taxonomy_dataset import TaxonomyDataset, TaxonomyQuadrupleDataset
+from .taxonomy_dataset import TaxonomyDataset
 
 __all__ = (
     "ImageDataset",
@@ -26,7 +26,6 @@ __all__ = (
     "PredictionDataset",
     "BinarySegmentationDataset",
     "TaxonomyDataset",
-    "TaxonomyQuadrupleDataset",
     "get_dataloaders",
     "IMAGENET_MEAN",
     "IMAGENET_STD",
