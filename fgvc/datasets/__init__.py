@@ -4,13 +4,21 @@ import pandas as pd
 from PIL import ImageFile
 from torch.utils.data import DataLoader
 
-from fgvc.core.augmentations import heavy_transforms, light_transforms
+from fgvc.core.augmentations import (
+    heavy_transforms,
+    light_transforms,
+    tv_light_transforms,
+    vit_heavy_transforms,
+    vit_light_transforms,
+    vit_medium_transforms,
+)
+from fgvc.core.augmentations.const import IMAGENET_MEAN, IMAGENET_STD
 
 from .image_dataset import ImageDataset
 from .poison_dataset import PoisonDataset
 from .prediction_dataset import PredictionDataset
 from .segmentation_dataset import BinarySegmentationDataset
-from .taxonomy_dataset import TaxonomyDataset, TaxonomyQuadrupleDataset
+from .taxonomy_dataset import TaxonomyDataset
 
 __all__ = (
     "ImageDataset",
@@ -18,20 +26,20 @@ __all__ = (
     "PredictionDataset",
     "BinarySegmentationDataset",
     "TaxonomyDataset",
-    "TaxonomyQuadrupleDataset",
     "get_dataloaders",
     "IMAGENET_MEAN",
     "IMAGENET_STD",
 )
-
-IMAGENET_MEAN = (0.485, 0.456, 0.406)
-IMAGENET_STD = (0.229, 0.224, 0.225)
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 default_tranforms = {
     "light": light_transforms,
     "heavy": heavy_transforms,
+    "tv_light": tv_light_transforms,
+    "vit_light": vit_light_transforms,
+    "vit_medium": vit_medium_transforms,
+    "vit_heavy": vit_heavy_transforms,
 }
 
 

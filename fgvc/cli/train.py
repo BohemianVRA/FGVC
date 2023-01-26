@@ -122,6 +122,12 @@ def train_clf(
         clip_grad=config.get("clip_grad"),
         device=device,
         seed=config.get("random_seed", 777),
+        mixup=config.get("mixup"),
+        cutmix=config.get("cutmix"),
+        mixup_prob=config.get("mixup_prob"),
+        apply_ema=config.get("apply_ema"),
+        ema_start_epoch=config.get("ema_start_epoch", 0),
+        ema_decay=config.get("ema_decay", 0.9999),
     )
 
     # finish wandb run

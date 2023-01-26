@@ -3,31 +3,44 @@ from typing import Union
 
 from timm.scheduler import CosineLRScheduler
 from torch.optim.lr_scheduler import CosineAnnealingLR, ReduceLROnPlateau
+from torch.utils.data import DataLoader
 
 SchedulerType = Union[ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR]
 
 
 class SchedulerMixin:
-    def __init__(self):
-        if getattr(self, "scheduler", None) is None:
-            self.scheduler = None
-        if getattr(self, "validloader", None) is None:
-            self.validloader = None
+    """Mixin class that adds LR scheduler functionality to the trainer class.
 
-    def validate_scheduler(self, scheduler: SchedulerType):
-        """Validate if the given scheduler instance corresponds to one of the supported classes.
+    The SchedulerMixin supports PyTorch and timm schedulers.
 
-        Parameters
-        ----------
-        scheduler
-            Scheduler algorithm.
-        """
+    Parameters
+    ----------
+    scheduler
+        LR scheduler algorithm.
+    validloader
+        Pytorch dataloader with validation data.
+        SchedulerMixin uses it to validate it is not None when `scheduler=ReduceLROnPlateau`.
+    """
+
+    def __init__(
+        self,
+        *args,
+        scheduler: SchedulerType = None,
+        validloader: DataLoader = None,
+        **kwargs,
+    ):
+        # validate scheduler
         if scheduler is not None:
             assert isinstance(scheduler, (ReduceLROnPlateau, CosineLRScheduler, CosineAnnealingLR))
             if isinstance(scheduler, ReduceLROnPlateau):
                 assert (
-                    getattr(self, "validloader", None) is not None
+                    validloader is not None
                 ), "Scheduler ReduceLROnPlateau requires validation set to update learning rate."
+        self.scheduler = scheduler
+        self.validloader = validloader
+
+        # call parent class to initialize trainer
+        super().__init__(*args, validloader=validloader, **kwargs)
 
     def make_timm_scheduler_update(self, num_updates: int):
         """Make scheduler step update after training one iteration.
@@ -42,7 +55,7 @@ class SchedulerMixin:
         if self.scheduler is not None and isinstance(self.scheduler, CosineLRScheduler):
             self.scheduler.step_update(num_updates=num_updates)
 
-    def make_scheduler_step(self, epoch: int = None, valid_loss: float = None):
+    def make_scheduler_step(self, epoch: int = None, *, valid_loss: float = None):
         """Make scheduler step after training one epoch.
 
         The method uses different arguments depending on the scheduler type.
@@ -50,7 +63,7 @@ class SchedulerMixin:
         Parameters
         ----------
         epoch
-            Epoch number.
+            Current epoch number. The method expects start index 1 (instead of 0).
         valid_loss
             Average validation loss to use for `ReduceLROnPlateau` scheduler.
         """

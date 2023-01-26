@@ -18,27 +18,29 @@ class TrainingState:
         Pytorch neural network.
     run_name
         Name of the run for logging and naming checkpoint files.
-    num_epochs
-        Number of epochs to train.
     exp_name
         Experiment name for saving run artefacts like checkpoints or logs.
         E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
     """
 
-    def __init__(self, model: nn.Module, run_name: str, num_epochs: int, exp_name: str = None):
+    def __init__(
+        self, model: nn.Module, run_name: str, exp_name: str = None, *, ema_model: nn.Module = None
+    ):
         assert "/" not in run_name, "Arg 'run_name' should not contain character /"
         self.model = model
+        self.ema_model = ema_model
         self.run_name = run_name
-        self.num_epochs = num_epochs
-        self.path = get_experiment_path(run_name, exp_name)
-        os.makedirs(self.path, exist_ok=True)
+        self.exp_path = get_experiment_path(run_name, exp_name)
+        os.makedirs(self.exp_path, exist_ok=True)
 
         # setup training logger
         self.t_logger = setup_training_logger(
-            training_log_file=os.path.join(self.path, f"{run_name}.log")
+            training_log_file=os.path.join(self.exp_path, f"{run_name}.log")
         )
 
         # create training state variables
+        self._last_epoch = None
+
         self.best_loss = np.inf
         self.best_scores_loss = None
 
@@ -66,7 +68,7 @@ class TrainingState:
         )
         torch.save(
             self.model.state_dict(),
-            os.path.join(self.path, f"{self.run_name}_best_{metric_name}.pth"),
+            os.path.join(self.exp_path, f"{self.run_name}_best_{metric_name}.pth"),
         )
 
     def step(self, epoch: int, scores_str: str, valid_loss: float, valid_metrics: dict = None):
@@ -86,6 +88,7 @@ class TrainingState:
         valid_metrics
             Other validation metrics based on which checkpoint is saved.
         """
+        self._last_epoch = epoch
         self.t_logger.info(f"Epoch {epoch} - {scores_str}")
 
         # save model checkpoint based on validation loss
@@ -115,8 +118,14 @@ class TrainingState:
         self.t_logger.info("Save checkpoint of the last epoch")
         torch.save(
             self.model.state_dict(),
-            os.path.join(self.path, f"{self.run_name}-{self.num_epochs}E.pth"),
+            os.path.join(self.exp_path, f"{self.run_name}-{self._last_epoch}E.pth"),
         )
+        if self.ema_model is not None:
+            self.t_logger.info("Save checkpoint of the EMA model")
+            torch.save(
+                self.ema_model.state_dict(),
+                os.path.join(self.exp_path, f"{self.run_name}-EMA.pth"),
+            )
 
         self.t_logger.info(f"Best scores (validation loss): {self.best_scores_loss}")
         for metric_name, best_scores_metric in self.best_scores_metrics.items():

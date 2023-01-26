@@ -4,19 +4,24 @@ import albumentations as A
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torchvision.transforms as T
 from albumentations.pytorch import ToTensorV2
 from PIL import Image
 from torch.utils.data import Dataset
 
 
 class BinarySegmentationDataset(Dataset):
-    def __init__(self, coco_dict: dict, transform: A.Compose = None, **kwargs):
+    def __init__(self, coco_dict: dict, transform: A.Compose, **kwargs):
         super().__init__()
         assert "images" in coco_dict
         assert "annotations" in coco_dict
         assert "categories" in coco_dict
+        assert not isinstance(
+            transform, T.Compose
+        ), "TorchVision transform is not supported for Segmentation tasks yet."
         self.images = coco_dict["images"]
         self.transform = transform
+        self.num_classes = len(coco_dict["categories"])
 
         # create map of categories
         self.cat_id2name = {x["id"]: x["name"] for x in coco_dict["categories"]}

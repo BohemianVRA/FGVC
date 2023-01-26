@@ -1,9 +1,10 @@
+import warnings
+
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
-from .scheduler_mixin import SchedulerType
 from .training_outputs import BatchOutput, PredictOutput, TrainEpochOutput
 from .training_utils import to_device, to_numpy
 
@@ -23,8 +24,6 @@ class BaseTrainer:
         Optimizer algorithm.
     validloader
         Pytorch dataloader with validation data.
-    scheduler
-        Scheduler algorithm.
     accumulation_steps
         Number of iterations to accumulate gradients before performing optimizer step.
     clip_grad
@@ -41,10 +40,10 @@ class BaseTrainer:
         optimizer: Optimizer = None,
         *,
         validloader: DataLoader = None,
-        scheduler: SchedulerType = None,
         accumulation_steps: int = 1,
         clip_grad: float = None,
         device: torch.device = None,
+        **kwargs,
     ):
         super().__init__()
         # model and loss arguments
@@ -54,10 +53,21 @@ class BaseTrainer:
         # data arguments
         self.trainloader = trainloader
         self.validloader = validloader
+        if trainloader is not None and validloader is not None:
+            trainset = trainloader.dataset
+            validset = validloader.dataset
+            if (
+                hasattr(trainset, "num_classes")
+                and hasattr(validset, "num_classes")
+                and trainset.num_classes != validset.num_classes
+            ):
+                warnings.warn(
+                    f"Number of classes in training set ({trainset.num_classes}) "
+                    f"does not match validation set ({validset.num_classes})."
+                )
 
         # optimization arguments
         self.optimizer = optimizer
-        self.scheduler = scheduler
         self.accumulation_steps = accumulation_steps
         self.clip_grad = clip_grad
 
@@ -81,6 +91,9 @@ class BaseTrainer:
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
         imgs, targs = to_device(imgs, targs, device=self.device)
+        # apply Mixup or Cutmix if MixupMixin is used in the final class
+        if hasattr(self, "apply_mixup"):
+            imgs, targs = self.apply_mixup(imgs, targs)
 
         preds = self.model(imgs)
         loss = self.criterion(preds, targs)
@@ -94,7 +107,7 @@ class BaseTrainer:
         preds, targs = to_numpy(preds, targs)
         return BatchOutput(preds, targs, _loss)
 
-    def predict_batch(self, batch: tuple) -> BatchOutput:
+    def predict_batch(self, batch: tuple, *, model: nn.Module = None) -> BatchOutput:
         """Run a prediction iteration on one batch.
 
         Parameters
@@ -102,18 +115,21 @@ class BaseTrainer:
         batch
             Tuple of arbitrary size with image and target pytorch tensors
             and optionally additional items depending on the dataloaders.
+        model
+            Alternative PyTorch model to use for prediction like EMA model.
 
         Returns
         -------
         BatchOutput tuple with predictions, ground-truth targets, and average loss.
         """
+        model = model or self.model
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
         imgs = to_device(imgs, device=self.device)
 
         # run inference and compute loss
         with torch.no_grad():
-            preds = self.model(imgs)
+            preds = model(imgs)
         loss = 0.0
         if self.criterion is not None:
             targs = to_device(targs, device=self.device)
