@@ -15,15 +15,15 @@ def light_transforms(
             T.RandomHorizontalFlip(p=0.5),
             T.RandomVerticalFlip(p=0.5),
             T.RandomApply(T.ColorJitter(brightness=0.2, contrast=0.2), p=0.5),
-            T.Normalize(mean=mean, std=std),
             T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
         ]
     )
     val_tfms = T.Compose(
         [
             T.Resize(size=image_size),
-            T.Normalize(mean=mean, std=std),
             T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
         ]
     )
     return train_tfms, val_tfms

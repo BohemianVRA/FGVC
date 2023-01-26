@@ -21,15 +21,15 @@ def vit_light_transforms(
         [
             T.RandomResizedCrop(size=image_size, scale=(0.8, 1.0)),
             T.RandAugment(num_ops=2, magnitude=10),
-            T.Normalize(mean=mean, std=std),
             T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
         ]
     )
     val_tfms = T.Compose(
         [
             T.Resize(size=image_size),
-            T.Normalize(mean=mean, std=std),
             T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
         ]
     )
     return train_tfms, val_tfms
@@ -43,15 +43,15 @@ def vit_medium_transforms(
         [
             T.RandomResizedCrop(size=image_size, scale=(0.8, 1.0)),
             T.RandAugment(num_ops=2, magnitude=15),
-            T.Normalize(mean=mean, std=std),
             T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
         ]
     )
     val_tfms = T.Compose(
         [
             T.Resize(size=image_size),
-            T.Normalize(mean=mean, std=std),
             T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
         ]
     )
     return train_tfms, val_tfms
@@ -65,15 +65,15 @@ def vit_heavy_transforms(
         [
             T.RandomResizedCrop(size=image_size, scale=(0.8, 1.0)),
             T.RandAugment(num_ops=2, magnitude=20),
-            T.Normalize(mean=mean, std=std),
             T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
         ]
     )
     val_tfms = T.Compose(
         [
             T.Resize(size=image_size),
-            T.Normalize(mean=mean, std=std),
             T.ToTensor(),
+            T.Normalize(mean=mean, std=std),
         ]
     )
     return train_tfms, val_tfms
