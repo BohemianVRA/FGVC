@@ -108,6 +108,7 @@ def predict(
     device: torch.device = None,
     trainer_cls: Type[BaseTrainer] = ClassificationTrainer,
     trainer_kws: dict = None,
+    predict_kws: dict = None,
     **kwargs,
 ) -> Tuple[np.ndarray, np.ndarray, float, float]:
     """Run inference.
@@ -140,6 +141,7 @@ def predict(
         Average scores.
     """
     trainer_kws = trainer_kws or {}
+    predict_kws = predict_kws or {}
     trainer = trainer_cls(
         model=model,
         trainloader=None,
@@ -147,5 +149,6 @@ def predict(
         optimizer=None,
         device=device,
         **trainer_kws,
+        **kwargs,
     )
-    return trainer.predict(testloader, return_preds=True, **kwargs)
+    return trainer.predict(testloader, return_preds=True, **predict_kws)
