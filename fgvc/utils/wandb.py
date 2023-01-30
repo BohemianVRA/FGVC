@@ -278,6 +278,7 @@ def get_runs_df(
         {
             "id": run.id,
             "name": run.name,
+            "tags": run.tags,
             "state": run.state,
             "epochs": len(run.history()),
             "run": run,
