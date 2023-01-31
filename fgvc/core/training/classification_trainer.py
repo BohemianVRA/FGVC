@@ -217,7 +217,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             # apply training and validation on one epoch
             start_epoch_time = time.time()
             train_output = self.train_epoch(epoch, self.trainloader)
-            ema_predict_output = None
+            ema_predict_output = PredictOutput()
             if self.validloader is not None:
                 predict_output = self.predict(self.validloader, return_preds=False)
                 if getattr(self, "ema_model") is not None:
