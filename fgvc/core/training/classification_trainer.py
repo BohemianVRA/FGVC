@@ -233,6 +233,8 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             self.make_scheduler_step(epoch + 1, valid_loss=predict_output.avg_loss)
 
             # log scores to W&B
+            ema_scores = ema_predict_output.avg_scores or {}
+            ema_scores = {f"Val. {k} (EMA)": v for k, v in ema_scores.items()}
             log_clf_progress(
                 epoch + 1,
                 train_loss=train_output.avg_loss,
@@ -242,14 +244,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 valid_acc=predict_output.avg_scores.get("Acc", 0),
                 valid_acc3=predict_output.avg_scores.get("Recall@3", 0),
                 valid_f1=predict_output.avg_scores.get("F1", 0),
-                other_scores=(
-                    ema_predict_output
-                    and {
-                        "Val. Accuracy (EMA)": ema_predict_output.avg_scores["Acc"],
-                        "Val. Recall@3 (EMA)": ema_predict_output.avg_scores["Recall@3"],
-                        "Val. F1 (EMA)": ema_predict_output.avg_scores["F1"],
-                    }
-                ),
+                other_scores=ema_scores,
                 lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
             )
