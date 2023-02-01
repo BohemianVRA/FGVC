@@ -151,7 +151,7 @@ def train_clf(
     if run_id is not None:
         logger.info("Setting the best scores in the W&B run summary.")
         set_best_scores_in_summary(
-            run_path=f"{wandb_entity}/{wandb_project}/{run_id}",
+            run_or_path=f"{wandb_entity}/{wandb_project}/{run_id}",
             primary_score="Val. F1",
             scores=lambda df: [col for col in df if col.startswith("Val.")],
         )
