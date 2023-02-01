@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 import os
-from typing import Tuple
+from typing import Callable, Tuple, Union
 
 import pandas as pd
 import torch.nn as nn
@@ -75,38 +75,26 @@ def parse_unknown_args(unknown_args: list) -> dict:
     return extra_args
 
 
-def load_args(
-    args: list = None, *, require_metadata: bool = False
+def load_train_args(
+    args: list = None, *, add_arguments_fn: Callable = None
 ) -> Tuple[argparse.Namespace, dict]:
-    """Load script arguments using `argparse` library.
+    """Load train script arguments using `argparse` library.
 
     Parameters
     ----------
     args
         Optional list of arguments that will be passed to method `parser.parse_known_args(args)`.
+    add_arguments_fn
+        Callback function for including additional args. The function gets `parser` as an input.
 
     Returns
     -------
     args
-        Namespace with parsed known args like
-        `--config-path`, `--cuda-devices`, `--wandb-entity`, `--wandb-project`.
+        Namespace with parsed known args.
     extra_args
         Dictionary with parsed unknown args.
     """
     parser = argparse.ArgumentParser()
-    if require_metadata:
-        parser.add_argument(
-            "--train-metadata",
-            help="Path to a training metadata file.",
-            type=str,
-            required=True,
-        )
-        parser.add_argument(
-            "--valid-metadata",
-            help="Path to a validation metadata file.",
-            type=str,
-            required=True,
-        )
     parser.add_argument(
         "--config-path",
         help="Path to a training config yaml file.",
@@ -121,19 +109,83 @@ def load_args(
     )
     parser.add_argument(
         "--wandb-entity",
-        help="Entity name for logging experiment to wandb.",
+        help="Entity name for logging experiment to W&B.",
         type=str,
         required=False,
     )
     parser.add_argument(
         "--wandb-project",
-        help="Project name for logging experiment to wandb.",
+        help="Project name for logging experiment to W&B.",
         type=str,
         required=False,
     )
+    if add_arguments_fn is not None:
+        add_arguments_fn(parser)
     args, unknown_args = parser.parse_known_args(args)
     extra_args = parse_unknown_args(unknown_args)
     return args, extra_args
+
+
+def load_test_args(args: list = None, *, add_arguments_fn: Callable = None) -> argparse.Namespace:
+    """Load test script arguments using `argparse` library.
+
+    Parameters
+    ----------
+    args
+        Optional list of arguments that will be passed to method `parser.parse_known_args(args)`.
+    add_arguments_fn
+        Callback function for including additional args. The function gets `parser` as an input.
+
+    Returns
+    -------
+    args
+        Namespace with parsed known args.
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--wandb-run-path",
+        help="Experiment run path in W&B.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--cuda-devices",
+        help="Visible cuda devices (cpu,0,1,2,...).",
+        type=str,
+        default=None,
+    )
+    if add_arguments_fn is not None:
+        add_arguments_fn(parser)
+    args = parser.parse_args(args)
+    return args
+
+
+def load_args(
+    args: list = None, *, add_arguments_fn: Callable = None, test_args: bool = False
+) -> Union[Tuple[argparse.Namespace, dict], argparse.Namespace]:
+    """Load train script arguments using `argparse` library.
+
+    Parameters
+    ----------
+    args
+        Optional list of arguments that will be passed to method `parser.parse_known_args(args)`.
+    add_arguments_fn
+        Callback function for including additional args. The function gets `parser` as an input.
+    test_args
+        Whether to load test (True) or training (False) arguments.
+
+    Returns
+    -------
+    args
+        Namespace with parsed known args.
+    extra_args
+        Dictionary with parsed unknown args.
+    """
+    if test_args:
+        out = load_test_args(args, add_arguments_fn=add_arguments_fn)
+    else:
+        out = load_train_args(args, add_arguments_fn=add_arguments_fn)
+    return out
 
 
 def get_experiment_path(run_name: str, exp_name: str = None) -> str:

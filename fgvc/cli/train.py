@@ -20,6 +20,22 @@ from fgvc.utils.wandb import finish_wandb, init_wandb, set_best_scores_in_summar
 logger = logging.getLogger("script")
 
 
+def add_arguments(parser):
+    """Callback function that includes metadata args."""
+    parser.add_argument(
+        "--train-metadata",
+        help="Path to a training metadata file.",
+        type=str,
+        required=True,
+    )
+    parser.add_argument(
+        "--valid-metadata",
+        help="Path to a validation metadata file.",
+        type=str,
+        required=True,
+    )
+
+
 def add_metadata_info_to_config(
     config: dict, train_df: pd.DataFrame, valid_df: pd.DataFrame
 ) -> dict:
@@ -44,7 +60,7 @@ def train_clf(
     """Train model on the classification task."""
     if train_metadata is None or valid_metadata is None or config_path is None:
         # load script args
-        args, extra_args = load_args(require_metadata=True)
+        args, extra_args = load_args(add_arguments_fn=add_arguments)
 
         train_metadata = args.train_metadata
         valid_metadata = args.valid_metadata
@@ -135,7 +151,7 @@ def train_clf(
     if run_id is not None:
         logger.info("Setting the best scores in the W&B run summary.")
         set_best_scores_in_summary(
-            run_path=f"{wandb_entity}/{wandb_project}/{run_id}",
+            run_or_path=f"{wandb_entity}/{wandb_project}/{run_id}",
             primary_score="Val. F1",
             scores=lambda df: [col for col in df if col.startswith("Val.")],
         )
