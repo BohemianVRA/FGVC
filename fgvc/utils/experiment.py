@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 import os
-from typing import Tuple
+from typing import Callable, Tuple
 
 import pandas as pd
 import torch.nn as nn
@@ -76,7 +76,7 @@ def parse_unknown_args(unknown_args: list) -> dict:
 
 
 def load_args(
-    args: list = None, *, require_metadata: bool = False
+    args: list = None, *, add_arguments_fn: Callable = None
 ) -> Tuple[argparse.Namespace, dict]:
     """Load script arguments using `argparse` library.
 
@@ -84,6 +84,8 @@ def load_args(
     ----------
     args
         Optional list of arguments that will be passed to method `parser.parse_known_args(args)`.
+    add_arguments_fn
+        Callback function for including additional args. The function gets `parser` as an input.
 
     Returns
     -------
@@ -94,19 +96,6 @@ def load_args(
         Dictionary with parsed unknown args.
     """
     parser = argparse.ArgumentParser()
-    if require_metadata:
-        parser.add_argument(
-            "--train-metadata",
-            help="Path to a training metadata file.",
-            type=str,
-            required=True,
-        )
-        parser.add_argument(
-            "--valid-metadata",
-            help="Path to a validation metadata file.",
-            type=str,
-            required=True,
-        )
     parser.add_argument(
         "--config-path",
         help="Path to a training config yaml file.",
@@ -131,6 +120,8 @@ def load_args(
         type=str,
         required=False,
     )
+    if add_arguments_fn is not None:
+        add_arguments_fn(parser)
     args, unknown_args = parser.parse_known_args(args)
     extra_args = parse_unknown_args(unknown_args)
     return args, extra_args
