@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 import sys
@@ -7,16 +6,15 @@ import numpy as np
 
 from fgvc.core.training import predict
 from fgvc.datasets import get_dataloaders
-from fgvc.utils.experiment import get_experiment_path, load_model, load_test_metadata
+from fgvc.utils.experiment import get_experiment_path, load_args, load_model, load_test_metadata
 from fgvc.utils.utils import set_cuda_device
 from fgvc.utils.wandb import log_clf_test_scores, wandb
 
 logger = logging.getLogger("script")
 
 
-def load_args() -> argparse.Namespace:
-    """Load script arguments using `argparse` library."""
-    parser = argparse.ArgumentParser()
+def add_arguments(parser):
+    """Callback function that includes metadata args."""
     parser.add_argument(
         "--test-metadata",
         help="Path to a test metadata file.",
@@ -24,24 +22,10 @@ def load_args() -> argparse.Namespace:
         required=True,
     )
     parser.add_argument(
-        "--wandb-run-path",
-        help="Experiment run path in wandb.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--cuda-devices",
-        help="Visible cuda devices (cpu,0,1,2,...).",
-        type=str,
-        default="0",
-    )
-    parser.add_argument(
         "--rerun",
         help="Re-runs evaluation on test set even if the run already has test scores.",
         action="store_true",
     )
-    args, _ = parser.parse_known_args()
-    return args
 
 
 def test_clf(
@@ -58,7 +42,7 @@ def test_clf(
 
     if test_metadata is None or wandb_run_path is None:
         # load script args
-        args = load_args()
+        args = load_args(add_arguments_fn=add_arguments, test_args=True)
 
         test_metadata = args.test_metadata
         wandb_run_path = args.wandb_run_path
