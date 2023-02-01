@@ -153,8 +153,9 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
         PredictOutput tuple with predictions, ground-truth targets,
         average loss, and average scores.
         """
-        self.model.to(self.device)
-        self.model.eval()
+        model = model or self.model
+        model.to(self.device)
+        model.eval()
         avg_loss = 0.0
         scores_monitor = ScoresMonitor(
             scores_fn=lambda preds, targs: binary_segmentation_scores(
@@ -200,7 +201,7 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
             # apply training and validation on one epoch
             start_epoch_time = time.time()
             train_output = self.train_epoch(epoch, self.trainloader)
-            ema_predict_output = None
+            ema_predict_output = PredictOutput()
             if self.validloader is not None:
                 predict_output = self.predict(self.validloader, return_preds=False)
                 if getattr(self, "ema_model") is not None:
@@ -216,15 +217,14 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
             self.make_scheduler_step(epoch + 1, valid_loss=predict_output.avg_loss)
 
             # log scores to W&B
+            ema_scores = ema_predict_output.avg_scores or {}
+            ema_scores = {f"{k} (EMA)": v for k, v in ema_scores.items()}
             log_progress(
                 epoch + 1,
                 train_loss=train_output.avg_loss,
                 valid_loss=predict_output.avg_loss,
                 train_scores=train_output.avg_scores,
-                valid_scores={
-                    **predict_output.avg_scores,
-                    **{f"{k} (EMA)": v for k, v in ema_predict_output.avg_scores.items()},
-                },
+                valid_scores={**predict_output.avg_scores, **ema_scores},
                 lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
             )
