@@ -1,6 +1,5 @@
-from typing import Tuple, Type
+from typing import Type
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
@@ -11,6 +10,7 @@ from .classification_trainer import ClassificationTrainer
 from .scheduler_mixin import SchedulerType
 from .scores_monitor import ScoresMonitor
 from .segmentation_trainer import SegmentationTrainer
+from .training_outputs import PredictOutput
 from .training_state import TrainingState
 
 __all__ = [
@@ -110,7 +110,7 @@ def predict(
     trainer_kws: dict = None,
     predict_kws: dict = None,
     **kwargs,
-) -> Tuple[np.ndarray, np.ndarray, float, float]:
+) -> PredictOutput:
     """Run inference.
 
     Parameters

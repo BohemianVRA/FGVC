@@ -92,6 +92,31 @@ def init_wandb(
     )
 
 
+@if_wandb_is_installed
+def resume_wandb(
+    run_id: int,
+    entity: str,
+    project: str,
+):
+    """Resume an existing W&B run.
+
+    Parameters
+    ----------
+    run_id
+        ID of W&B run.
+    entity
+        Name of W&B entity.
+    project
+        Name of W&B project.
+    """
+    wandb.init(
+        project=project,
+        entity=entity,
+        id=run_id,
+        resume="must",
+    )
+
+
 @if_wandb_run_started
 def log_progress(
     epoch: int,
@@ -249,7 +274,7 @@ W&B methods used after training - after W&B run is finished.
 
 @if_wandb_is_installed
 def get_runs_df(
-    entity: str, project: str, config_cols: List[str] = [], summary_cols: List[str] = []
+    entity: str, project: str, config_cols: List[str] = None, summary_cols: List[str] = None
 ) -> pd.DataFrame:
     """Get a DataFrame with W&B runs for the given entity/project.
 
@@ -270,6 +295,9 @@ def get_runs_df(
     -------
     A DataFrame with W&B runs.
     """
+    config_cols = config_cols or []
+    summary_cols = summary_cols or []
+
     api = wandb.Api()
     runs = api.runs(f"{entity}/{project}")
 
@@ -294,7 +322,7 @@ def get_runs_df(
 
 @if_wandb_is_installed
 def log_summary_scores(
-    run_path: str,
+    run_or_path: Union[str, wandb.apis.public.Run],
     scores: dict,
     allow_new: bool = True,
 ):
@@ -304,16 +332,15 @@ def log_summary_scores(
 
     Parameters
     ----------
-    run_path
-        A W&B path to run in the form `entity/project/run_id`.
+    run_or_path
+        A W&B api run or path to run in the form `entity/project/run_id`.
     scores
         A dictionary of scores to update in the W&B run summary.
     allow_new
         If false the method checks if each passed score already exists in W&B run summary
         and raises ValueError if the score does not exist.
     """
-    api = wandb.Api()
-    run = api.run(run_path)
+    run = wandb.Api().run(run_or_path) if isinstance(run_or_path, str) else run_or_path
     for k, v in scores.items():
         if not allow_new and k not in run.summary:
             raise ValueError(f"Key '{k}' not found in wandb run summary.")
@@ -323,7 +350,7 @@ def log_summary_scores(
 
 @if_wandb_is_installed
 def log_clf_test_scores(
-    run_path: str,
+    run_or_path: Union[str, wandb.apis.public.Run],
     test_acc: float,
     test_acc3: float,
     test_f1: float,
@@ -333,8 +360,8 @@ def log_clf_test_scores(
 
     Parameters
     ----------
-    run_path
-        A W&B path to run in the form `entity/project/run_id`.
+    run_or_path
+        A W&B api run or path to run in the form `entity/project/run_id`.
     test_acc
         Test Top-1 accuracy.
     test_acc3
@@ -346,7 +373,7 @@ def log_clf_test_scores(
         and raises ValueError if the score does not exist.
     """
     log_summary_scores(
-        run_path,
+        run_or_path,
         scores={
             "Test. F1": test_f1,
             "Test. Accuracy": test_acc,
@@ -357,22 +384,47 @@ def log_clf_test_scores(
 
 
 @if_wandb_is_installed
-def set_best_scores_in_summary(run_path: str, primary_score: str, scores: Union[list, callable]):
+def log_artifact(
+    run_or_path: Union[str, wandb.apis.public.Run],
+    artifact: wandb.Artifact,
+    aliases: List[str] = None,
+):
+    """Log artifact to W&B run, after the W&B run is finished.
+
+    Parameters
+    ----------
+    run_or_path
+        A W&B api run or path to run in the form `entity/project/run_id`.
+    artifact
+        W&B Artifact.
+    aliases
+        List of Artifact tags.
+    """
+    run = wandb.Api().run(run_or_path) if isinstance(run_or_path, str) else run_or_path
+    run.log_artifact(artifact, aliases)
+    run.update()
+
+
+@if_wandb_is_installed
+def set_best_scores_in_summary(
+    run_or_path: Union[str, wandb.apis.public.Run],
+    primary_score: str,
+    scores: Union[list, callable],
+):
     """Update W&B run summary with the best validation scores instead of the last epoch scores.
 
     The method is executed if the W&B library is installed.
 
     Parameters
     ----------
-    run_path
-        A W&B path to run in the form `entity/project/run_id`.
+    run_or_path
+        A W&B api run or path to run in the form `entity/project/run_id`.
     primary_score
         A score in the W&B run history based on which the best epoch is selected.
     scores
         A list of score to update in the W&B run summary.
     """
-    api = wandb.Api()
-    run = api.run(run_path)
+    run = wandb.Api().run(run_or_path) if isinstance(run_or_path, str) else run_or_path
 
     history_df = run.history()
     assert primary_score in history_df, f"Key '{primary_score}' not found in wandb run history."
