@@ -175,6 +175,7 @@ def class_wise_confidence_threshold_report(
         if target_names is not None and isinstance(label, (int, np.integer)):
             label_str = target_names[label]
         scores_per_class[label_str] = {
+            "Confidence Threshold": th,
             "Num Records": num_records,
             "Num Preds Made": num_preds_made,
             "Frac Preds Made": freq_preds_made,
