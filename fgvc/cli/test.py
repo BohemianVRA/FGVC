@@ -124,10 +124,10 @@ def test_clf(
     run = api.run(wandb_run_path)
     config = run.config
 
-    run_is_finished = len(run.history()) >= config["epochs"] and run.state == "finished"
-    if not run_is_finished:
-        logger.warning(f"Run '{run.name}' is not finished yet. Exiting.")
-        sys.exit(0)
+    # run_is_finished = len(run.history()) >= config["epochs"] and run.state == "finished"
+    # if not run_is_finished:
+    #     logger.warning(f"Run '{run.name}' is not finished yet. Exiting.")
+    #     sys.exit(0)
 
     has_test_scores = "Test. Accuracy" in run.summary
     if has_test_scores and not rerun:
