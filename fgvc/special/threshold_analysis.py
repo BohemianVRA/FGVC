@@ -108,7 +108,7 @@ def estimate_optimal_confidence_thresholds(
     # add classes that are missing in targets
     for i in range(preds.shape[1]):
         if i not in confidence_thresholds:
-            confidence_thresholds[i] = None
+            confidence_thresholds[i] = {"opt_th": None, "acc": None}
     confidence_thresholds = dict(sorted(confidence_thresholds.items(), key=lambda x: x))
 
     if return_df:
