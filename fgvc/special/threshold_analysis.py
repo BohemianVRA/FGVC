@@ -86,6 +86,7 @@ def estimate_optimal_confidence_thresholds(
     probs = softmax(preds, 1)
     confs = probs.max(1)
 
+    # estimate confidence thresholds
     confidence_thresholds = {}
     for label in np.unique(targs):
         # calculate  accuracies per class for different confidence thresholds
@@ -103,6 +104,12 @@ def estimate_optimal_confidence_thresholds(
 
         # store results
         confidence_thresholds[label] = {"opt_th": opt_th, "acc": min_opt_acc}
+
+    # add classes that are missing in targets
+    for label in range(preds.shape[1]):
+        if label not in confidence_thresholds:
+            confidence_thresholds[label] = {"opt_th": None, "acc": None}
+    confidence_thresholds = dict(sorted(confidence_thresholds.items(), key=lambda x: x))
 
     if return_df:
         confidence_thresholds = pd.DataFrame.from_dict(confidence_thresholds, orient="index")
@@ -147,8 +154,7 @@ def class_wise_confidence_threshold_report(
 
     # compute classification scores based on the confidence_thresholds for each class
     scores_per_class = {}
-    for label in np.unique(targs):
-        th = confidence_thresholds[label]
+    for label, th in confidence_thresholds.items():
         num_records = (argmax_preds == label).sum()
         num_preds_made, freq_preds_made, label_scores = None, None, {}
         if th is not None:
@@ -168,6 +174,7 @@ def class_wise_confidence_threshold_report(
         if target_names is not None and isinstance(label, (int, np.integer)):
             label_str = target_names[label]
         scores_per_class[label_str] = {
+            "Confidence Threshold": th,
             "Num Records": num_records,
             "Num Preds Made": num_preds_made,
             "Frac Preds Made": freq_preds_made,
@@ -180,10 +187,12 @@ def class_wise_confidence_threshold_report(
     cond = confs >= confs_th
     total_scores = classification_scores(preds[cond], targs[cond], top_k=None, return_dict=True)
     scores_per_class.loc["macro avg"] = {
+        "Confidence Threshold": None,
         "Num Records": len(cond),
         "Num Preds Made": cond.sum(),
         "Frac Preds Made": cond.sum() / len(cond),
         **total_scores,
     }
+    scores_per_class.index = scores_per_class.index.astype(str)
 
     return scores_per_class
