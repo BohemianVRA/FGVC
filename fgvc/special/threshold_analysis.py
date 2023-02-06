@@ -106,9 +106,9 @@ def estimate_optimal_confidence_thresholds(
         confidence_thresholds[label] = {"opt_th": opt_th, "acc": min_opt_acc}
 
     # add classes that are missing in targets
-    for i in range(preds.shape[1]):
-        if i not in confidence_thresholds:
-            confidence_thresholds[i] = {"opt_th": None, "acc": None}
+    for label in range(preds.shape[1]):
+        if label not in confidence_thresholds:
+            confidence_thresholds[label] = {"opt_th": None, "acc": None}
     confidence_thresholds = dict(sorted(confidence_thresholds.items(), key=lambda x: x))
 
     if return_df:
@@ -154,8 +154,7 @@ def class_wise_confidence_threshold_report(
 
     # compute classification scores based on the confidence_thresholds for each class
     scores_per_class = {}
-    for label in np.unique(targs):
-        th = confidence_thresholds[label]
+    for label, th in confidence_thresholds.items():
         num_records = (argmax_preds == label).sum()
         num_preds_made, freq_preds_made, label_scores = None, None, {}
         if th is not None:
