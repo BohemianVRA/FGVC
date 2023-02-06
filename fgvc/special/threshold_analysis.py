@@ -188,10 +188,12 @@ def class_wise_confidence_threshold_report(
     cond = confs >= confs_th
     total_scores = classification_scores(preds[cond], targs[cond], top_k=None, return_dict=True)
     scores_per_class.loc["macro avg"] = {
+        "Confidence Threshold": None,
         "Num Records": len(cond),
         "Num Preds Made": cond.sum(),
         "Frac Preds Made": cond.sum() / len(cond),
         **total_scores,
     }
+    scores_per_class.index = scores_per_class.index.astype(str)
 
     return scores_per_class

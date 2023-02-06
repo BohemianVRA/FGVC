@@ -69,7 +69,7 @@ def classification_report_df(
     )
     if label_col is not None:
         id2label = dict(zip(test_df["class_id"].astype(str), test_df[label_col]))
-        report_df.insert(1, label_col, report_df["class_id"].astype(str).apply(id2label.get))
+        report_df.insert(1, label_col, report_df["class_id"].apply(id2label.get))
     return report_df
 
 
@@ -83,7 +83,7 @@ def threhold_analysis_report_df(
     report_df = report_df.reset_index()
     if label_col is not None:
         id2label = dict(zip(test_df["class_id"].astype(str), test_df[label_col]))
-        report_df.insert(1, label_col, report_df["class_id"].astype(str).apply(id2label.get))
+        report_df.insert(1, label_col, report_df["class_id"].apply(id2label.get))
     return report_df
 
 
