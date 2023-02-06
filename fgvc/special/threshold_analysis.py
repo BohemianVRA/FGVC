@@ -86,6 +86,7 @@ def estimate_optimal_confidence_thresholds(
     probs = softmax(preds, 1)
     confs = probs.max(1)
 
+    # estimate confidence thresholds
     confidence_thresholds = {}
     for label in np.unique(targs):
         # calculate  accuracies per class for different confidence thresholds
@@ -103,6 +104,12 @@ def estimate_optimal_confidence_thresholds(
 
         # store results
         confidence_thresholds[label] = {"opt_th": opt_th, "acc": min_opt_acc}
+
+    # add classes that are missing in targets
+    for i in range(preds.shape[1]):
+        if i not in confidence_thresholds:
+            confidence_thresholds[i] = None
+    confidence_thresholds = dict(sorted(confidence_thresholds.items(), key=lambda x: x))
 
     if return_df:
         confidence_thresholds = pd.DataFrame.from_dict(confidence_thresholds, orient="index")
