@@ -28,6 +28,11 @@ def add_arguments(parser):
         required=True,
     )
     parser.add_argument(
+        "--ignore-unfinished",
+        help="Do not check if the W&B run is finished and run evaluation either way.",
+        action="store_true",
+    )
+    parser.add_argument(
         "--rerun",
         help="Re-runs evaluation on test set even if the run already has test scores.",
         action="store_true",
@@ -92,7 +97,8 @@ def test_clf(
     test_metadata: str = None,
     wandb_run_path: str = None,
     cuda_devices: str = None,
-    rerun: str = None,
+    ignore_unfinished: bool = False,
+    rerun: bool = False,
     label_col: str = None,
     **kwargs,
 ):
@@ -107,6 +113,7 @@ def test_clf(
         test_metadata = args.test_metadata
         wandb_run_path = args.wandb_run_path
         cuda_devices = args.cuda_devices
+        ignore_unfinished = args.ignore_unfinished
         rerun = args.rerun
         label_col = args.label_col
 
@@ -124,10 +131,10 @@ def test_clf(
     run = api.run(wandb_run_path)
     config = run.config
 
-    # run_is_finished = len(run.history()) >= config["epochs"] and run.state == "finished"
-    # if not run_is_finished:
-    #     logger.warning(f"Run '{run.name}' is not finished yet. Exiting.")
-    #     sys.exit(0)
+    run_is_finished = len(run.history()) >= config["epochs"] and run.state == "finished"
+    if not run_is_finished and not ignore_unfinished:
+        logger.warning(f"Run '{run.name}' is not finished yet. Exiting.")
+        sys.exit(0)
 
     has_test_scores = "Test. Accuracy" in run.summary
     if has_test_scores and not rerun:
