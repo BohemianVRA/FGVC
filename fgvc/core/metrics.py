@@ -33,8 +33,12 @@ def classification_scores(
     """
     assert len(preds.shape) in (1, 2)
     assert len(targs.shape) == 1
-    preds_argmax = preds.argmax(1) if len(preds.shape) == 2 else preds
-    labels = np.arange(preds.shape[1])
+    if len(preds.shape) == 2:
+        preds_argmax = preds.argmax(1)
+        labels = np.arange(preds.shape[1])
+    else:
+        preds_argmax = preds
+        labels = np.unique(np.concatenate((preds, targs)))
 
     acc = accuracy_score(targs, preds_argmax)
     evaluate_acc_k = len(preds.shape) == 2 and top_k is not None and preds.shape[1] > top_k
