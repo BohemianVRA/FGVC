@@ -223,9 +223,8 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             ema_model=self.get_ema_model(),
             optimizer=self.optimizer,
             scheduler=self.scheduler,
+            resume=resume,
         )
-        if resume:
-            training_state.resume_training()
 
         # run training loop
         set_random_seed(seed)

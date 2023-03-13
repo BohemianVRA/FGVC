@@ -28,7 +28,18 @@ class TrainingState:
         Optimizer instance for saving training state in case of interruption and need to resume.
     scheduler
         Scheduler instance for saving training state in case of interruption and need to resume.
+    resume
+        If True resumes run from a checkpoint with optimizer and scheduler state.
     """
+
+    STATE_VARIABLES = (
+        "last_epoch",
+        "_elapsed_training_time",
+        "best_loss",
+        "best_scores_loss",
+        "best_metrics",
+        "best_scores_metrics",
+    )
 
     def __init__(
         self,
@@ -39,8 +50,11 @@ class TrainingState:
         ema_model: nn.Module = None,
         optimizer: Optimizer,
         scheduler: SchedulerType = None,
+        resume: bool = False,
     ):
         assert "/" not in run_name, "Arg 'run_name' should not contain character /"
+        if resume:
+            assert optimizer is not None
         self.model = model
         self.ema_model = ema_model
         self.run_name = run_name
@@ -54,16 +68,20 @@ class TrainingState:
             training_log_file=os.path.join(self.exp_path, f"{run_name}.log")
         )
 
-        # create training state variables
-        self.last_epoch = 0
+        if resume:
+            self.resume_training()
+        else:
+            # create training state variables
+            self.last_epoch = 0
+            self._elapsed_training_time = 0.0
 
-        self.best_loss = np.inf
-        self.best_scores_loss = None
+            self.best_loss = np.inf
+            self.best_scores_loss = None
 
-        self.best_metrics = {}  # best other metrics like accuracy or f1 score
-        self.best_scores_metrics = {}
+            self.best_metrics = {}  # best other metrics like accuracy or f1 score
+            self.best_scores_metrics = {}
 
-        self.t_logger.info(f"Training of run '{self.run_name}' started.")
+            self.t_logger.info(f"Training of run '{self.run_name}' started.")
         self.start_training_time = time.time()
 
     def resume_training(self):
@@ -71,6 +89,11 @@ class TrainingState:
         if not os.path.isfile(checkpoint_path):
             raise ValueError(f"Training checkpoint '{checkpoint_path}' not found.")
         checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        for variable in self.STATE_VARIABLES:
+            if variable not in checkpoint["training_state"]:
+                raise ValueError(
+                    f"Training checkpoint '{checkpoint_path} is missing variable '{variable}'."
+                )
         for k, v in checkpoint["training_state"].items():
             setattr(self, k, v)
         self.model.load_state_dict(checkpoint["state_dict"])
@@ -83,13 +106,7 @@ class TrainingState:
     def _save_training_state(self, epoch: int):
         if self.optimizer is not None:
             training_state = {}
-            for variable in [
-                "last_epoch",
-                "best_loss",
-                "best_scores_loss",
-                "best_metrics",
-                "best_scores_metrics",
-            ]:
+            for variable in self.STATE_VARIABLES:
                 training_state[variable] = getattr(self, variable)
             torch.save(
                 {
@@ -187,5 +204,5 @@ class TrainingState:
         self.t_logger.info(f"Best scores (validation loss): {self.best_scores_loss}")
         for metric_name, best_scores_metric in self.best_scores_metrics.items():
             self.t_logger.info(f"Best scores (validation {metric_name}): {best_scores_metric}")
-        elapsed_training_time = time.time() - self.start_training_time
+        elapsed_training_time = time.time() - self.start_training_time + self._elapsed_training_time
         self.t_logger.info(f"Training done in {elapsed_training_time}s.")
