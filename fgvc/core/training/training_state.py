@@ -85,6 +85,7 @@ class TrainingState:
         self.start_training_time = time.time()
 
     def resume_training(self):
+        """Resume training state from checkpoint.pth.tar file stored in the experiment directory."""
         checkpoint_path = os.path.join(self.exp_path, "checkpoint.pth.tar")
         if not os.path.isfile(checkpoint_path):
             raise ValueError(f"Training checkpoint '{checkpoint_path}' not found.")
