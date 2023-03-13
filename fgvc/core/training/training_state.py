@@ -4,9 +4,12 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.optim import Optimizer
 
 from fgvc.utils.experiment import get_experiment_path
 from fgvc.utils.log import setup_training_logger
+
+from .scheduler_mixin import SchedulerType
 
 
 class TrainingState:
@@ -21,16 +24,29 @@ class TrainingState:
     exp_name
         Experiment name for saving run artefacts like checkpoints or logs.
         E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
+    optimizer
+        Optimizer instance for saving training state in case of interruption and need to resume.
+    scheduler
+        Scheduler instance for saving training state in case of interruption and need to resume.
     """
 
     def __init__(
-        self, model: nn.Module, run_name: str, exp_name: str = None, *, ema_model: nn.Module = None
+        self,
+        model: nn.Module,
+        run_name: str,
+        exp_name: str = None,
+        *,
+        ema_model: nn.Module = None,
+        optimizer: Optimizer,
+        scheduler: SchedulerType = None,
     ):
         assert "/" not in run_name, "Arg 'run_name' should not contain character /"
         self.model = model
         self.ema_model = ema_model
         self.run_name = run_name
         self.exp_path = get_experiment_path(run_name, exp_name)
+        self.optimizer = optimizer
+        self.scheduler = scheduler
         os.makedirs(self.exp_path, exist_ok=True)
 
         # setup training logger
@@ -39,7 +55,7 @@ class TrainingState:
         )
 
         # create training state variables
-        self._last_epoch = None
+        self.last_epoch = 0
 
         self.best_loss = np.inf
         self.best_scores_loss = None
@@ -49,6 +65,42 @@ class TrainingState:
 
         self.t_logger.info(f"Training of run '{self.run_name}' started.")
         self.start_training_time = time.time()
+
+    def resume_training(self):
+        checkpoint_path = os.path.join(self.exp_path, "checkpoint.pth.tar")
+        if not os.path.isfile(checkpoint_path):
+            raise ValueError(f"Training checkpoint '{checkpoint_path}' not found.")
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+        for k, v in checkpoint["training_state"].items():
+            setattr(self, k, v)
+        self.model.load_state_dict(checkpoint["state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer"])
+        if self.scheduler:
+            if "scheduler" not in checkpoint:
+                raise ValueError(f"Training checkpoint '{checkpoint_path}' is missing scheduler.")
+            self.scheduler.load_state_dict(checkpoint["scheduler"])
+
+    def _save_training_state(self, epoch: int):
+        if self.optimizer is not None:
+            training_state = {}
+            for variable in [
+                "last_epoch",
+                "best_loss",
+                "best_scores_loss",
+                "best_metrics",
+                "best_scores_metrics",
+            ]:
+                training_state[variable] = getattr(self, variable)
+            torch.save(
+                {
+                    "epoch": epoch + 1,
+                    "model": self.model.state_dict(),
+                    "optimizer": self.optimizer.state_dict(),
+                    "scheduler": self.scheduler and self.scheduler.state_dict(),
+                    "training_state": training_state,
+                },
+                os.path.join(self.exp_path, "checkpoint.pth.tar"),
+            )
 
     def _save_checkpoint(self, epoch: int, metric_name: str, metric_value: float):
         """Save checkpoint to .pth file and log score.
@@ -75,6 +127,8 @@ class TrainingState:
         """Log scores and save the best loss and metrics.
 
         Save checkpoints if the new best loss and metrics were achieved.
+        Save training state for resuming the training if optimizer and scheduler are passed.
+
         The method should be called after training and validation of one epoch.
 
         Parameters
@@ -88,7 +142,7 @@ class TrainingState:
         valid_metrics
             Other validation metrics based on which checkpoint is saved.
         """
-        self._last_epoch = epoch
+        self.last_epoch = epoch
         self.t_logger.info(f"Epoch {epoch} - {scores_str}")
 
         # save model checkpoint based on validation loss
@@ -110,6 +164,9 @@ class TrainingState:
                         self.best_scores_metrics[metric_name] = scores_str
                         self._save_checkpoint(epoch, metric_name, metric_value)
 
+        # save training state for resuming the training
+        self._save_training_state(epoch)
+
     def finish(self):
         """Log best scores achieved during training and save checkpoint of last epoch.
 
@@ -118,7 +175,7 @@ class TrainingState:
         self.t_logger.info("Save checkpoint of the last epoch")
         torch.save(
             self.model.state_dict(),
-            os.path.join(self.exp_path, f"{self.run_name}-{self._last_epoch}E.pth"),
+            os.path.join(self.exp_path, f"{self.run_name}-{self.last_epoch}E.pth"),
         )
         if self.ema_model is not None:
             self.t_logger.info("Save checkpoint of the EMA model")
