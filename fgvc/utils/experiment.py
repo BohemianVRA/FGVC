@@ -212,7 +212,10 @@ def load_config(
     create_dirs: bool = True,
     resume_exp_name: str = None,
 ) -> Tuple[dict, str]:
-    """Load training configuration in YAML format, create run name and experiment name.
+    """Load training configuration from YAML file, create run name and experiment name.
+
+    If argument `resume_exp_name` is passed training configuration is loaded from JSON file
+    in the experiment directory.
 
     Parameters
     ----------
@@ -272,8 +275,15 @@ def load_config(
         # use existing experiment directory
         config["exp_name"] = resume_exp_name
         config["exp_path"] = os.path.join(path, config["exp_name"])
-        if not os.path.isfile(config["exp_path"]):
+        if not os.path.isdir(config["exp_path"]):
             raise ValueError(f"Experiment path '{config['exp_path']}' not found.")
+
+        # load configuration JSON from the experiment directory
+        json_config_path = os.path.join(config["exp_path"], "config.json")
+        if not os.path.isfile(json_config_path):
+            raise ValueError(f"Config file '{json_config_path}' not found.")
+        with open(json_config_path, "r") as f:
+            config = json.load(f)
 
     logger.info(f"Setting run name: {run_name}")
     logger.info(f"Using experiment directory: {config['exp_path']}")

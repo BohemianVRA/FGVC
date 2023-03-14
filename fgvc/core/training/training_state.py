@@ -1,4 +1,5 @@
 import os
+import random
 import time
 
 import numpy as np
@@ -30,6 +31,8 @@ class TrainingState:
         Scheduler instance for saving training state in case of interruption and need to resume.
     resume
         If True resumes run from a checkpoint with optimizer and scheduler state.
+    device
+        Device to use (cpu,0,1,2,...).
     """
 
     STATE_VARIABLES = (
@@ -51,6 +54,7 @@ class TrainingState:
         optimizer: Optimizer,
         scheduler: SchedulerType = None,
         resume: bool = False,
+        device: torch.device = None,
     ):
         assert "/" not in run_name, "Arg 'run_name' should not contain character /"
         if resume:
@@ -61,6 +65,7 @@ class TrainingState:
         self.exp_path = get_experiment_path(run_name, exp_name)
         self.optimizer = optimizer
         self.scheduler = scheduler
+        self.device = device
         os.makedirs(self.exp_path, exist_ok=True)
 
         # setup training logger
@@ -70,6 +75,7 @@ class TrainingState:
 
         if resume:
             self.resume_training()
+            self.t_logger.info(f"Resuming training after epoch {self.last_epoch}.")
         else:
             # create training state variables
             self.last_epoch = 0
@@ -86,10 +92,13 @@ class TrainingState:
 
     def resume_training(self):
         """Resume training state from checkpoint.pth.tar file stored in the experiment directory."""
+        # load training checkpoint to the memory
         checkpoint_path = os.path.join(self.exp_path, "checkpoint.pth.tar")
         if not os.path.isfile(checkpoint_path):
             raise ValueError(f"Training checkpoint '{checkpoint_path}' not found.")
         checkpoint = torch.load(checkpoint_path, map_location="cpu")
+
+        # restore state variables of the this class' instance (TrainingState)
         for variable in self.STATE_VARIABLES:
             if variable not in checkpoint["training_state"]:
                 raise ValueError(
@@ -97,18 +106,39 @@ class TrainingState:
                 )
         for k, v in checkpoint["training_state"].items():
             setattr(self, k, v)
-        self.model.load_state_dict(checkpoint["state_dict"])
+
+        # load model, optimizer, and scheduler checkpoints
+        self.model.load_state_dict(checkpoint["model"])
+        if self.device is not None:
+            self.model.to(self.device)
         self.optimizer.load_state_dict(checkpoint["optimizer"])
         if self.scheduler:
             if "scheduler" not in checkpoint:
                 raise ValueError(f"Training checkpoint '{checkpoint_path}' is missing scheduler.")
             self.scheduler.load_state_dict(checkpoint["scheduler"])
 
+        # restore random state
+        random_state = checkpoint["random_state"]
+        random.setstate(random_state["python_random_state"])
+        np.random.set_state(random_state["np_random_state"])
+        torch.set_rng_state(random_state["torch_random_state"])
+        torch.cuda.set_rng_state(random_state["torch_cuda_random_state"])
+
     def _save_training_state(self, epoch: int):
         if self.optimizer is not None:
+            # save state variables of the this class' instance (TrainingState)
             training_state = {}
             for variable in self.STATE_VARIABLES:
                 training_state[variable] = getattr(self, variable)
+
+            # save random state variables
+            random_state = dict(
+                python_random_state=random.getstate(),
+                np_random_state=np.random.get_state(),
+                torch_random_state=torch.get_rng_state(),
+                torch_cuda_random_state=torch.cuda.get_rng_state(),
+            )
+
             torch.save(
                 {
                     "epoch": epoch + 1,
@@ -116,6 +146,7 @@ class TrainingState:
                     "optimizer": self.optimizer.state_dict(),
                     "scheduler": self.scheduler and self.scheduler.state_dict(),
                     "training_state": training_state,
+                    "random_state": random_state,
                 },
                 os.path.join(self.exp_path, "checkpoint.pth.tar"),
             )

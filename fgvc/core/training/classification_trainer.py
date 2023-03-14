@@ -224,10 +224,14 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             optimizer=self.optimizer,
             scheduler=self.scheduler,
             resume=resume,
+            device=self.device,
         )
 
         # run training loop
-        set_random_seed(seed)
+        if not resume:
+            # set random seed when training from the start
+            # otherwise, when resuming training use state from the checkpoint
+            set_random_seed(seed)
         for epoch in range(training_state.last_epoch, num_epochs):
             # apply training and validation on one epoch
             start_epoch_time = time.time()
