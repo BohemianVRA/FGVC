@@ -38,6 +38,7 @@ def train(
     device: torch.device = None,
     seed: int = 777,
     exp_name: str = None,
+    resume: bool = False,
     trainer_cls: Type[BaseTrainer] = ClassificationTrainer,
     trainer_kws: dict = None,
     train_kws: dict = None,
@@ -74,6 +75,8 @@ def train(
     exp_name
         Experiment name for saving run artefacts like checkpoints or logs.
         E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
+    resume
+        If True resumes run from a checkpoint with optimizer and scheduler state.
     trainer_cls
         Trainer class that implements `train`, `train_epoch`, and `predict` functions
         and inherits from `BaseTrainer` PyTorch class.
@@ -97,7 +100,14 @@ def train(
         **trainer_kws,
         **kwargs,
     )
-    trainer.train(run_name, num_epochs, seed, exp_name, **train_kws)
+    trainer.train(
+        run_name=run_name,
+        num_epochs=num_epochs,
+        seed=seed,
+        exp_name=exp_name,
+        resume=resume,
+        **train_kws,
+    )
 
 
 def predict(
@@ -151,4 +161,8 @@ def predict(
         **trainer_kws,
         **kwargs,
     )
-    return trainer.predict(testloader, return_preds=True, **predict_kws)
+    return trainer.predict(
+        dataloader=testloader,
+        return_preds=True,
+        **predict_kws,
+    )

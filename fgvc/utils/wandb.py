@@ -56,7 +56,7 @@ def init_wandb(
     tags: list = None,
     notes: str = None,
     **kwargs,
-):
+) -> wandb.sdk.wandb_run.Run:
     """Initialize a new W&B run.
 
     The method is executed if the W&B library is installed.
@@ -77,13 +77,17 @@ def init_wandb(
         A list of strings that populates tags of the run in W&B UI.
     notes
         A longer description of the W&B run.
+
+    Returns
+    -------
+    W&B Run instance.
     """
     # get tags and notes from config
     if tags is None and "tags" in config:
         tags = config["tags"]
     if notes is None and "notes" in config:
         notes = config["notes"]
-    wandb.init(
+    return wandb.init(
         project=project,
         entity=entity,
         name=run_name,
@@ -102,7 +106,7 @@ def resume_wandb(
     run_id: int,
     entity: str,
     project: str,
-):
+) -> wandb.sdk.wandb_run.Run:
     """Resume an existing W&B run.
 
     Parameters
@@ -113,8 +117,12 @@ def resume_wandb(
         Name of W&B entity.
     project
         Name of W&B project.
+
+    Returns
+    -------
+    W&B Run instance.
     """
-    wandb.init(
+    return wandb.init(
         project=project,
         entity=entity,
         id=run_id,

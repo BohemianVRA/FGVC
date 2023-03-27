@@ -119,6 +119,12 @@ def load_train_args(
         type=str,
         required=False,
     )
+    parser.add_argument(
+        "--resume-exp-name",
+        help="Experiment name (exp_name) to resume training from the last training checkpoint.",
+        type=str,
+        default=None,
+    )
     if add_arguments_fn is not None:
         add_arguments_fn(parser)
     args, unknown_args = parser.parse_known_args(args)
@@ -202,9 +208,14 @@ def load_config(
     config_path: str,
     extra_args: dict = None,
     run_name_fmt: str = "architecture-loss-augmentations",
+    *,
     create_dirs: bool = True,
+    resume_exp_name: str = None,
 ) -> Tuple[dict, str]:
-    """Load training configuration in YAML format, create run name and experiment name.
+    """Load training configuration from YAML file, create run name and experiment name.
+
+    If argument `resume_exp_name` is passed training configuration is loaded from JSON file
+    in the experiment directory.
 
     Parameters
     ----------
@@ -217,6 +228,8 @@ def load_config(
         It should contain attribute names from configuration file separated by "-".
     create_dirs
         If True, the method will create run and experiment directory.
+    resume_exp_name
+        Experiment name to resume training from the last training checkpoint.
 
     Returns
     -------
@@ -245,17 +258,32 @@ def load_config(
     run_name = "-".join(_run_name_vals)
     config["run_name"] = run_name
 
-    # create experiment name and experiment directory
+    # create new experiment directory or use existing one
     path = f"runs/{run_name}"
-    if os.path.isdir(path):
-        existing_exps = [x for x in os.listdir(path) if x.startswith("exp")]
-        last_exp = max([int(x[3:]) for x in existing_exps] or [0])
-        config["exp_name"] = f"exp{last_exp + 1}"
+    if resume_exp_name is None:
+        # create new experiment directory
+        if os.path.isdir(path):
+            existing_exps = [x for x in os.listdir(path) if x.startswith("exp")]
+            last_exp = max([int(x[3:]) for x in existing_exps] or [0])
+            config["exp_name"] = f"exp{last_exp + 1}"
+        else:
+            config["exp_name"] = "exp1"
+        config["exp_path"] = os.path.join(path, config["exp_name"])
+        if create_dirs:
+            os.makedirs(config["exp_path"], exist_ok=False)
     else:
-        config["exp_name"] = "exp1"
-    config["exp_path"] = os.path.join(path, config["exp_name"])
-    if create_dirs:
-        os.makedirs(config["exp_path"], exist_ok=False)
+        # use existing experiment directory
+        config["exp_name"] = resume_exp_name
+        config["exp_path"] = os.path.join(path, config["exp_name"])
+        if not os.path.isdir(config["exp_path"]):
+            raise ValueError(f"Experiment path '{config['exp_path']}' not found.")
+
+        # load configuration JSON from the experiment directory
+        json_config_path = os.path.join(config["exp_path"], "config.json")
+        if not os.path.isfile(json_config_path):
+            raise ValueError(f"Config file '{json_config_path}' not found.")
+        with open(json_config_path, "r") as f:
+            config = json.load(f)
 
     logger.info(f"Setting run name: {run_name}")
     logger.info(f"Using experiment directory: {config['exp_path']}")

@@ -15,7 +15,7 @@ from fgvc.utils.experiment import (
     save_config,
 )
 from fgvc.utils.utils import set_cuda_device, set_random_seed
-from fgvc.utils.wandb import finish_wandb, init_wandb, set_best_scores_in_summary
+from fgvc.utils.wandb import finish_wandb, init_wandb, resume_wandb, set_best_scores_in_summary
 
 logger = logging.getLogger("script")
 
@@ -55,6 +55,7 @@ def train_clf(
     cuda_devices: str = None,
     wandb_entity: str = None,
     wandb_project: str = None,
+    resume_exp_name: str = None,
     **kwargs,
 ):
     """Train model on the classification task."""
@@ -68,13 +69,17 @@ def train_clf(
         cuda_devices = args.cuda_devices
         wandb_entity = args.wandb_entity
         wandb_project = args.wandb_project
+        resume_exp_name = args.resume_exp_name
     else:
         extra_args = kwargs
 
     # load training config
     logger.info("Loading training config.")
     config, run_name = load_config(
-        config_path, extra_args, run_name_fmt="architecture-loss-augmentations"
+        config_path,
+        extra_args,
+        run_name_fmt="architecture-loss-augmentations",
+        resume_exp_name=resume_exp_name,
     )
 
     # set device and random seed
@@ -85,7 +90,6 @@ def train_clf(
     logger.info("Loading training and validation metadata.")
     train_df, valid_df = load_train_metadata(train_metadata, valid_metadata)
     config = add_metadata_info_to_config(config, train_df, valid_df)
-    save_config(config)
 
     # load model and create optimizer and lr scheduler
     logger.info("Creating model, optimizer, and scheduler.")
@@ -120,7 +124,19 @@ def train_clf(
 
     # init wandb
     if wandb_entity is not None and wandb_project is not None:
-        init_wandb(config, config["run_name"], entity=wandb_entity, project=wandb_project)
+        if resume_exp_name is None:
+            run = init_wandb(config, config["run_name"], entity=wandb_entity, project=wandb_project)
+            config["wandb_run_id"] = run.id
+            config["wandb_entity"] = wandb_entity
+            config["wandb_project"] = wandb_project
+        else:
+            if "wandb_run_id" not in config:
+                raise ValueError("Config is missing 'wandb_run_id' field.")
+            resume_wandb(run_id=config["wandb_run_id"], entity=wandb_entity, project=wandb_project)
+
+    # save config to json in experiment path
+    if resume_exp_name is None:
+        save_config(config)
 
     # train model
     logger.info("Training the model.")
@@ -138,6 +154,7 @@ def train_clf(
         clip_grad=config.get("clip_grad"),
         device=device,
         seed=config.get("random_seed", 777),
+        resume=resume_exp_name is not None,
         mixup=config.get("mixup"),
         cutmix=config.get("cutmix"),
         mixup_prob=config.get("mixup_prob"),
