@@ -5,6 +5,8 @@ from typing import List, Union
 
 import pandas as pd
 
+from fgvc.version import __version__
+
 try:
     import wandb
 
@@ -85,7 +87,10 @@ def init_wandb(
         project=project,
         entity=entity,
         name=run_name,
-        config={k: v for k, v in config.items() if k not in ("tags", "notes")},
+        config={
+            **{k: v for k, v in config.items() if k not in ("tags", "notes")},
+            "fgvc_version": __version__,
+        },
         tags=tags,
         notes=notes,
         **kwargs,
