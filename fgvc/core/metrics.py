@@ -31,19 +31,24 @@ def classification_scores(
     scores
         A dictionary or tuple with classification scores.
     """
-    preds_argmax = preds.argmax(1)
-    labels = np.arange(preds.shape[1])
+    assert len(preds.shape) in (1, 2)
+    assert len(targs.shape) == 1
+    if len(preds.shape) == 2:
+        preds_argmax = preds.argmax(1)
+        labels = np.arange(preds.shape[1])
+    else:
+        preds_argmax = preds
+        labels = np.unique(np.concatenate((preds, targs)))
 
     acc = accuracy_score(targs, preds_argmax)
-    acc_k = None
-    if top_k is not None and preds.shape[1] > top_k:
-        acc_k = top_k_accuracy_score(targs, preds, k=top_k, labels=labels)
+    evaluate_acc_k = len(preds.shape) == 2 and top_k is not None and preds.shape[1] > top_k
+    acc_k = top_k_accuracy_score(targs, preds, k=top_k, labels=labels) if evaluate_acc_k else None
     f1 = f1_score(targs, preds_argmax, labels=labels, average="macro", zero_division=0)
 
     if return_dict:
         scores = {}
         scores["Acc"] = acc
-        if top_k is not None:
+        if acc_k is not None:
             scores[f"Recall@{top_k}"] = acc_k
         scores["F1"] = f1
     else:
