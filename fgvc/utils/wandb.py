@@ -142,6 +142,8 @@ def log_progress(
     lr: float = None,
     max_grad_norm: float = None,
     commit: bool = True,
+    train_prefix: str = "train/",
+    valid_prefix: str = "valid/",
 ):
     """Log a dictionary with scores or other data to W&B run.
 
@@ -173,14 +175,18 @@ def log_progress(
     commit
         If true save the scores to the W&B and increment the step.
         Otherwise, only update the current score dictionary.
+    train_prefix
+        Prefix string to include in the name of training scores.
+    valid_prefix
+        Prefix string to include in the name of validation scores.
     """
     scores_combined = {}
 
     # assign training and validation scores
     if train_scores is not None:
-        scores_combined.update({f"train/{k}": v for k, v in train_scores.items()})
+        scores_combined.update({f"{train_prefix}{k}": v for k, v in train_scores.items()})
     if valid_scores is not None:
-        scores_combined.update({f"valid/{k}": v for k, v in valid_scores.items()})
+        scores_combined.update({f"{valid_prefix}{k}": v for k, v in valid_scores.items()})
 
     # assign other scores
     if scores is not None:
@@ -199,69 +205,6 @@ def log_progress(
         scores_combined["Max Gradient Norm"] = max_grad_norm
 
     wandb.log(scores_combined, step=epoch, commit=commit)
-
-
-@if_wandb_run_started
-def log_clf_progress(
-    epoch: int,
-    *,
-    train_loss: float,
-    valid_loss: float,
-    train_acc: float,
-    train_f1: float,
-    valid_acc: float,
-    valid_acc3: float,
-    valid_f1: float,
-    lr: float,
-    max_grad_norm: float = None,
-    other_scores: dict = None,
-):
-    """Log classification scores to W&B run.
-
-    The method is executed if the W&B run was initialized.
-
-    Parameters
-    ----------
-    epoch
-        Current training epoch.
-    train_loss
-        Training loss.
-    valid_loss
-        Validation loss.
-    train_acc
-        Training Top-1 accuracy.
-    train_f1
-        Training F1 score.
-    valid_acc
-        Validation Top-1 accuracy.
-    valid_acc3
-        Validation Top-3 accuracy.
-    valid_f1
-        Validation F1 score.
-    lr
-        Learning rate.
-    max_grad_norm
-        Maximum gradient norm.
-    other_scores
-        A dictionary with other scores to log to W&B.
-    """
-    other_scores = other_scores or {}
-    log_progress(
-        epoch,
-        train_loss=train_loss,
-        valid_loss=valid_loss,
-        scores={
-            "Val. F1": valid_f1,
-            "Val. Accuracy": valid_acc,
-            "Val. Recall@3": valid_acc3,
-            "Train. Accuracy": train_acc,
-            "Train. F1": train_f1,
-            **other_scores,
-        },
-        lr=lr,
-        max_grad_norm=max_grad_norm,
-        commit=True,
-    )
 
 
 @if_wandb_run_started

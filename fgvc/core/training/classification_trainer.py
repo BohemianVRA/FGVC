@@ -9,7 +9,7 @@ from tqdm.auto import tqdm
 
 from fgvc.core.metrics import classification_scores
 from fgvc.utils.utils import set_random_seed
-from fgvc.utils.wandb import log_clf_progress
+from fgvc.utils.wandb import log_progress
 
 from .base_trainer import BaseTrainer
 from .ema_mixin import EMAMixin
@@ -248,19 +248,17 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
 
             # log scores to W&B
             ema_scores = ema_predict_output.avg_scores or {}
-            ema_scores = {f"Val. {k} (EMA)": v for k, v in ema_scores.items()}
-            log_clf_progress(
+            ema_scores = {f"{k} (EMA)": v for k, v in ema_scores.items()}
+            log_progress(
                 epoch + 1,
                 train_loss=train_output.avg_loss,
                 valid_loss=predict_output.avg_loss,
-                train_acc=train_output.avg_scores["Acc"],
-                train_f1=train_output.avg_scores["F1"],
-                valid_acc=predict_output.avg_scores.get("Acc", 0),
-                valid_acc3=predict_output.avg_scores.get("Recall@3", 0),
-                valid_f1=predict_output.avg_scores.get("F1", 0),
-                other_scores=ema_scores,
+                train_scores=train_output.avg_scores,
+                valid_scores={**predict_output.avg_scores, **ema_scores},
                 lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
+                train_prefix="Train. ",
+                valid_prefix="Val. ",
             )
 
             # log scores to file and save model checkpoints
