@@ -175,25 +175,25 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
             scores_monitor.avg_scores,
         )
 
-    def train(self, run_name: str, num_epochs: int = 1, seed: int = 777, exp_name: str = None):
+    def train(
+        self,
+        num_epochs: int = 1,
+        seed: int = 777,
+        path: str = None,
+    ):
         """Train neural network.
 
         Parameters
         ----------
-        run_name
-            Name of the run for logging and naming checkpoint files.
         num_epochs
             Number of epochs to train.
         seed
             Random seed to set.
-        exp_name
-            Experiment name for saving run artefacts like checkpoints or logs.
-            E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
+        path
+            Experiment path for saving training outputs like checkpoints or logs.
         """
         # create training state
-        training_state = TrainingState(
-            self.model, run_name, exp_name, ema_model=self.get_ema_model()
-        )
+        training_state = TrainingState(self.model, path=path, ema_model=self.get_ema_model())
 
         # run training loop
         set_random_seed(seed)

@@ -193,33 +193,28 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
 
     def train(
         self,
-        run_name: str,
         num_epochs: int = 1,
         seed: int = 777,
-        exp_name: str = None,
+        path: str = None,
         resume: bool = False,
     ):
         """Train neural network.
 
         Parameters
         ----------
-        run_name
-            Name of the run for logging and naming checkpoint files.
         num_epochs
             Number of epochs to train.
         seed
             Random seed to set.
-        exp_name
-            Experiment name for saving run artefacts like checkpoints or logs.
-            E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
+        path
+            Experiment path for saving training outputs like checkpoints or logs.
         resume
             If True resumes run from a checkpoint with optimizer and scheduler state.
         """
         # create training state
         training_state = TrainingState(
             self.model,
-            run_name,
-            exp_name,
+            path=path,
             ema_model=self.get_ema_model(),
             optimizer=self.optimizer,
             scheduler=self.scheduler,

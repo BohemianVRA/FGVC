@@ -12,7 +12,7 @@ from fgvc.special.threshold_analysis import (
     class_wise_confidence_threshold_report,
     estimate_optimal_confidence_thresholds,
 )
-from fgvc.utils.experiment import get_experiment_path, load_args, load_model, load_test_metadata
+from fgvc.utils.experiment import load_args, load_model, load_test_metadata
 from fgvc.utils.utils import set_cuda_device
 from fgvc.utils.wandb import log_clf_test_scores, resume_wandb, wandb
 
@@ -142,11 +142,7 @@ def test_clf(
         sys.exit(0)
 
     # load model
-    exp_path = get_experiment_path(run.name, run.config["exp_name"])
-    model_weights = os.path.join(
-        exp_path,
-        f"{run.name}_best_loss.pth",
-    )
+    model_weights = os.path.join(run.config["exp_path"], "best_loss.pth")
     logger.info(f"Loading fine-tuned model. Using model checkpoint from the file: {model_weights}")
     model, model_mean, model_std = load_model(config, model_weights)
 

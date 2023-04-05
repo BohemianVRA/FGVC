@@ -2,7 +2,6 @@ import argparse
 import logging
 import os
 
-from fgvc.utils.experiment import get_experiment_path
 from fgvc.utils.wandb import wandb
 
 logger = logging.getLogger("script")
@@ -47,11 +46,9 @@ def log_model(
     if wandb_entity is None or wandb_project is None or wandb_run_id is None:
         # load script args
         args = load_args()
-        wandb_entity, wandb_project, wandb_run_id = (
-            args.wandb_entity,
-            args.wandb_project,
-            args.wandb_run_id,
-        )
+        wandb_entity = args.wandb_entity
+        wandb_project = args.wandb_project
+        wandb_run_id = args.wandb_run_id
 
     # resume wandb run
     wandb_run_path = f"{wandb_entity}/{wandb_project}/{wandb_run_id}"
@@ -63,10 +60,7 @@ def log_model(
         save_code=False,
         resume="must",
     ) as run:
-        model_weights = os.path.join(
-            get_experiment_path(run.name, run.config["exp_name"]),
-            f"{run.name}_best_loss.pth",
-        )
+        model_weights = os.path.join(run.config["exp_path"], "best_loss.pth")
         if not os.path.isfile(model_weights):
             raise ValueError(f"Model checkpoint '{model_weights}' not found.")
         logger.info(f"Using model checkpoint from the file: {model_weights}")

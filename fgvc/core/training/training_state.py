@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 from torch.optim import Optimizer
 
-from fgvc.utils.experiment import get_experiment_path
 from fgvc.utils.log import setup_training_logger
 
 from .scheduler_mixin import SchedulerType
@@ -20,11 +19,8 @@ class TrainingState:
     ----------
     model
         Pytorch neural network.
-    run_name
-        Name of the run for logging and naming checkpoint files.
-    exp_name
-        Experiment name for saving run artefacts like checkpoints or logs.
-        E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
+    path
+        Experiment path for saving training outputs like checkpoints or logs.
     optimizer
         Optimizer instance for saving training state in case of interruption and need to resume.
     scheduler
@@ -47,8 +43,7 @@ class TrainingState:
     def __init__(
         self,
         model: nn.Module,
-        run_name: str,
-        exp_name: str = None,
+        path: str = "./",
         *,
         ema_model: nn.Module = None,
         optimizer: Optimizer,
@@ -56,21 +51,19 @@ class TrainingState:
         resume: bool = False,
         device: torch.device = None,
     ):
-        assert "/" not in run_name, "Arg 'run_name' should not contain character /"
         if resume:
             assert optimizer is not None
         self.model = model
         self.ema_model = ema_model
-        self.run_name = run_name
-        self.exp_path = get_experiment_path(run_name, exp_name)
+        self.path = path or "./"
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.device = device
-        os.makedirs(self.exp_path, exist_ok=True)
+        os.makedirs(self.path, exist_ok=True)
 
         # setup training logger
         self.t_logger = setup_training_logger(
-            training_log_file=os.path.join(self.exp_path, f"{run_name}.log")
+            training_log_file=os.path.join(self.path, "training.log")
         )
 
         if resume:
@@ -87,18 +80,18 @@ class TrainingState:
             self.best_metrics = {}  # best other metrics like accuracy or f1 score
             self.best_scores_metrics = {}
 
-            self.t_logger.info(f"Training of run '{self.run_name}' started.")
+            self.t_logger.info("Training started.")
         self.start_training_time = time.time()
 
     def resume_training(self):
         """Resume training state from checkpoint.pth.tar file stored in the experiment directory."""
         # load training checkpoint to the memory
-        checkpoint_path = os.path.join(self.exp_path, "checkpoint.pth.tar")
+        checkpoint_path = os.path.join(self.path, "checkpoint.pth.tar")
         if not os.path.isfile(checkpoint_path):
             raise ValueError(f"Training checkpoint '{checkpoint_path}' not found.")
         checkpoint = torch.load(checkpoint_path, map_location="cpu")
 
-        # restore state variables of the this class' instance (TrainingState)
+        # restore state variables of this class' instance (TrainingState)
         for variable in self.STATE_VARIABLES:
             if variable not in checkpoint["training_state"]:
                 raise ValueError(
@@ -126,7 +119,7 @@ class TrainingState:
 
     def _save_training_state(self, epoch: int):
         if self.optimizer is not None:
-            # save state variables of the this class' instance (TrainingState)
+            # save state variables of this class' instance (TrainingState)
             training_state = {}
             for variable in self.STATE_VARIABLES:
                 training_state[variable] = getattr(self, variable)
@@ -148,7 +141,7 @@ class TrainingState:
                     "training_state": training_state,
                     "random_state": random_state,
                 },
-                os.path.join(self.exp_path, "checkpoint.pth.tar"),
+                os.path.join(self.path, "checkpoint.pth.tar"),
             )
 
     def _save_checkpoint(self, epoch: int, metric_name: str, metric_value: float):
@@ -169,7 +162,7 @@ class TrainingState:
         )
         torch.save(
             self.model.state_dict(),
-            os.path.join(self.exp_path, f"{self.run_name}_best_{metric_name}.pth"),
+            os.path.join(self.path, f"best_{metric_name}.pth"),
         )
 
     def step(self, epoch: int, scores_str: str, valid_loss: float, valid_metrics: dict = None):
@@ -224,13 +217,13 @@ class TrainingState:
         self.t_logger.info("Save checkpoint of the last epoch")
         torch.save(
             self.model.state_dict(),
-            os.path.join(self.exp_path, f"{self.run_name}-{self.last_epoch}E.pth"),
+            os.path.join(self.path, f"epoch_{self.last_epoch}.pth"),
         )
         if self.ema_model is not None:
             self.t_logger.info("Save checkpoint of the EMA model")
             torch.save(
                 self.ema_model.state_dict(),
-                os.path.join(self.exp_path, f"{self.run_name}-EMA.pth"),
+                os.path.join(self.path, "EMA.pth"),
             )
 
         self.t_logger.info(f"Best scores (validation loss): {self.best_scores_loss}")
