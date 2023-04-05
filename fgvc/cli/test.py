@@ -187,7 +187,7 @@ def test_clf(
     )
 
     # store predictions and targets in the experiment dir
-    eval_path = os.path.join(exp_path, "evaluation")
+    eval_path = os.path.join(run.config["exp_path"], "evaluation")
     os.makedirs(eval_path, exist_ok=True)
     preds_filepath = os.path.join(eval_path, "predictions.npy")
     logger.info(f"Storing predictions to: {preds_filepath}")
