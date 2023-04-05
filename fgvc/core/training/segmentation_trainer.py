@@ -180,6 +180,7 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
         num_epochs: int = 1,
         seed: int = 777,
         path: str = None,
+        resume: bool = False,
     ):
         """Train neural network.
 
@@ -191,13 +192,26 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
             Random seed to set.
         path
             Experiment path for saving training outputs like checkpoints or logs.
+        resume
+            If True resumes run from a checkpoint with optimizer and scheduler state.
         """
         # create training state
-        training_state = TrainingState(self.model, path=path, ema_model=self.get_ema_model())
+        training_state = TrainingState(
+            self.model,
+            path=path,
+            ema_model=self.get_ema_model(),
+            optimizer=self.optimizer,
+            scheduler=self.scheduler,
+            resume=resume,
+            device=self.device,
+        )
 
         # run training loop
-        set_random_seed(seed)
-        for epoch in range(0, num_epochs):
+        if not resume:
+            # set random seed when training from the start
+            # otherwise, when resuming training use state from the checkpoint
+            set_random_seed(seed)
+        for epoch in range(training_state.last_epoch, num_epochs):
             # apply training and validation on one epoch
             start_epoch_time = time.time()
             train_output = self.train_epoch(epoch, self.trainloader)
