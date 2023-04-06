@@ -43,7 +43,7 @@ class TrainingState:
     def __init__(
         self,
         model: nn.Module,
-        path: str = "./",
+        path: str = ".",
         *,
         ema_model: nn.Module = None,
         optimizer: Optimizer,
@@ -55,7 +55,7 @@ class TrainingState:
             assert optimizer is not None
         self.model = model
         self.ema_model = ema_model
-        self.path = path or "./"
+        self.path = path or "."
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.device = device

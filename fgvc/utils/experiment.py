@@ -207,7 +207,7 @@ def load_config(
     *,
     create_dirs: bool = True,
     resume_exp_name: str = None,
-    root_path: str = "./runs",
+    root_path: str = ".",
 ) -> dict:
     """Load training configuration from YAML file, create run name and experiment name.
 
@@ -256,7 +256,7 @@ def load_config(
     config["run_name"] = run_name
 
     # create new experiment directory or use existing one
-    run_path = os.path.join(root_path, run_name)
+    run_path = os.path.join(root_path, "runs", run_name)
     if resume_exp_name is None:
         # create new experiment directory
         if os.path.isdir(run_path):
