@@ -14,7 +14,7 @@ from fgvc.special.threshold_analysis import (
 )
 from fgvc.utils.experiment import load_args, load_model, load_test_metadata
 from fgvc.utils.utils import set_cuda_device
-from fgvc.utils.wandb import log_clf_test_scores, resume_wandb, wandb
+from fgvc.utils.wandb import log_summary_scores, resume_wandb, wandb
 
 logger = logging.getLogger("script")
 
@@ -167,13 +167,7 @@ def test_clf(
     scores_str = "\t".join([f"{k}: {v:.2%}" for k, v in scores.items()])
     logger.info(f"Scores - {scores_str}")
     logger.info("Logging scores to wandb.")
-    log_clf_test_scores(
-        wandb_run_path,
-        test_acc=scores["Acc"],
-        test_acc3=scores["Recall@3"],
-        test_f1=scores["F1"],
-        allow_new=True,
-    )
+    log_summary_scores(wandb_run_path, test_scores=scores, allow_new=True, prefix="Test. ")
 
     # resume W&B run and log classification report to W&B
     resume_wandb(run_id=run.id, entity=run.entity, project=run.project)

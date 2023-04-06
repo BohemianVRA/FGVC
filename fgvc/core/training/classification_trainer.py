@@ -267,7 +267,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 "avg_val_loss": f"{predict_output.avg_loss:.4f}",
                 **{
                     s: f"{predict_output.avg_scores.get(s, 0):.2%}"
-                    for s in ["F1", "Acc", "Recall@3"]
+                    for s in ["F1", "Accuracy", "Recall@3"]
                 },
                 "time": f"{elapsed_epoch_time:.0f}s",
             }
@@ -276,7 +276,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 scores_str="\t".join([f"{k}: {v}" for k, v in _scores.items()]),
                 valid_loss=predict_output.avg_loss,
                 valid_metrics={
-                    "accuracy": predict_output.avg_scores.get("Acc", 0),
+                    "accuracy": predict_output.avg_scores.get("Accuracy", 0),
                     "f1": predict_output.avg_scores.get("F1", 0),
                 },
             )

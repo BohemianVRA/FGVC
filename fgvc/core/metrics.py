@@ -47,7 +47,7 @@ def classification_scores(
 
     if return_dict:
         scores = {}
-        scores["Acc"] = acc
+        scores["Accuracy"] = acc
         if acc_k is not None:
             scores[f"Recall@{top_k}"] = acc_k
         scores["F1"] = f1

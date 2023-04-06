@@ -142,8 +142,8 @@ def log_progress(
     lr: float = None,
     max_grad_norm: float = None,
     commit: bool = True,
-    train_prefix: str = "train/",
-    valid_prefix: str = "valid/",
+    train_prefix: str = "Train/",
+    valid_prefix: str = "Valid/",
 ):
     """Log a dictionary with scores or other data to W&B run.
 
@@ -194,9 +194,9 @@ def log_progress(
 
     # assign average losses
     if train_loss is not None:
-        scores_combined["Train. loss (avr.)"] = train_loss
+        scores_combined[f"{train_prefix}loss (avr.)"] = train_loss
     if valid_loss is not None:
-        scores_combined["Val. loss (avr.)"] = valid_loss
+        scores_combined[f"{valid_prefix}loss (avr.)"] = valid_loss
 
     # assign training stats
     if lr is not None:
@@ -280,7 +280,9 @@ def get_runs_df(
 def log_summary_scores(
     run_or_path: Union[str, wandb.apis.public.Run],
     scores: dict,
+    *,
     allow_new: bool = True,
+    prefix: str = "Test/",
 ):
     """Log scores to W&B run summary, after the W&B run is finished.
 
@@ -295,48 +297,16 @@ def log_summary_scores(
     allow_new
         If false the method checks if each passed score already exists in W&B run summary
         and raises ValueError if the score does not exist.
+    prefix
+        Prefix string to include in the name of test scores.
     """
     run = wandb.Api().run(run_or_path) if isinstance(run_or_path, str) else run_or_path
     for k, v in scores.items():
+        k = f"{prefix}{k}"
         if not allow_new and k not in run.summary:
             raise ValueError(f"Key '{k}' not found in wandb run summary.")
         run.summary[k] = v
     run.update()
-
-
-@if_wandb_is_installed
-def log_clf_test_scores(
-    run_or_path: Union[str, wandb.apis.public.Run],
-    test_acc: float,
-    test_acc3: float,
-    test_f1: float,
-    allow_new: bool = True,
-):
-    """Log classification scores on the test set to W&B run summary, after the W&B run is finished.
-
-    Parameters
-    ----------
-    run_or_path
-        A W&B api run or path to run in the form `entity/project/run_id`.
-    test_acc
-        Test Top-1 accuracy.
-    test_acc3
-        Test Top-3 accuracy.
-    test_f1
-        Test F1 score.
-    allow_new
-        If false the method checks if each passed score already exists in W&B run summary
-        and raises ValueError if the score does not exist.
-    """
-    log_summary_scores(
-        run_or_path,
-        scores={
-            "Test. F1": test_f1,
-            "Test. Accuracy": test_acc,
-            "Test. Recall@3": test_acc3,
-        },
-        allow_new=allow_new,
-    )
 
 
 @if_wandb_is_installed
