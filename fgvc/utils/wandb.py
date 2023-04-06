@@ -201,9 +201,9 @@ def log_progress(
 
     # assign average losses
     if train_loss is not None:
-        scores_combined[f"{train_prefix}loss (avr.)"] = train_loss
+        scores_combined[f"{train_prefix}Loss (avr.)"] = train_loss
     if valid_loss is not None:
-        scores_combined[f"{valid_prefix}loss (avr.)"] = valid_loss
+        scores_combined[f"{valid_prefix}Loss (avr.)"] = valid_loss
 
     # assign training stats
     if lr is not None:
