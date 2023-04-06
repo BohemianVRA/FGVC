@@ -276,11 +276,11 @@ def load_config(
             raise ValueError(f"Experiment path '{config['exp_path']}' not found.")
 
         # load configuration JSON from the experiment directory
-        json_config_path = os.path.join(config["exp_path"], "config.json")
-        if not os.path.isfile(json_config_path):
-            raise ValueError(f"Config file '{json_config_path}' not found.")
-        with open(json_config_path, "r") as f:
-            config = json.load(f)
+        full_config_path = os.path.join(config["exp_path"], "config.yaml")
+        if not os.path.isfile(full_config_path):
+            raise ValueError(f"Config file '{full_config_path}' not found.")
+        with open(full_config_path, "r") as f:
+            config = yaml.safe_load(f)
 
     logger.info(f"Setting run name: {run_name}")
     logger.info(f"Using experiment directory: {config['exp_path']}")
@@ -297,8 +297,8 @@ def save_config(config: dict):
         Dictionary with training configuration.
     """
     assert "exp_path" in config
-    with open(os.path.join(config["exp_path"], "config.json"), "w") as f:
-        json.dump(config, f, indent=4)
+    with open(os.path.join(config["exp_path"], "config.yaml"), "w") as f:
+        yaml.dump(config, f)
 
 
 def _load_metadata(metadata: str) -> pd.DataFrame:
