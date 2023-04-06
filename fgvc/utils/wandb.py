@@ -87,7 +87,7 @@ def init_wandb(
         tags = config["tags"]
     if notes is None and "notes" in config:
         notes = config["notes"]
-    return wandb.init(
+    run = wandb.init(
         project=project,
         entity=entity,
         name=run_name,
@@ -99,6 +99,13 @@ def init_wandb(
         notes=notes,
         **kwargs,
     )
+
+    # update config dictionary
+    config["wandb_run_id"] = run.id
+    config["wandb_entity"] = entity
+    config["wandb_project"] = project
+
+    return run
 
 
 @if_wandb_is_installed

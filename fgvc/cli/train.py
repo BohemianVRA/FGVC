@@ -128,10 +128,7 @@ def train_clf(
     # init wandb
     if wandb_entity is not None and wandb_project is not None:
         if resume_exp_name is None:
-            run = init_wandb(config, config["run_name"], entity=wandb_entity, project=wandb_project)
-            config["wandb_run_id"] = run.id
-            config["wandb_entity"] = wandb_entity
-            config["wandb_project"] = wandb_project
+            init_wandb(config, config["run_name"], entity=wandb_entity, project=wandb_project)
         else:
             if "wandb_run_id" not in config:
                 raise ValueError("Config is missing 'wandb_run_id' field.")
