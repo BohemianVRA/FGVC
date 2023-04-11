@@ -87,7 +87,7 @@ def init_wandb(
         tags = config["tags"]
     if notes is None and "notes" in config:
         notes = config["notes"]
-    return wandb.init(
+    run = wandb.init(
         project=project,
         entity=entity,
         name=run_name,
@@ -99,6 +99,13 @@ def init_wandb(
         notes=notes,
         **kwargs,
     )
+
+    # update config dictionary
+    config["wandb_run_id"] = run.id
+    config["wandb_entity"] = entity
+    config["wandb_project"] = project
+
+    return run
 
 
 @if_wandb_is_installed
@@ -142,6 +149,8 @@ def log_progress(
     lr: float = None,
     max_grad_norm: float = None,
     commit: bool = True,
+    train_prefix: str = "Train/",
+    valid_prefix: str = "Valid/",
 ):
     """Log a dictionary with scores or other data to W&B run.
 
@@ -173,14 +182,18 @@ def log_progress(
     commit
         If true save the scores to the W&B and increment the step.
         Otherwise, only update the current score dictionary.
+    train_prefix
+        Prefix string to include in the name of training scores.
+    valid_prefix
+        Prefix string to include in the name of validation scores.
     """
     scores_combined = {}
 
     # assign training and validation scores
     if train_scores is not None:
-        scores_combined.update({f"train/{k}": v for k, v in train_scores.items()})
+        scores_combined.update({f"{train_prefix}{k}": v for k, v in train_scores.items()})
     if valid_scores is not None:
-        scores_combined.update({f"valid/{k}": v for k, v in valid_scores.items()})
+        scores_combined.update({f"{valid_prefix}{k}": v for k, v in valid_scores.items()})
 
     # assign other scores
     if scores is not None:
@@ -188,9 +201,9 @@ def log_progress(
 
     # assign average losses
     if train_loss is not None:
-        scores_combined["Train. loss (avr.)"] = train_loss
+        scores_combined[f"{train_prefix}Loss (avr.)"] = train_loss
     if valid_loss is not None:
-        scores_combined["Val. loss (avr.)"] = valid_loss
+        scores_combined[f"{valid_prefix}Loss (avr.)"] = valid_loss
 
     # assign training stats
     if lr is not None:
@@ -199,69 +212,6 @@ def log_progress(
         scores_combined["Max Gradient Norm"] = max_grad_norm
 
     wandb.log(scores_combined, step=epoch, commit=commit)
-
-
-@if_wandb_run_started
-def log_clf_progress(
-    epoch: int,
-    *,
-    train_loss: float,
-    valid_loss: float,
-    train_acc: float,
-    train_f1: float,
-    valid_acc: float,
-    valid_acc3: float,
-    valid_f1: float,
-    lr: float,
-    max_grad_norm: float = None,
-    other_scores: dict = None,
-):
-    """Log classification scores to W&B run.
-
-    The method is executed if the W&B run was initialized.
-
-    Parameters
-    ----------
-    epoch
-        Current training epoch.
-    train_loss
-        Training loss.
-    valid_loss
-        Validation loss.
-    train_acc
-        Training Top-1 accuracy.
-    train_f1
-        Training F1 score.
-    valid_acc
-        Validation Top-1 accuracy.
-    valid_acc3
-        Validation Top-3 accuracy.
-    valid_f1
-        Validation F1 score.
-    lr
-        Learning rate.
-    max_grad_norm
-        Maximum gradient norm.
-    other_scores
-        A dictionary with other scores to log to W&B.
-    """
-    other_scores = other_scores or {}
-    log_progress(
-        epoch,
-        train_loss=train_loss,
-        valid_loss=valid_loss,
-        scores={
-            "Val. F1": valid_f1,
-            "Val. Accuracy": valid_acc,
-            "Val. Recall@3": valid_acc3,
-            "Train. Accuracy": train_acc,
-            "Train. F1": train_f1,
-            **other_scores,
-        },
-        lr=lr,
-        max_grad_norm=max_grad_norm,
-        commit=True,
-    )
 
 
 @if_wandb_run_started
@@ -337,7 +287,9 @@ def get_runs_df(
 def log_summary_scores(
     run_or_path: Union[str, wandb.apis.public.Run],
     scores: dict,
+    *,
     allow_new: bool = True,
+    prefix: str = "Test/",
 ):
     """Log scores to W&B run summary, after the W&B run is finished.
 
@@ -352,48 +304,16 @@ def log_summary_scores(
     allow_new
         If false the method checks if each passed score already exists in W&B run summary
         and raises ValueError if the score does not exist.
+    prefix
+        Prefix string to include in the name of test scores.
     """
     run = wandb.Api().run(run_or_path) if isinstance(run_or_path, str) else run_or_path
     for k, v in scores.items():
+        k = f"{prefix}{k}"
         if not allow_new and k not in run.summary:
             raise ValueError(f"Key '{k}' not found in wandb run summary.")
         run.summary[k] = v
     run.update()
-
-
-@if_wandb_is_installed
-def log_clf_test_scores(
-    run_or_path: Union[str, wandb.apis.public.Run],
-    test_acc: float,
-    test_acc3: float,
-    test_f1: float,
-    allow_new: bool = True,
-):
-    """Log classification scores on the test set to W&B run summary, after the W&B run is finished.
-
-    Parameters
-    ----------
-    run_or_path
-        A W&B api run or path to run in the form `entity/project/run_id`.
-    test_acc
-        Test Top-1 accuracy.
-    test_acc3
-        Test Top-3 accuracy.
-    test_f1
-        Test F1 score.
-    allow_new
-        If false the method checks if each passed score already exists in W&B run summary
-        and raises ValueError if the score does not exist.
-    """
-    log_summary_scores(
-        run_or_path,
-        scores={
-            "Test. F1": test_f1,
-            "Test. Accuracy": test_acc,
-            "Test. Recall@3": test_acc3,
-        },
-        allow_new=allow_new,
-    )
 
 
 @if_wandb_is_installed

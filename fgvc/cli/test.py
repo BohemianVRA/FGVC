@@ -12,9 +12,9 @@ from fgvc.special.threshold_analysis import (
     class_wise_confidence_threshold_report,
     estimate_optimal_confidence_thresholds,
 )
-from fgvc.utils.experiment import get_experiment_path, load_args, load_model, load_test_metadata
+from fgvc.utils.experiment import load_args, load_model, load_test_metadata
 from fgvc.utils.utils import set_cuda_device
-from fgvc.utils.wandb import log_clf_test_scores, resume_wandb, wandb
+from fgvc.utils.wandb import log_summary_scores, resume_wandb, wandb
 
 logger = logging.getLogger("script")
 
@@ -142,11 +142,7 @@ def test_clf(
         sys.exit(0)
 
     # load model
-    exp_path = get_experiment_path(run.name, run.config["exp_name"])
-    model_weights = os.path.join(
-        exp_path,
-        f"{run.name}_best_loss.pth",
-    )
+    model_weights = os.path.join(run.config["exp_path"], "best_loss.pth")
     logger.info(f"Loading fine-tuned model. Using model checkpoint from the file: {model_weights}")
     model, model_mean, model_std = load_model(config, model_weights)
 
@@ -171,13 +167,7 @@ def test_clf(
     scores_str = "\t".join([f"{k}: {v:.2%}" for k, v in scores.items()])
     logger.info(f"Scores - {scores_str}")
     logger.info("Logging scores to wandb.")
-    log_clf_test_scores(
-        wandb_run_path,
-        test_acc=scores["Acc"],
-        test_acc3=scores["Recall@3"],
-        test_f1=scores["F1"],
-        allow_new=True,
-    )
+    log_summary_scores(wandb_run_path, test_scores=scores, allow_new=True, prefix="Test. ")
 
     # resume W&B run and log classification report to W&B
     resume_wandb(run_id=run.id, entity=run.entity, project=run.project)
@@ -191,7 +181,7 @@ def test_clf(
     )
 
     # store predictions and targets in the experiment dir
-    eval_path = os.path.join(exp_path, "evaluation")
+    eval_path = os.path.join(run.config["exp_path"], "evaluation")
     os.makedirs(eval_path, exist_ok=True)
     preds_filepath = os.path.join(eval_path, "predictions.npy")
     logger.info(f"Storing predictions to: {preds_filepath}")

@@ -56,6 +56,7 @@ def train_clf(
     wandb_entity: str = None,
     wandb_project: str = None,
     resume_exp_name: str = None,
+    root_path: str = None,
     **kwargs,
 ):
     """Train model on the classification task."""
@@ -70,16 +71,18 @@ def train_clf(
         wandb_entity = args.wandb_entity
         wandb_project = args.wandb_project
         resume_exp_name = args.resume_exp_name
+        root_path = args.root_path
     else:
         extra_args = kwargs
 
     # load training config
     logger.info("Loading training config.")
-    config, run_name = load_config(
+    config = load_config(
         config_path,
         extra_args,
         run_name_fmt="architecture-loss-augmentations",
         resume_exp_name=resume_exp_name,
+        root_path=root_path,
     )
 
     # set device and random seed
@@ -125,10 +128,7 @@ def train_clf(
     # init wandb
     if wandb_entity is not None and wandb_project is not None:
         if resume_exp_name is None:
-            run = init_wandb(config, config["run_name"], entity=wandb_entity, project=wandb_project)
-            config["wandb_run_id"] = run.id
-            config["wandb_entity"] = wandb_entity
-            config["wandb_project"] = wandb_project
+            init_wandb(config, config["run_name"], entity=wandb_entity, project=wandb_project)
         else:
             if "wandb_run_id" not in config:
                 raise ValueError("Config is missing 'wandb_run_id' field.")
@@ -141,8 +141,6 @@ def train_clf(
     # train model
     logger.info("Training the model.")
     train(
-        run_name=config["run_name"],
-        exp_name=config["exp_name"],
         model=model,
         trainloader=trainloader,
         validloader=validloader,
@@ -154,6 +152,7 @@ def train_clf(
         clip_grad=config.get("clip_grad"),
         device=device,
         seed=config.get("random_seed", 777),
+        path=config["exp_path"],
         resume=resume_exp_name is not None,
         mixup=config.get("mixup"),
         cutmix=config.get("cutmix"),

@@ -9,7 +9,7 @@ from tqdm.auto import tqdm
 
 from fgvc.core.metrics import classification_scores
 from fgvc.utils.utils import set_random_seed
-from fgvc.utils.wandb import log_clf_progress
+from fgvc.utils.wandb import log_progress
 
 from .base_trainer import BaseTrainer
 from .ema_mixin import EMAMixin
@@ -193,33 +193,28 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
 
     def train(
         self,
-        run_name: str,
         num_epochs: int = 1,
         seed: int = 777,
-        exp_name: str = None,
+        path: str = None,
         resume: bool = False,
     ):
         """Train neural network.
 
         Parameters
         ----------
-        run_name
-            Name of the run for logging and naming checkpoint files.
         num_epochs
             Number of epochs to train.
         seed
             Random seed to set.
-        exp_name
-            Experiment name for saving run artefacts like checkpoints or logs.
-            E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
+        path
+            Experiment path for saving training outputs like checkpoints or logs.
         resume
             If True resumes run from a checkpoint with optimizer and scheduler state.
         """
         # create training state
         training_state = TrainingState(
             self.model,
-            run_name,
-            exp_name,
+            path=path,
             ema_model=self.get_ema_model(),
             optimizer=self.optimizer,
             scheduler=self.scheduler,
@@ -253,19 +248,17 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
 
             # log scores to W&B
             ema_scores = ema_predict_output.avg_scores or {}
-            ema_scores = {f"Val. {k} (EMA)": v for k, v in ema_scores.items()}
-            log_clf_progress(
+            ema_scores = {f"{k} (EMA)": v for k, v in ema_scores.items()}
+            log_progress(
                 epoch + 1,
                 train_loss=train_output.avg_loss,
                 valid_loss=predict_output.avg_loss,
-                train_acc=train_output.avg_scores["Acc"],
-                train_f1=train_output.avg_scores["F1"],
-                valid_acc=predict_output.avg_scores.get("Acc", 0),
-                valid_acc3=predict_output.avg_scores.get("Recall@3", 0),
-                valid_f1=predict_output.avg_scores.get("F1", 0),
-                other_scores=ema_scores,
+                train_scores=train_output.avg_scores,
+                valid_scores={**predict_output.avg_scores, **ema_scores},
                 lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
+                train_prefix="Train. ",
+                valid_prefix="Val. ",
             )
 
             # log scores to file and save model checkpoints
@@ -274,7 +267,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 "avg_val_loss": f"{predict_output.avg_loss:.4f}",
                 **{
                     s: f"{predict_output.avg_scores.get(s, 0):.2%}"
-                    for s in ["F1", "Acc", "Recall@3"]
+                    for s in ["F1", "Accuracy", "Recall@3"]
                 },
                 "time": f"{elapsed_epoch_time:.0f}s",
             }
@@ -283,7 +276,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 scores_str="\t".join([f"{k}: {v}" for k, v in _scores.items()]),
                 valid_loss=predict_output.avg_loss,
                 valid_metrics={
-                    "accuracy": predict_output.avg_scores.get("Acc", 0),
+                    "accuracy": predict_output.avg_scores.get("Accuracy", 0),
                     "f1": predict_output.avg_scores.get("F1", 0),
                 },
             )

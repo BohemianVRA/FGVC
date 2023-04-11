@@ -24,7 +24,6 @@ __all__ = [
 
 
 def train(
-    run_name: str,
     model: nn.Module,
     trainloader: DataLoader,
     criterion: nn.Module,
@@ -37,7 +36,7 @@ def train(
     clip_grad: float = None,
     device: torch.device = None,
     seed: int = 777,
-    exp_name: str = None,
+    path: str = None,
     resume: bool = False,
     trainer_cls: Type[BaseTrainer] = ClassificationTrainer,
     trainer_kws: dict = None,
@@ -48,8 +47,6 @@ def train(
 
     Parameters
     ----------
-    run_name
-        Name of the run for logging and naming checkpoint files.
     model
         Pytorch neural network.
     trainloader
@@ -72,9 +69,8 @@ def train(
         Device to use (cpu,0,1,2,...).
     seed
         Random seed to set.
-    exp_name
-        Experiment name for saving run artefacts like checkpoints or logs.
-        E.g., the log file is saved as "/runs/<run_name>/<exp_name>/<run_name>.log".
+    path
+        Experiment path for saving training outputs like checkpoints or logs.
     resume
         If True resumes run from a checkpoint with optimizer and scheduler state.
     trainer_cls
@@ -101,10 +97,9 @@ def train(
         **kwargs,
     )
     trainer.train(
-        run_name=run_name,
         num_epochs=num_epochs,
         seed=seed,
-        exp_name=exp_name,
+        path=path,
         resume=resume,
         **train_kws,
     )
