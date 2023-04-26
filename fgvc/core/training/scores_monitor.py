@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Union
 
 import numpy as np
 
@@ -111,3 +111,60 @@ class ScoresMonitor:
     def targs_all(self) -> np.ndarray:
         """Get stored predictions from the full dataset."""
         return self._targs_all
+
+
+class LossMonitor:
+    """Helper class for monitoring loss(es) during training.
+
+    Parameters
+    ----------
+    num_batches
+        Number of batches in dataloader.
+    """
+
+    def __init__(self, num_batches: int):
+        self.num_batches = num_batches
+        self._avg_loss = None
+
+    def reset(self):
+        """Reset internal variable average loss."""
+        self._avg_loss = None
+
+    def update(self, loss: Union[float, dict]):
+        """Update average loss."""
+        if isinstance(loss, float):
+            if self._avg_loss is None:
+                self._avg_loss = 0.0  # initialize average loss
+            assert isinstance(self._avg_loss, float)
+            self._avg_loss += loss / self.num_batches
+        elif isinstance(loss, dict):
+            if self._avg_loss is None:
+                self._avg_loss = {k: 0.0 for k in loss.keys()}  # initialize average loss
+            assert isinstance(self._avg_loss, dict)
+            for k, v in loss.items():
+                self._avg_loss[k] += v / self.num_batches
+        else:
+            raise ValueError()
+
+    @property
+    def avg_loss(self) -> float:
+        """Get average loss."""
+        if isinstance(self._avg_loss, float):
+            avg_loss = self._avg_loss
+        elif isinstance(self._avg_loss, dict):
+            assert "loss" in self._avg_loss
+            avg_loss = self._avg_loss["loss"]
+        else:
+            raise ValueError()
+        return avg_loss
+
+    @property
+    def other_avg_losses(self) -> dict:
+        """Get other average losses."""
+        if isinstance(self._avg_loss, float):
+            other_avg_losses = {}
+        elif isinstance(self._avg_loss, dict):
+            other_avg_losses = {k: v for k, v in self._avg_loss.items() if k != "loss"}
+        else:
+            raise ValueError()
+        return other_avg_losses

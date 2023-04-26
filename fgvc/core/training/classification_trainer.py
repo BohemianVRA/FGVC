@@ -15,7 +15,7 @@ from .base_trainer import BaseTrainer
 from .ema_mixin import EMAMixin
 from .mixup_mixin import MixupMixin
 from .scheduler_mixin import SchedulerMixin, SchedulerType
-from .scores_monitor import ScoresMonitor
+from .scores_monitor import LossMonitor, ScoresMonitor
 from .training_outputs import PredictOutput, TrainEpochOutput
 from .training_state import TrainingState
 from .training_utils import get_gradient_norm
@@ -118,7 +118,8 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         self.model.train()
         self.optimizer.zero_grad()
         num_updates = epoch * len(dataloader)
-        avg_loss, max_grad_norm = 0.0, 0.0
+        max_grad_norm = 0.0
+        loss_monitor = LossMonitor(num_batches=len(dataloader))
         scores_monitor = ScoresMonitor(
             scores_fn=lambda preds, targs: classification_scores(
                 preds, targs, top_k=None, return_dict=True
@@ -128,7 +129,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.train_batch(batch)
-            avg_loss += loss / len(dataloader)
+            loss_monitor.update(loss)
             scores_monitor.update(preds, targs)
 
             # make optimizer step
@@ -147,7 +148,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 num_updates += 1
                 self.make_timm_scheduler_update(num_updates)
 
-        return TrainEpochOutput(avg_loss, scores_monitor.avg_scores, max_grad_norm)
+        return TrainEpochOutput(loss_monitor.avg_loss, scores_monitor.avg_scores, max_grad_norm)
 
     def predict(
         self, dataloader: DataLoader, return_preds: bool = True, *, model: nn.Module = None
@@ -171,7 +172,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         model = model or self.model
         model.to(self.device)
         model.eval()
-        avg_loss = 0.0
+        loss_monitor = LossMonitor(num_batches=len(dataloader))
         scores_monitor = ScoresMonitor(
             scores_fn=lambda preds, targs: classification_scores(
                 preds, targs, top_k=3, return_dict=True
@@ -182,12 +183,12 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.predict_batch(batch, model=model)
-            avg_loss += loss / len(dataloader)
+            loss_monitor.update(loss)
             scores_monitor.update(preds, targs)
         return PredictOutput(
             scores_monitor.preds_all,
             scores_monitor.targs_all,
-            avg_loss,
+            loss_monitor.avg_loss,
             scores_monitor.avg_scores,
         )
 
