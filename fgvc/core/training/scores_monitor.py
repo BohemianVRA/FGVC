@@ -53,7 +53,7 @@ class ScoresMonitor:
         self._preds_all = None
         self._targs_all = None
 
-    def _update_scores(self, preds: np.ndarray, targs: np.ndarray):
+    def _update_scores(self, preds: Union[np.ndarray, dict], targs: Union[np.ndarray, dict]):
         batch_scores = self.metrics_fc(preds, targs)
         batch_scores = {k: v / self.num_samples for k, v in batch_scores.items()}
         if self._avg_scores is None:
@@ -62,29 +62,49 @@ class ScoresMonitor:
             for k in self._avg_scores.keys():
                 self._avg_scores[k] += batch_scores[k]
 
-    def _store_preds_targs(self, preds: np.ndarray, targs: np.ndarray):
+    def _store_preds_targs(self, preds: Union[np.ndarray, dict], targs: Union[np.ndarray, dict]):
         if self._preds_all is None and self._targs_all is None:
             # initialize empty array
-            self._preds_all = np.zeros((self.num_samples, *preds.shape[1:]), dtype=preds.dtype)
-            self._targs_all = np.zeros((self.num_samples, *targs.shape[1:]), dtype=targs.dtype)
+            if isinstance(preds, dict):
+                self._preds_all = {
+                    k: np.zeros((self.num_samples, *v.shape[1:]), dtype=v.dtype)
+                    for k, v in preds.items()
+                }
+            else:
+                self._preds_all = np.zeros((self.num_samples, *preds.shape[1:]), dtype=preds.dtype)
+            if isinstance(targs, dict):
+                self._targs_all = {
+                    k: np.zeros((self.num_samples, *v.shape[1:]), dtype=v.dtype)
+                    for k, v in targs.items()
+                }
+            else:
+                self._targs_all = np.zeros((self.num_samples, *targs.shape[1:]), dtype=targs.dtype)
             self._bs = preds.shape[0]
             self._i = 0
 
         start_index = self._i * self._bs
         end_index = (self._i + 1) * self._bs
-        self._preds_all[start_index:end_index] = preds
-        self._targs_all[start_index:end_index] = targs
+        if isinstance(preds, dict):
+            for k, v in preds.items():
+                self._preds_all[k][start_index:end_index] = v
+        else:
+            self._preds_all[start_index:end_index] = preds
+        if isinstance(targs, dict):
+            for k, v in targs.items():
+                self._targs_all[k][start_index:end_index] = v
+        else:
+            self._targs_all[start_index:end_index] = targs
         self._i += 1
 
-    def update(self, preds: np.ndarray, targs: np.ndarray):
+    def update(self, preds: Union[np.ndarray, dict], targs: Union[np.ndarray, dict]):
         """Evaluate scores based on the given predictions and targets and update average scores.
 
         Parameters
         ----------
         preds
-            Numpy array with predictions.
+            Numpy array or dictionary of numpy arrays with predictions.
         targs
-            Numpy array with ground-truth targets.
+            Numpy array or dictionary of numpy arrays with ground-truth targets.
         """
         assert len(preds) == len(targs)
         if self.eval_batches:
