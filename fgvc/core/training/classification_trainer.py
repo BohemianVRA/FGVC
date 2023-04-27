@@ -1,5 +1,6 @@
 import time
 import warnings
+from typing import Callable
 
 import torch
 import torch.nn as nn
@@ -44,6 +45,10 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         Max norm of the gradients for the gradient clipping.
     device
         Device to use (cpu,0,1,2,...).
+    train_scores_fn
+        Function for evaluating scores on the training data.
+    valid_scores_fn
+        Function for evaluating scores on the validation data.
     mixup
         Mixup alpha value, mixup is active if > 0.
     cutmix
@@ -70,6 +75,8 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         accumulation_steps: int = 1,
         clip_grad: float = None,
         device: torch.device = None,
+        train_scores_fn: Callable = None,
+        valid_scores_fn: Callable = None,
         # mixup parameters
         mixup: float = None,
         cutmix: float = None,
@@ -80,6 +87,23 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         ema_decay: float = 0.9999,
         **kwargs,
     ):
+        if train_scores_fn is None:
+
+            def _train_scores_fn(preds, targs):
+                return classification_scores(preds, targs, top_k=None, return_dict=True)
+
+            train_scores_fn = _train_scores_fn
+        if valid_scores_fn is None:
+
+            def _valid_scores_fn(preds, targs):
+                return classification_scores(preds, targs, top_k=3, return_dict=True)
+
+            valid_scores_fn = _valid_scores_fn
+        assert hasattr(train_scores_fn, "__call__")
+        assert hasattr(valid_scores_fn, "__call__")
+        self.train_scores_fn = train_scores_fn
+        self.valid_scores_fn = valid_scores_fn
+
         super().__init__(
             model=model,
             trainloader=trainloader,
@@ -121,11 +145,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         max_grad_norm = 0.0
         loss_monitor = LossMonitor(num_batches=len(dataloader))
         scores_monitor = ScoresMonitor(
-            scores_fn=lambda preds, targs: classification_scores(
-                preds, targs, top_k=None, return_dict=True
-            ),
-            num_samples=len(dataloader.dataset),
-            eval_batches=False,
+            scores_fn=self.train_scores_fn, num_samples=len(dataloader.dataset), eval_batches=False
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.train_batch(batch)
@@ -179,9 +199,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         model.eval()
         loss_monitor = LossMonitor(num_batches=len(dataloader))
         scores_monitor = ScoresMonitor(
-            scores_fn=lambda preds, targs: classification_scores(
-                preds, targs, top_k=3, return_dict=True
-            ),
+            scores_fn=self.valid_scores_fn,
             num_samples=len(dataloader.dataset),
             eval_batches=False,
             store_preds_targs=return_preds,
