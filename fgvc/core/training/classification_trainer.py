@@ -49,6 +49,10 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         Function for evaluating scores on the training data.
     valid_scores_fn
         Function for evaluating scores on the validation data.
+    wandb_train_prefix
+        Prefix string to include in the name of training scores logged to W&B.
+    wandb_valid_prefix
+        Prefix string to include in the name of validations scores logged to W&B.
     mixup
         Mixup alpha value, mixup is active if > 0.
     cutmix
@@ -77,6 +81,8 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         device: torch.device = None,
         train_scores_fn: Callable = None,
         valid_scores_fn: Callable = None,
+        wandb_train_prefix: str = "Train. ",
+        wandb_valid_prefix: str = "Val. ",
         # mixup parameters
         mixup: float = None,
         cutmix: float = None,
@@ -103,6 +109,9 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         assert hasattr(valid_scores_fn, "__call__")
         self.train_scores_fn = train_scores_fn
         self.valid_scores_fn = valid_scores_fn
+
+        self.wandb_train_prefix = wandb_train_prefix
+        self.wandb_valid_prefix = wandb_valid_prefix
 
         super().__init__(
             model=model,
@@ -281,8 +290,8 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 valid_scores={**predict_output.avg_scores, **ema_scores},
                 lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
-                train_prefix="Train. ",
-                valid_prefix="Val. ",
+                train_prefix=self.wandb_train_prefix,
+                valid_prefix=self.wandb_valid_prefix,
             )
 
             # log scores to file and save model checkpoints
