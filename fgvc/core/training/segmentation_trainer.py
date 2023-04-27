@@ -1,5 +1,6 @@
 import time
 import warnings
+from typing import Callable
 
 import torch
 import torch.nn as nn
@@ -43,6 +44,14 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
         Max norm of the gradients for the gradient clipping.
     device
         Device to use (cpu,0,1,2,...).
+    train_scores_fn
+        Function for evaluating scores on the training data.
+    valid_scores_fn
+        Function for evaluating scores on the validation data.
+    wandb_train_prefix
+        Prefix string to include in the name of training scores logged to W&B.
+    wandb_valid_prefix
+        Prefix string to include in the name of validations scores logged to W&B.
     apply_ema
         Apply EMA model weight averaging if true.
     ema_start_epoch
@@ -63,12 +72,31 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
         accumulation_steps: int = 1,
         clip_grad: float = None,
         device: torch.device = None,
+        train_scores_fn: Callable = None,
+        valid_scores_fn: Callable = None,
+        wandb_train_prefix: str = "Train/",
+        wandb_valid_prefix: str = "Val/",
         # ema parameters
         apply_ema: bool = False,
         ema_start_epoch: int = 0,
         ema_decay: float = 0.9999,
         **kwargs,
     ):
+        def _scores_fn(preds, targs):
+            return binary_segmentation_scores(preds, targs, reduction="sum")
+
+        if train_scores_fn is None:
+            train_scores_fn = _scores_fn
+        if valid_scores_fn is None:
+            valid_scores_fn = _scores_fn
+        assert hasattr(train_scores_fn, "__call__")
+        assert hasattr(valid_scores_fn, "__call__")
+        self.train_scores_fn = train_scores_fn
+        self.valid_scores_fn = valid_scores_fn
+
+        self.wandb_train_prefix = wandb_train_prefix
+        self.wandb_valid_prefix = wandb_valid_prefix
+
         super().__init__(
             model=model,
             trainloader=trainloader,
@@ -107,10 +135,7 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
         max_grad_norm = 0.0
         loss_monitor = LossMonitor(num_batches=len(dataloader))
         scores_monitor = ScoresMonitor(
-            scores_fn=lambda preds, targs: binary_segmentation_scores(
-                preds, targs, reduction="sum"
-            ),
-            num_samples=len(dataloader.dataset),
+            scores_fn=self.train_scores_fn, num_samples=len(dataloader.dataset)
         )
         for i, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
             preds, targs, loss = self.train_batch(batch)
@@ -164,9 +189,7 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
         model.eval()
         loss_monitor = LossMonitor(num_batches=len(dataloader))
         scores_monitor = ScoresMonitor(
-            scores_fn=lambda preds, targs: binary_segmentation_scores(
-                preds, targs, reduction="sum"
-            ),
+            scores_fn=self.valid_scores_fn,
             num_samples=len(dataloader.dataset),
             store_preds_targs=return_preds,
         )
@@ -247,6 +270,8 @@ class SegmentationTrainer(SchedulerMixin, EMAMixin, BaseTrainer):
                 valid_scores={**predict_output.avg_scores, **ema_scores},
                 lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
+                train_prefix=self.wandb_train_prefix,
+                valid_prefix=self.wandb_valid_prefix,
             )
 
             # log scores to file and save model checkpoints
