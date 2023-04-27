@@ -148,7 +148,12 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 num_updates += 1
                 self.make_timm_scheduler_update(num_updates)
 
-        return TrainEpochOutput(loss_monitor.avg_loss, scores_monitor.avg_scores, max_grad_norm)
+        return TrainEpochOutput(
+            loss_monitor.avg_loss,
+            scores_monitor.avg_scores,
+            max_grad_norm,
+            loss_monitor.other_avg_losses,
+        )
 
     def predict(
         self, dataloader: DataLoader, return_preds: bool = True, *, model: nn.Module = None
@@ -254,7 +259,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 epoch + 1,
                 train_loss=train_output.avg_loss,
                 valid_loss=predict_output.avg_loss,
-                train_scores=train_output.avg_scores,
+                train_scores={**train_output.avg_scores, **train_output.other_avg_losses},
                 valid_scores={**predict_output.avg_scores, **ema_scores},
                 lr=lr,
                 max_grad_norm=train_output.max_grad_norm,
