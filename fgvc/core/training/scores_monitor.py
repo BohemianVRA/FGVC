@@ -64,22 +64,21 @@ class ScoresMonitor:
 
     def _store_preds_targs(self, preds: Union[np.ndarray, dict], targs: Union[np.ndarray, dict]):
         if self._preds_all is None and self._targs_all is None:
+
+            def init_array(x):
+                return np.zeros((self.num_samples, *x.shape[1:]), dtype=x.dtype)
+
             # initialize empty array
             if isinstance(preds, dict):
-                self._preds_all = {
-                    k: np.zeros((self.num_samples, *v.shape[1:]), dtype=v.dtype)
-                    for k, v in preds.items()
-                }
+                self._preds_all = {k: init_array(v) for k, v in preds.items()}
+                self._bs = preds[list(preds.keys())[0]].shape[0]
             else:
-                self._preds_all = np.zeros((self.num_samples, *preds.shape[1:]), dtype=preds.dtype)
+                self._preds_all = init_array(preds)
+                self._bs = preds.shape[0]
             if isinstance(targs, dict):
-                self._targs_all = {
-                    k: np.zeros((self.num_samples, *v.shape[1:]), dtype=v.dtype)
-                    for k, v in targs.items()
-                }
+                self._targs_all = {k: init_array(v) for k, v in targs.items()}
             else:
-                self._targs_all = np.zeros((self.num_samples, *targs.shape[1:]), dtype=targs.dtype)
-            self._bs = preds.shape[0]
+                self._targs_all = init_array(targs)
             self._i = 0
 
         start_index = self._i * self._bs
