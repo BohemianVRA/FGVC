@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Union
 
 import numpy as np
 
@@ -8,7 +8,7 @@ class BatchOutput(NamedTuple):
 
     preds: np.ndarray
     targs: np.ndarray
-    loss: float
+    loss: Union[float, dict]
 
 
 class TrainEpochOutput(NamedTuple):
@@ -17,6 +17,7 @@ class TrainEpochOutput(NamedTuple):
     avg_loss: float
     avg_scores: Optional[dict] = {}
     max_grad_norm: Optional[float] = None
+    other_avg_losses: Optional[dict] = {}
 
 
 class PredictOutput(NamedTuple):

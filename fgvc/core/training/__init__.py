@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from .base_trainer import BaseTrainer
 from .classification_trainer import ClassificationTrainer
 from .scheduler_mixin import SchedulerType
-from .scores_monitor import ScoresMonitor
+from .scores_monitor import LossMonitor, ScoresMonitor
 from .segmentation_trainer import SegmentationTrainer
 from .training_outputs import PredictOutput
 from .training_state import TrainingState
@@ -16,6 +16,7 @@ from .training_state import TrainingState
 __all__ = [
     "ClassificationTrainer",
     "SegmentationTrainer",
+    "LossMonitor",
     "ScoresMonitor",
     "TrainingState",
     "train",
