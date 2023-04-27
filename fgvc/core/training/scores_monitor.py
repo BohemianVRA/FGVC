@@ -106,7 +106,6 @@ class ScoresMonitor:
         targs
             Numpy array or dictionary of numpy arrays with ground-truth targets.
         """
-        assert len(preds) == len(targs)
         if self.eval_batches:
             self._update_scores(preds, targs)
 
