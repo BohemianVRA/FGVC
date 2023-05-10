@@ -235,6 +235,8 @@ def load_config(
     config
         Dictionary with experiment configuration.
     """
+    root_path = root_path or "."
+
     # load config
     with open(config_path) as f:
         config = yaml.safe_load(f)
