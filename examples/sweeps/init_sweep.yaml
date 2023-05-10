@@ -1,0 +1,27 @@
+name: Initial Classification Sweep on DF20M dataset
+project: DanishFungi
+entity: zcu_cv
+description: Hyper-parameter tuning of architecture, learning rate, and batch size.
+program: train.py
+method: grid
+metric:
+    goal: minimize
+    name: Val. F1
+parameters:
+    architecture:
+        values: ["vit_base_patch32_224", "swin_base_patch4_window7_224"]
+    learning_rate:
+        values: [0.01, 0.005, 0.001]
+    batch_size:
+        values: [32, 64]
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - "--config-path"
+  - "configs/vit_base_patch32_224.yaml"
+  - "--wandb-entity"
+  - "zcu_cv"
+  - "--wandb-project"
+  - "DanishFungi"
+  - ${args}
