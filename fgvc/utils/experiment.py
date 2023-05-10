@@ -361,7 +361,7 @@ def load_test_metadata(test_metadata: str) -> pd.DataFrame:
 
 
 def load_model(
-    config: dict, model_weights: str = None, strict: bool = True
+    config: dict, checkpoint_path: str = None, strict: bool = True
 ) -> Tuple[nn.Module, tuple, tuple]:
     """Load model with pretrained checkpoint.
 
@@ -370,7 +370,7 @@ def load_model(
     config
         A dictionary with experiment configuration.
         It should contain `architecture`, `number_of_classes`, and optionally `multigpu`.
-    model_weights
+    checkpoint_path
         Path to the pre-trained model checkpoint.
     strict
         Whether to strictly enforce the keys in state_dict to match
@@ -392,7 +392,7 @@ def load_model(
         config["architecture"],
         config["number_of_classes"],
         pretrained=config.get("pretrained", True),
-        checkpoint_path=model_weights,
+        checkpoint_path=checkpoint_path,
         strict=strict,
     )
     model_mean = tuple(model.default_cfg["mean"])

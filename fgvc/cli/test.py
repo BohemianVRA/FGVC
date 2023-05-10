@@ -142,9 +142,9 @@ def test_clf(
         sys.exit(0)
 
     # load model
-    model_weights = os.path.join(run.config["exp_path"], "best_loss.pth")
-    logger.info(f"Loading fine-tuned model. Using model checkpoint from the file: {model_weights}")
-    model, model_mean, model_std = load_model(config, model_weights)
+    model_filename = os.path.join(run.config["exp_path"], "best_loss.pth")
+    logger.info(f"Loading fine-tuned model. Using model checkpoint from the file: {model_filename}")
+    model, model_mean, model_std = load_model(config, checkpoint_path=model_filename)
 
     # create dataloaders
     logger.info("Creating DataLoaders.")
