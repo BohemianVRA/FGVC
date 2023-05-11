@@ -1,0 +1,15 @@
+augmentations: 'light'
+optimizer: 'SGD'
+scheduler: 'cosine'
+image_size: [224, 224]  # [height, width]
+random_seed: 777
+architecture: 'vit_base_patch32_224'
+batch_size: 64
+accumulation_steps: 1
+epochs: 40
+learning_rate: 0.001
+dataset: 'DF20-Mini'
+loss: 'CrossEntropyLoss'
+workers: 4
+multigpu: False
+tags: ['baseline']
