@@ -370,7 +370,7 @@ def load_model(
     * `number_of_classes` - integer value.
     * (optional) `pretrained_checkpoint` -  options:
         * "timm" (default) - pre-trained checkpoint from timm.
-        * "no" - random weights.
+        * "none" - randomly initialized weights.
         * <path> - path to a custom checkpoint.
 
     Pre-trained checkpoint can be set using `config` dictionary or `checkpoint_path` argument.
@@ -408,7 +408,7 @@ def load_model(
         # validate pretrained_checkpoint parameter and set variables pretrained and checkpoint_path
         if pretrained_checkpoint.lower() == "timm":
             pretrained = True
-        elif pretrained_checkpoint.lower() == "no":
+        elif pretrained_checkpoint.lower() == "none":
             pretrained = False
         elif os.path.isfile(pretrained_checkpoint):
             pretrained = False
@@ -416,7 +416,7 @@ def load_model(
         else:
             raise ValueError(
                 "Invalid value in config parameter 'pretrained_checkpoint'. "
-                "Use one of the options: 'timm' | 'no' | <path>."
+                "Use one of the options: 'timm' | 'none' | <path>."
             )
 
     model = get_model(
