@@ -214,6 +214,7 @@ class TrainingState:
 
         The method should be called after training of all epochs is done.
         """
+        # save checkpoint of the last epoch
         self.t_logger.info("Save checkpoint of the last epoch")
         torch.save(
             self.model.state_dict(),
@@ -226,6 +227,10 @@ class TrainingState:
                 os.path.join(self.path, "EMA.pth"),
             )
 
+        # remove training state
+        os.remove(os.path.join(self.path, "checkpoint.pth.tar"))
+
+        # make final training logs
         self.t_logger.info(f"Best scores (validation loss): {self.best_scores_loss}")
         for metric_name, best_scores_metric in self.best_scores_metrics.items():
             self.t_logger.info(f"Best scores (validation {metric_name}): {best_scores_metric}")
