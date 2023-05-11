@@ -361,17 +361,31 @@ def load_test_metadata(test_metadata: str) -> pd.DataFrame:
 
 
 def load_model(
-    config: dict, model_weights: str = None, strict: bool = True
+    config: dict, checkpoint_path: str = None, strict: bool = True
 ) -> Tuple[nn.Module, tuple, tuple]:
-    """Load model with pretrained checkpoint.
+    """Load model with pre-trained checkpoint.
+
+    Config options:
+    * `architecture` - any architecture name from timm library.
+    * `number_of_classes` - integer value.
+    * (optional) `pretrained_checkpoint` -  options:
+        * "timm" (default) - pre-trained checkpoint from timm.
+        * "none" - randomly initialized weights.
+        * <path> - path to a custom checkpoint.
+
+    Pre-trained checkpoint can be set using `config` dictionary or `checkpoint_path` argument.
+    Priority:
+    * Use `checkpoint_path` path to a custom checkpoint when `checkpoint_path` is specified.
+    * Otherwise use configuration from `config`.
 
     Parameters
     ----------
     config
         A dictionary with experiment configuration.
         It should contain `architecture`, `number_of_classes`, and optionally `multigpu`.
-    model_weights
+    checkpoint_path
         Path to the pre-trained model checkpoint.
+        The argument overrides `pretrained_checkpoint` setting in `config` dictionary.
     strict
         Whether to strictly enforce the keys in state_dict to match
         between the model and checkpoint weights from file.
@@ -388,11 +402,28 @@ def load_model(
     """
     assert "architecture" in config
     assert "number_of_classes" in config
+    pretrained_checkpoint = config.get("pretrained_checkpoint", "timm")
+    pretrained = False
+    if checkpoint_path is None:
+        # validate pretrained_checkpoint parameter and set variables pretrained and checkpoint_path
+        if pretrained_checkpoint.lower() == "timm":
+            pretrained = True
+        elif pretrained_checkpoint.lower() == "none":
+            pretrained = False
+        elif os.path.isfile(pretrained_checkpoint):
+            pretrained = False
+            checkpoint_path = pretrained_checkpoint
+        else:
+            raise ValueError(
+                "Invalid value in config parameter 'pretrained_checkpoint'. "
+                "Use one of the options: 'timm' | 'none' | <path>."
+            )
+
     model = get_model(
         config["architecture"],
         config["number_of_classes"],
-        pretrained=config.get("pretrained", True),
-        checkpoint_path=model_weights,
+        pretrained=pretrained,
+        checkpoint_path=checkpoint_path,
         strict=strict,
     )
     model_mean = tuple(model.default_cfg["mean"])
