@@ -65,7 +65,7 @@ def get_temperature(logits: np.ndarray, targs: np.ndarray, device: torch.device 
     logger.info(f"Loss values before temperature scaling: NLL={init_ce:.3f}; ECE={init_ece:.3f}.")
 
     # optimize the temperature w.r.t. Cross Entropy
-    temperature = nn.Parameter(torch.ones(1) * 1.5)
+    temperature = nn.Parameter(torch.ones(1, device=device) * 1.5)
     optimizer = optim.LBFGS([temperature], lr=0.01, max_iter=50)
 
     def _eval():
