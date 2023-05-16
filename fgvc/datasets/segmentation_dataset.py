@@ -21,7 +21,6 @@ class BinarySegmentationDataset(Dataset):
         ), "TorchVision transform is not supported for Segmentation tasks yet."
         self.images = coco_dict["images"]
         self.transform = transform
-        self.num_classes = len(coco_dict["categories"])
 
         # create map of categories
         self.cat_id2name = {x["id"]: x["name"] for x in coco_dict["categories"]}
