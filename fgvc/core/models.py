@@ -74,6 +74,8 @@ def get_model_target_size(model: nn.Module) -> int:
     target_size = None
     if isinstance(model, nn.DataParallel):
         model = model.module  # unwrap model from data parallel wrapper for multi-gpu training
+    elif hasattr(model, "model"):
+        model = model.model
     cls_name = model.default_cfg["classifier"]
 
     # iterate through nested modules
