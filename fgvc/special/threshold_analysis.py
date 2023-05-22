@@ -56,6 +56,7 @@ def estimate_optimal_confidence_thresholds(
     error_rate: float = 0.05,
     *,
     return_df: bool = False,
+    correct_min_estimated_thresholds: bool = True,
 ) -> Union[dict, pd.DataFrame]:
     """Computes the optimal confidence threshold for each class.
 
@@ -91,7 +92,6 @@ def estimate_optimal_confidence_thresholds(
     for label in np.unique(targs):
         # calculate  accuracies per class for different confidence thresholds
         # and use first confidence theshold where accuracy is higher than `(1 - error_rate)`
-        opt_th, min_opt_acc = None, None
         for th in np.arange(0.01, 1, 0.01).round(2):
             # select records with predicted label and confidence higher than threshold
             cond = (argmax_preds == label) & (confs >= th)
@@ -102,8 +102,22 @@ def estimate_optimal_confidence_thresholds(
                 opt_th, min_opt_acc = th, acc
                 break
 
+        # if no confidence theshold meets the condition, return threshold equal to 1
+        # it means that no class prediction will be classified as confident
+        else:
+            opt_th, min_opt_acc = 1, None
+
         # store results
         confidence_thresholds[label] = {"opt_th": opt_th, "acc": min_opt_acc}
+
+    # replace min. estimated threshold values (0.01) by min. confidence per class
+    # (computed only correctly classified items)
+    if correct_min_estimated_thresholds:
+        min_confs = get_min_confs_per_class(preds=preds, targs=targs)
+
+        for label, results in confidence_thresholds.items():
+            if results.get("opt_th") == 0.01:
+                results["opt_th"] = min_confs.get(label)
 
     # add classes that are missing in targets
     for label in range(preds.shape[1]):
@@ -117,6 +131,36 @@ def estimate_optimal_confidence_thresholds(
         confidence_thresholds = {k: v["opt_th"] for k, v in confidence_thresholds.items()}
 
     return confidence_thresholds
+
+
+def get_min_confs_per_class(preds: np.ndarray, targs: np.ndarray) -> dict:
+    """Within the correctly classified items, compute min. confidences per class.
+
+    Parameters
+    ----------
+    preds
+        Numpy array with predictions.
+    targs
+        Numpy array with ground-truth targets.
+
+    Returns
+    -------
+    dict
+        Class labels as keys and min. confidences as values.
+    """
+    assert len(preds.shape) == 2
+    assert len(targs.shape) == 1
+
+    df = pd.DataFrame(
+        {
+            "argmax_pred": preds.argmax(1),
+            "targ": targs,
+            "conf": softmax(preds, 1).max(1),
+        }
+    )
+
+    cond = df.targ == df.argmax_pred
+    return df.loc[cond].groupby("targ")["conf"].min().round(2).to_dict()
 
 
 def class_wise_confidence_threshold_report(
