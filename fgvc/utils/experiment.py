@@ -245,6 +245,9 @@ def load_config(
     if extra_args is not None:
         logger.debug(f"Extra arguments passed to the script: {extra_args}")
         for k, v in extra_args.items():
+            if k not in config and k.replace("-", "_") in config:
+                k = k.replace("-", "_")
+
             if k in config:
                 logger.debug(f"Changing config value {k}: {config[k]} -> {v}")
                 config[k] = v
