@@ -24,4 +24,4 @@ class PredictionDataset(Dataset):
                 image = self.transform(image=np.asarray(image))["image"]
             else:
                 image = self.transform(image)
-        return image, 0, file_path
+        return image, -1, file_path
