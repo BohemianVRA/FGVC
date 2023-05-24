@@ -45,29 +45,24 @@ class MixupMixin:
         cutmix = cutmix or 0.0
         mixup_prob = mixup_prob or 1.0
 
-        # get number of classes from model and trainset for Mixup method
-        num_classes = get_model_target_size(model)
-        if trainloader is not None and hasattr(trainloader.dataset, "num_classes"):
-            dataset_num_classes = trainloader.dataset.num_classes
-            if num_classes != dataset_num_classes:
-                warnings.warn(
-                    f"Number of classes in model ({num_classes}) does not match "
-                    f"training dataset ({dataset_num_classes})."
-                )
-
         # create mixup class
         if mixup > 0.0 or cutmix > 0.0:
-            self.mixup_fn = Mixup(
-                mixup_alpha=mixup,
-                cutmix_alpha=cutmix,
-                cutmix_minmax=None,
-                prob=mixup_prob,
-                switch_prob=0.5,
-                mode="batch",
-                correct_lam=True,
-                label_smoothing=0.1,
-                num_classes=num_classes,
-            )
+            # get number of classes from model and trainset for Mixup method
+            num_classes = get_model_target_size(model)
+            if num_classes is not None:
+                self.mixup_fn = Mixup(
+                    mixup_alpha=mixup,
+                    cutmix_alpha=cutmix,
+                    cutmix_minmax=None,
+                    prob=mixup_prob,
+                    switch_prob=0.5,
+                    mode="batch",
+                    correct_lam=True,
+                    label_smoothing=0.1,
+                    num_classes=num_classes,
+                )
+            else:
+                warnings.warn("Could not identify number of classes from model. Not using MixUp.")
         else:
             self.mixup_fn = None
 

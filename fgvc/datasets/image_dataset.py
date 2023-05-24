@@ -10,18 +10,11 @@ from torch.utils.data import Dataset
 
 
 class ImageDataset(Dataset):
-    def __init__(
-        self,
-        df: pd.DataFrame,
-        transform: Union[A.Compose, T.Compose],
-        num_classes: int = None,
-        **kwargs
-    ):
+    def __init__(self, df: pd.DataFrame, transform: Union[A.Compose, T.Compose], **kwargs):
         assert "image_path" in df
         assert "class_id" in df
         self.df = df
         self.transform = transform
-        self.num_classes = num_classes or len(df["class_id"].unique())
 
     def __len__(self):
         return len(self.df)
