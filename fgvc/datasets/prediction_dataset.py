@@ -16,7 +16,7 @@ class PredictionDataset(Dataset):
     def __len__(self):
         return len(self.image_paths)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, str]:
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str]:
         file_path = self.image_paths[idx]
         image = Image.open(file_path).convert("RGB")
         if self.transform is not None:
@@ -24,4 +24,4 @@ class PredictionDataset(Dataset):
                 image = self.transform(image=np.asarray(image))["image"]
             else:
                 image = self.transform(image)
-        return image, file_path
+        return image, -1, file_path
