@@ -4,6 +4,8 @@ from functools import wraps
 from typing import List, Union
 
 import pandas as pd
+import timm
+import torch
 
 from fgvc.version import __version__
 
@@ -94,6 +96,8 @@ def init_wandb(
         config={
             **{k: v for k, v in config.items() if k not in ("tags", "notes")},
             "fgvc_version": __version__,
+            "timm_version": timm.__version__,
+            "torch_version": torch.__version__,
         },
         tags=tags,
         notes=notes,
