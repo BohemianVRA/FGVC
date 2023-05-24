@@ -57,6 +57,7 @@ def estimate_optimal_confidence_thresholds(
     *,
     return_df: bool = False,
     correct_min_estimated_thresholds: bool = True,
+    min_estimated_threshold: float = 0.01,
 ) -> Union[dict, pd.DataFrame]:
     """Computes the optimal confidence threshold for each class.
 
@@ -72,6 +73,11 @@ def estimate_optimal_confidence_thresholds(
         Expected misclassification rate used for optimizing confidence threshold for each class.
     return_df
         If true returns a DataFrame with additional information (accuracy).
+    correct_min_estimated_thresholds
+        If true replaces estimated thresholds lower than `min_estimated_threshold` by
+        min. confidence per class values.
+    min_estimated_threshold
+        Min. estimated threshold that is preserved during thresholds correction.
 
     Returns
     -------
@@ -116,7 +122,7 @@ def estimate_optimal_confidence_thresholds(
         min_confs = get_min_confs_per_class(preds=preds, targs=targs)
 
         for label, results in confidence_thresholds.items():
-            if results.get("opt_th") == 0.01:
+            if results.get("opt_th") < min_estimated_threshold:
                 results["opt_th"] = min_confs.get(label)
 
     # add classes that are missing in targets
