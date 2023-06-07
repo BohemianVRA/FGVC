@@ -78,6 +78,7 @@ class BaseTrainer:
         imgs, targs = batch[0], batch[1]
         imgs, targs = to_device(imgs, targs, device=self.device)
         # apply Mixup or Cutmix if MixupMixin is used in the final class
+        targs_ = targs  # keep original targets to return in the function
         if hasattr(self, "apply_mixup") and len(imgs) % 2 == 0:  # batch size should be even
             imgs, targs = self.apply_mixup(imgs, targs)
 
@@ -90,7 +91,7 @@ class BaseTrainer:
         loss.backward()
 
         # convert to numpy
-        preds, targs = to_numpy(preds, targs)
+        preds, targs = to_numpy(preds, targs_)
         return BatchOutput(preds, targs, _loss)
 
     def predict_batch(self, batch: tuple, *, model: nn.Module = None) -> BatchOutput:
