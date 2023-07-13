@@ -44,11 +44,14 @@ class SeesawLossWithLogits(nn.Module):
 
     The loss was proposed in the technical report for LVIS workshop at ECCV 2020.
     For more detail, please refer https://arxiv.org/pdf/2008.10032.pdf.
-    Args:
-    class_counts: The list which has number of samples for each class.
-                  Should have same length as num_classes.
-    p: Scale parameter which adjust the strength of punishment.
-       Set to 0.8 as a default by following the original paper.
+
+    Parameters
+    ----------
+    class_counts
+        The list which has number of samples for each class. Should have same length as num_classes.
+    p
+        Scale parameter which adjust the strength of punishment.
+        Set to 0.8 as a default by following the original paper.
     """
 
     def __init__(self, class_counts, p: float = 0.8):
