@@ -7,3 +7,8 @@ flake8-docstrings==1.6.0
 # build package
 setuptools
 build
+
+# sphinx documentation packages
+sphinx
+sphinx-rtd-theme
+myst-parser
