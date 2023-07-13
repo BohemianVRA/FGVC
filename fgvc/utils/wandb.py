@@ -13,8 +13,14 @@ try:
     import wandb
 
     assert hasattr(wandb, "__version__")  # verify package import not local dir
+    WandbRun = wandb.sdk.wandb_run.Run
+    WandbApiRun = wandb.apis.public.Run
+    WandbArtifact = wandb.Artifact
 except (ImportError, AssertionError):
     wandb = None
+    WandbRun = None
+    WandbApiRun = None
+    WandbArtifact = None
 
 logger = logging.getLogger("fgvc")
 
@@ -58,7 +64,7 @@ def init_wandb(
     tags: list = None,
     notes: str = None,
     **kwargs,
-) -> wandb.sdk.wandb_run.Run:
+) -> WandbRun:
     """Initialize a new W&B run.
 
     The method is executed if the W&B library is installed.
@@ -117,7 +123,7 @@ def resume_wandb(
     run_id: int,
     entity: str,
     project: str,
-) -> wandb.sdk.wandb_run.Run:
+) -> WandbRun:
     """Resume an existing W&B run.
 
     Parameters
@@ -289,7 +295,7 @@ def get_runs_df(
 
 @if_wandb_is_installed
 def log_summary_scores(
-    run_or_path: Union[str, wandb.apis.public.Run],
+    run_or_path: Union[str, WandbApiRun],
     scores: dict,
     *,
     allow_new: bool = True,
@@ -322,8 +328,8 @@ def log_summary_scores(
 
 @if_wandb_is_installed
 def log_artifact(
-    run_or_path: Union[str, wandb.apis.public.Run],
-    artifact: wandb.Artifact,
+    run_or_path: Union[str, WandbApiRun],
+    artifact: WandbArtifact,
     aliases: List[str] = None,
 ):
     """Log artifact to W&B run, after the W&B run is finished.
@@ -344,7 +350,7 @@ def log_artifact(
 
 @if_wandb_is_installed
 def set_best_scores_in_summary(
-    run_or_path: Union[str, wandb.apis.public.Run],
+    run_or_path: Union[str, WandbApiRun],
     primary_score: str,
     scores: Union[list, callable],
 ):
