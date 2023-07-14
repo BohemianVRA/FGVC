@@ -21,7 +21,7 @@ Run the following commands to generate the documentation.
 ```bash
 # install dependencies and fgvc
 pip install -r requirements.txt
-pip install -r requirements_dev.txt
+pip install -r docs/requirements.txt
 pip install -e .
 
 # generate documentations
