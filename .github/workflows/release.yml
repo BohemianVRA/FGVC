@@ -1,5 +1,4 @@
-name: Releases
-run-name: Build and Create Release
+name: Build and Create Release
 
 on:
   push:
