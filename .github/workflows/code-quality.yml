@@ -1,5 +1,4 @@
 name: Code Quality
-run-name: Code Quality (black, isort, flake8)
 
 on:
   push:
