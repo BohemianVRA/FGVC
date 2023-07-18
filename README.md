@@ -1,4 +1,4 @@
-# Fine-Grained Visual Classification
+# Fine-Grained Visual Classification (FGVC) package
 
 A python library with custom utils and modules for classification and segmentation tasks.
 
@@ -29,13 +29,3 @@ We recommend to use PyTorch NGC Docker Image with PyTorch and CUDA drivers pre-i
     ```bash
     jupyter lab --ip 0.0.0.0 --port 8888 --allow-root
     ```
-
-## Creating Package Release
-
-Automatic CI/CD workflows are set using GitHub Actions.
-Create new git `tag` to trigger `Build and Create Release` action.
-
-```bash
-git tag -a v1.0.0 -m "Tag message"
-git push origin v1.0.0
-```

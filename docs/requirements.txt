@@ -1,0 +1,8 @@
+sphinx==6.2.1
+sphinx-rtd-theme==1.2.2
+myst-parser==2.0.0
+
+# custom torch cpu installation used by CI/CD workflow for generating sphinx documentation
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==1.13.1+cpu
+torchvision==0.14.1+cpu

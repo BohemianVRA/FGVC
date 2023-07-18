@@ -369,17 +369,18 @@ def load_model(
     """Load model with pre-trained checkpoint.
 
     Config options:
-    * `architecture` - any architecture name from timm library.
-    * `number_of_classes` - integer value.
-    * (optional) `pretrained_checkpoint` -  options:
-        * "timm" (default) - pre-trained checkpoint from timm.
-        * "none" - randomly initialized weights.
-        * <path> - path to a custom checkpoint.
+     - `architecture` - any architecture name from timm library.
+     - `number_of_classes` - integer value.
+     - (optional) `pretrained_checkpoint` - options:
+         - "timm" (default) - pre-trained checkpoint from timm.
+         - "none" - randomly initialized weights.
+         - <path> - path to a custom checkpoint.
 
     Pre-trained checkpoint can be set using `config` dictionary or `checkpoint_path` argument.
+
     Priority:
-    * Use `checkpoint_path` path to a custom checkpoint when `checkpoint_path` is specified.
-    * Otherwise use configuration from `config`.
+     - Use `checkpoint_path` path to a custom checkpoint when `checkpoint_path` is specified.
+     - Otherwise use configuration from `config`.
 
     Parameters
     ----------
