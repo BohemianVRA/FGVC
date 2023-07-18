@@ -1,7 +1,12 @@
 name: Code Quality
 run-name: Code Quality (black, isort, flake8)
 
-on: [push]
+on:
+  push:
+    paths:
+      - '**.py'
+      - 'setup.cfg'
+      - 'pyproject.toml'
 
 env:
   PYTHON_VERSION: 3.8
