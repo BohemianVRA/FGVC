@@ -1,11 +1,10 @@
-name: Sphinx build
+name: Sphinx Publish
 
 on:
   push:
     branches:
       - main
       - dev
-      - docs/sphinx-fix-dependencies
     paths:
       - 'docs/**'
 
