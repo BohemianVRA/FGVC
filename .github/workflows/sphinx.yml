@@ -1,0 +1,40 @@
+name: Sphinx build
+
+on:
+  push:
+    paths:
+      - 'docs/**'
+
+jobs:
+  build:
+    name: Build Sphinx Documentation
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Setup Pages
+      id: pages
+      uses: actions/configure-pages@v3
+    - name: Build HTML
+      uses: ammaraskar/sphinx-action@master
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v1
+      with:
+        name: github-pages
+        path: docs/build/html/
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
