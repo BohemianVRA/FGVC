@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - docs/sphinx-fix-dependencies
     paths:
       - 'docs/**'
 
