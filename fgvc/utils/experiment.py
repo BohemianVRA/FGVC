@@ -125,12 +125,6 @@ def load_train_args(
         type=str,
         default=None,
     )
-    parser.add_argument(
-        "--root-path",
-        help="Path with runs directory for storing training results.",
-        type=str,
-        default=None,
-    )
     if add_arguments_fn is not None:
         add_arguments_fn(parser)
     args, unknown_args = parser.parse_known_args(args)
@@ -207,12 +201,14 @@ def load_config(
     *,
     create_dirs: bool = True,
     resume_exp_name: str = None,
-    root_path: str = ".",
 ) -> dict:
     """Load training configuration from YAML file, create run name and experiment name.
 
     If argument `resume_exp_name` is passed training configuration is loaded from JSON file
     in the experiment directory.
+
+    Options from YAML configuration file:
+     - `root_path` - Path to store runs directory with all runs and experiments.
 
     Parameters
     ----------
@@ -227,16 +223,12 @@ def load_config(
         If True, the method will create run and experiment directory.
     resume_exp_name
         Experiment name to resume training from the last training checkpoint.
-    root_path
-        Path to store runs directory with all runs and experiments. Use "./runs" as a default.
 
     Returns
     -------
     config
         Dictionary with experiment configuration.
     """
-    root_path = root_path or "."
-
     # load config
     with open(config_path) as f:
         config = yaml.safe_load(f)
@@ -260,6 +252,9 @@ def load_config(
     run_name = "-".join(_run_name_vals)
     config["run_name"] = run_name
 
+    # get parameters from config file
+    root_path = config.get("root_path", ".")
+
     # create new experiment directory or use existing one
     run_path = os.path.join(root_path, "runs", run_name)
     if resume_exp_name is None:
@@ -273,6 +268,8 @@ def load_config(
         config["exp_path"] = os.path.join(run_path, config["exp_name"])
         if create_dirs:
             os.makedirs(config["exp_path"], exist_ok=False)
+        # save configuration file to the experiment run directory
+        save_config(config)
     else:
         # use existing experiment directory
         config["exp_name"] = resume_exp_name
