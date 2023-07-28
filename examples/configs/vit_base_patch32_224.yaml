@@ -1,15 +1,22 @@
+# data
 augmentations: 'light'
+image_size: [224, 224]  # [height, width]
+dataset: 'DF20-Mini'
+
+# model
+architecture: 'vit_base_patch32_224'
+
+# training
+loss: 'CrossEntropyLoss'
 optimizer: 'SGD'
 scheduler: 'cosine'
-image_size: [224, 224]  # [height, width]
-random_seed: 777
-architecture: 'vit_base_patch32_224'
-batch_size: 64
-accumulation_steps: 1
 epochs: 40
 learning_rate: 0.001
-dataset: 'DF20-Mini'
-loss: 'CrossEntropyLoss'
+batch_size: 64
+accumulation_steps: 1
+
+# other
+random_seed: 777
 workers: 4
 multigpu: False
-tags: ['baseline']
+tags: ['baseline']  # W&B Run tags

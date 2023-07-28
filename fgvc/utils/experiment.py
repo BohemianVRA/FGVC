@@ -368,13 +368,14 @@ def load_model(
 ) -> Tuple[nn.Module, tuple, tuple]:
     """Load model with pre-trained checkpoint.
 
-    Config options:
+    Options from YAML configuration file:
      - `architecture` - any architecture name from timm library.
      - `number_of_classes` - integer value.
      - (optional) `pretrained_checkpoint` - options:
          - "timm" (default) - pre-trained checkpoint from timm.
          - "none" - randomly initialized weights.
          - <path> - path to a custom checkpoint.
+     - (optional) `multigpu` - if true, use `nn.DataParallel` model wrapper.
 
     Pre-trained checkpoint can be set using `config` dictionary or `checkpoint_path` argument.
 
@@ -440,6 +441,12 @@ def load_model(
 
 def get_optimizer_and_scheduler(model: nn.Module, config: dict) -> Tuple[Optimizer, SchedulerType]:
     """Create optimizer and learning rate scheduler.
+
+    Options from YAML configuration file:
+     - `optimizer` - name of optimizer, for example "sgd" or "adam".
+     - `scheduler` - name of LR scheduler, for example "plateau", "cyclic_cosine", or "cosine".
+     - `learning_rate`
+     - `epochs`
 
     Parameters
     ----------

@@ -4,8 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [tool.black]
 line-length = 100
-# skip-string-normalization = true  # requouting '...' -> "..." can be disabled
+extend-exclude = '''
+(
+  \.tox
+)
+'''
 
 [tool.isort]
 line_length = 100
 profile = "black"
+# known_third_party = []
+# known_first_party = []
+# known_local_folder = []
+extend_skip = [".tox"]
