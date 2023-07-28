@@ -9,4 +9,6 @@
     SegmentationTrainer
     training_utils
     scores_monitor
-    training_state
+    TrainingState
+    SchedulerMixin
+    MixupMixin

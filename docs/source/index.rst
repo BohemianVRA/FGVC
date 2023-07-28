@@ -6,21 +6,22 @@
 Welcome to FGVC's documentation!
 ================================
 
-**FGVC** is a Python library.
+**FGVC** is a PyTorch library that simplifies training image-based deep neural networks.
 
 .. note::
 
    This project is under active development.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 0
    :caption: Overview
 
-   usage
+   installation
+   first_steps
 
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 1
    :caption: Package Reference
 
    package_reference/training/index
@@ -32,3 +33,4 @@ Welcome to FGVC's documentation!
    package_reference/optimizers
    package_reference/special/index
    package_reference/utils/index
+   package_reference/cli/index
