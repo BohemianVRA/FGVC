@@ -27,7 +27,7 @@ jobs:
         if: always()
         uses: pmeier/pytest-results-action@main
         with:
-          path: api_unit_test_log.xml
+          path: unit_test_log.xml
           # Add a summary of the results at the top of the report
           summary: true
           # Select which results should be included in the report.
