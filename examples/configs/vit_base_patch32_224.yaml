@@ -20,3 +20,4 @@ random_seed: 777
 workers: 4
 multigpu: False
 tags: ['baseline']  # W&B Run tags
+root_path: "/data/experiments/Danish-Fungi/"
