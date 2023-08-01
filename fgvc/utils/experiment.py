@@ -233,22 +233,29 @@ def load_config(
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
+    # check config parameters
+    for k in config.keys():
+        if "-" in k:
+            logger.warning(
+                f"Config parameter '{k}' contains character '-'. Please use '_' instead."
+            )
+
     # add or replace config items with extra arguments passed to the script
     if extra_args is not None:
         logger.debug(f"Extra arguments passed to the script: {extra_args}")
         for k, v in extra_args.items():
-            if k not in config and k.replace("-", "_") in config:
-                k = k.replace("-", "_")
-
+            k = k.replace("-", "_")
             if k in config:
                 logger.debug(f"Changing config value {k}: {config[k]} -> {v}")
-                config[k] = v
+            else:
+                logger.debug(f"Adding config value {k}: {v}")
+            config[k] = v
 
     # create run name
     _run_name_vals = []
     for attr in run_name_fmt.split("-"):
         assert attr in config, f"Unknown attribute {attr} in configuration file."
-        _run_name_vals.append(config[attr])
+        _run_name_vals.append(str(config[attr]))
     run_name = "-".join(_run_name_vals)
     config["run_name"] = run_name
 
