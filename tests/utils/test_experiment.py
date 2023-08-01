@@ -71,6 +71,7 @@ def test_load_train_args(
 
 @pytest.fixture(scope="module")
 def input_config():
+    """Fixture that returns sample input training config."""
     return {
         # data
         "augmentations": "light",
