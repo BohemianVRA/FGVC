@@ -97,7 +97,9 @@ def input_config():
 @patch("builtins.open", new_callable=mock_open, read_data=None)
 @patch("fgvc.utils.experiment.yaml.safe_load")
 @patch("os.makedirs")
-def test_load_config_1(makedirs: MagicMock, safe_load: MagicMock, open_: MagicMock, input_config: dict):
+def test_load_config_1(
+    makedirs: MagicMock, safe_load: MagicMock, open_: MagicMock, input_config: dict
+):
     """Test loading configuration YAML file and setting up experiment path."""
     target_exp_path = "./runs/vit_base_patch32_224-CrossEntropyLoss-light/exp1"
     safe_load.return_value = input_config
@@ -118,7 +120,9 @@ def test_load_config_1(makedirs: MagicMock, safe_load: MagicMock, open_: MagicMo
 @patch("builtins.open", new_callable=mock_open, read_data=None)
 @patch("fgvc.utils.experiment.yaml.safe_load")
 @patch("os.makedirs")
-def test_load_config_2(makedirs: MagicMock, safe_load: MagicMock, open_: MagicMock, input_config: dict):
+def test_load_config_2(
+    makedirs: MagicMock, safe_load: MagicMock, open_: MagicMock, input_config: dict
+):
     """Test loading configuration YAML file and setting up experiment path.
 
     Test `run_name_fmt` method argument.
@@ -140,7 +144,9 @@ def test_load_config_2(makedirs: MagicMock, safe_load: MagicMock, open_: MagicMo
 @patch("builtins.open", new_callable=mock_open, read_data=None)
 @patch("fgvc.utils.experiment.yaml.safe_load")
 @patch("os.makedirs")
-def test_load_config_3(makedirs: MagicMock, safe_load: MagicMock, open_: MagicMock, input_config: dict):
+def test_load_config_3(
+    makedirs: MagicMock, safe_load: MagicMock, open_: MagicMock, input_config: dict
+):
     """Test loading configuration YAML file and setting up experiment path.
 
     Test `root_path` config parameter.
@@ -162,8 +168,9 @@ def test_load_config_3(makedirs: MagicMock, safe_load: MagicMock, open_: MagicMo
     target_exp_path = "/data/project1/runs/vit_base_patch32_224-CrossEntropyLoss-light/exp1"
     safe_load.return_value = input_config
     config = load_config(
-        config_path="dummy_config.yaml", run_name_fmt="architecture-loss-augmentations",
-        extra_args={"root_path": "/data/project1/"}
+        config_path="dummy_config.yaml",
+        run_name_fmt="architecture-loss-augmentations",
+        extra_args={"root_path": "/data/project1/"},
     )
     for k in input_config_.keys():
         assert input_config_[k] == config[k], k
