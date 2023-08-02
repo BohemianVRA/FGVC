@@ -39,7 +39,7 @@ def add_arguments(parser):
 def add_metadata_info_to_config(
     config: dict, train_df: pd.DataFrame, valid_df: pd.DataFrame
 ) -> dict:
-    """Include information from metadata to the traning configuration."""
+    """Include information from metadata to the training configuration."""
     assert "class_id" in train_df and "class_id" in valid_df
     config["number_of_classes"] = len(train_df["class_id"].unique())
     config["training_samples"] = len(train_df)
@@ -56,7 +56,6 @@ def train_clf(
     wandb_entity: str = None,
     wandb_project: str = None,
     resume_exp_name: str = None,
-    root_path: str = None,
     **kwargs,
 ):
     """Train model on the classification task."""
@@ -71,7 +70,6 @@ def train_clf(
         wandb_entity = args.wandb_entity
         wandb_project = args.wandb_project
         resume_exp_name = args.resume_exp_name
-        root_path = args.root_path
     else:
         extra_args = kwargs
 
@@ -82,7 +80,6 @@ def train_clf(
         extra_args,
         run_name_fmt="architecture-loss-augmentations",
         resume_exp_name=resume_exp_name,
-        root_path=root_path,
     )
 
     # set device and random seed

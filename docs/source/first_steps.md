@@ -54,18 +54,15 @@ Parameters in the configuration file can be rewritten by script parameters, for 
 fgvc train \
   --config-path configs/vit_base_patch32_224.yaml \
   --architecture vit_large_patch16_224 \
-  --epochs 100
+  --epochs 100 \
+  --root-path /data/experiments/Danish-Fungi/
 ```
 This functionality is useful when running W&B Sweeps
 or when calling training script multiple times with a slightly different configuration.
 
-Note, that script parameters that are not in the configuration file are ignored.
-For example parameter `test` will be ignored because it is not specified in `configs/vit_base_patch32_224.yaml`.
-```bash
-fgvc train \
-  --config-path configs/vit_base_patch32_224.yaml \
-  --test test 
-```
+Note, that the script parameter `root-path` will be replaced by the script with `root_path`.
+Configuration parameters should always contain `_` instead of `-` character because of potential parsing issues.
+
 
 ## Training
 The library allows to train models using:
