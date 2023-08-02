@@ -129,7 +129,9 @@ class TrainingState:
                 python_random_state=random.getstate(),
                 np_random_state=np.random.get_state(),
                 torch_random_state=torch.get_rng_state(),
-                torch_cuda_random_state=torch.cuda.get_rng_state(),
+                torch_cuda_random_state=torch.cuda.get_rng_state()
+                if torch.cuda.is_available()
+                else None,
             )
 
             torch.save(
@@ -188,7 +190,7 @@ class TrainingState:
         self.t_logger.info(f"Epoch {epoch} - {scores_str}")
 
         # save model checkpoint based on validation loss
-        if valid_loss is not None and valid_loss < self.best_loss:
+        if valid_loss is not None and valid_loss is not np.nan and valid_loss < self.best_loss:
             self.best_loss = valid_loss
             self.best_scores_loss = scores_str
             self._save_checkpoint(epoch, "loss", self.best_loss)
@@ -199,6 +201,8 @@ class TrainingState:
                 # set first values for self.best_metrics
                 self.best_metrics = valid_metrics.copy()
                 self.best_scores_metrics = {k: scores_str for k in self.best_metrics.keys()}
+                for metric_name, metric_value in valid_metrics.items():
+                    self._save_checkpoint(epoch, metric_name, metric_value)
             else:
                 for metric_name, metric_value in valid_metrics.items():
                     if metric_value > self.best_metrics[metric_name]:

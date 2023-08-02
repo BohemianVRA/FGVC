@@ -2,6 +2,7 @@ import time
 import warnings
 from typing import Callable
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
@@ -264,15 +265,14 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             # apply training and validation on one epoch
             start_epoch_time = time.time()
             train_output = self.train_epoch(epoch, self.trainloader)
-            ema_predict_output = PredictOutput()
+            predict_output = PredictOutput()
+            ema_predict_output = None
             if self.validloader is not None:
                 predict_output = self.predict(self.validloader, return_preds=False)
                 if getattr(self, "ema_model") is not None:
                     ema_predict_output = self.predict(
                         self.validloader, return_preds=False, model=self.get_ema_model()
                     )
-            else:
-                predict_output = PredictOutput()
             elapsed_epoch_time = time.time() - start_epoch_time
 
             # make a scheduler step
@@ -280,7 +280,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             self.make_scheduler_step(epoch + 1, valid_loss=predict_output.avg_loss)
 
             # log scores to W&B
-            ema_scores = ema_predict_output.avg_scores or {}
+            ema_scores = ema_predict_output.avg_scores if ema_predict_output is not None else {}
             ema_scores = {f"{k} (EMA)": v for k, v in ema_scores.items()}
             log_progress(
                 epoch + 1,
@@ -299,7 +299,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 "avg_train_loss": f"{train_output.avg_loss:.4f}",
                 "avg_val_loss": f"{predict_output.avg_loss:.4f}",
                 **{
-                    s: f"{predict_output.avg_scores.get(s, 0):.2%}"
+                    s: f"{predict_output.avg_scores.get(s, np.nan):.2%}"
                     for s in ["F1", "Accuracy", "Recall@3"]
                 },
                 "time": f"{elapsed_epoch_time:.0f}s",
@@ -308,10 +308,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 epoch + 1,
                 scores_str="\t".join([f"{k}: {v}" for k, v in _scores.items()]),
                 valid_loss=predict_output.avg_loss,
-                valid_metrics={
-                    "accuracy": predict_output.avg_scores.get("Accuracy", 0),
-                    "f1": predict_output.avg_scores.get("F1", 0),
-                },
+                valid_metrics=predict_output.avg_scores,
             )
 
         # save last checkpoint, log best scores and total training time

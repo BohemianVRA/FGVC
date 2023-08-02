@@ -25,5 +25,5 @@ class PredictOutput(NamedTuple):
 
     preds: Optional[np.ndarray] = None
     targs: Optional[np.ndarray] = None
-    avg_loss: Optional[float] = 0
+    avg_loss: Optional[float] = np.nan
     avg_scores: Optional[dict] = {}
