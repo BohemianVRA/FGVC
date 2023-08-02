@@ -1,4 +1,7 @@
+import io
 import warnings
+from collections import OrderedDict
+from typing import Union
 
 import timm
 import torch
@@ -10,7 +13,7 @@ def get_model(
     target_size: int = None,
     pretrained: bool = False,
     *,
-    checkpoint_path: str = None,
+    checkpoint_path: Union[str, io.BytesIO] = None,
     strict: bool = True,
 ) -> nn.Module:
     """Get a `timm` model.
@@ -20,12 +23,11 @@ def get_model(
     architecture_name
         Name of the network architecture from `timm` library.
     target_size
-        If set the model's classification head is replaced
-        with a classification head with output feature size = `target_size`.
+        Output feature size of the new prediction head.
     pretrained
-        If true load pretrained ImageNet-1k weights.
+        If true load pretrained weights from `timm` library.
     checkpoint_path
-        Path of checkpoint to load after the model is initialized.
+        Path (or IO Buffer) with checkpoint weights to load after the model is initialized.
     strict
         Whether to strictly enforce the keys in state_dict to match
         between the model and checkpoint weights from file.
@@ -34,42 +36,77 @@ def get_model(
     Returns
     -------
     model
-        PyTorch `nn.Module` instance.
+        PyTorch model from `timm` library.
     """
     model = timm.create_model(architecture_name, pretrained=pretrained and checkpoint_path is None)
 
-    # set classification head
-    if target_size is not None:
-        cls_name = model.default_cfg["classifier"]
-        # iterate through nested modules
-        parts = cls_name.split(".")
-        module = model
-        for i, part_name in enumerate(parts):
-            if i == len(parts) - 1:
-                last_layer = getattr(module, part_name)
-                setattr(module, part_name, nn.Linear(last_layer.in_features, target_size))
-            else:
-                module = getattr(module, part_name)
-
     # load custom weights
     if checkpoint_path is not None:
-        model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"), strict=strict)
+        weights = torch.load(checkpoint_path, map_location="cpu")
+
+        # remove prefix "module." created by nn.DataParallel wrapper
+        if all([k.startswith("module.") for k in weights.keys()]):
+            weights = OrderedDict({k[7:]: v for k, v in weights.items()})
+
+        # identify target size in the weights
+        cls_name = model.default_cfg["classifier"]
+        weights_target_size = len(weights[f"{cls_name}.bias"])
+        model_target_size = model.default_cfg["num_classes"]
+        if weights_target_size != model_target_size:
+            # set different target size based on the checkpoint weights
+            model = set_prediction_head(model, weights_target_size)
+
+        # load checkpoint weights
+        model.load_state_dict(weights, strict=strict)
+
+    # set classification head
+    if target_size is not None:
+        model = set_prediction_head(model, target_size)
 
     return model
 
 
-def get_model_target_size(model: nn.Module) -> int:
-    """Get target size (number of output classes) of `timm` model.
+def set_prediction_head(model: nn.Module, target_size: int):
+    """Replace prediction head of a `timm` model.
 
     Parameters
     ----------
     model
-        PyTorch `nn.Module` instance.
+        PyTorch model from `timm` library.
+    target_size
+        Output feature size of the new prediction head.
+
+    Returns
+    -------
+    model
+        The input `timm` model with new prediction head.
+    """
+    assert hasattr(model, "default_cfg")
+    cls_name = model.default_cfg["classifier"]
+    # iterate through nested modules
+    parts = cls_name.split(".")
+    module = model
+    for i, part_name in enumerate(parts):
+        if i == len(parts) - 1:
+            last_layer = getattr(module, part_name)
+            setattr(module, part_name, nn.Linear(last_layer.in_features, target_size))
+        else:
+            module = getattr(module, part_name)
+    return model
+
+
+def get_model_target_size(model: nn.Module) -> int:
+    """Get target size (number of output classes) of a `timm` model.
+
+    Parameters
+    ----------
+    model
+        PyTorch model from `timm` library.
 
     Returns
     -------
     target_size
-        Output feature size of a classification head.
+        Output feature size of a prediction head.
     """
     target_size = None
     if isinstance(model, nn.DataParallel):
