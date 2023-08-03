@@ -40,6 +40,7 @@ jobs:
 
   integration-test:
     name: Integration Test
+    needs: unit-test
     runs-on: ubuntu-latest
     strategy:
       matrix:
