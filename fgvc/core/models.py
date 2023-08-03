@@ -38,7 +38,14 @@ def get_model(
     model
         PyTorch model from `timm` library.
     """
-    model = timm.create_model(architecture_name, pretrained=pretrained and checkpoint_path is None)
+    pretrained = pretrained and checkpoint_path is None
+    model = timm.create_model(architecture_name, pretrained=pretrained)
+
+    # load model with classification head if missing
+    # models like ViT trained with DINO do not have a classification head by default
+    # classification head is missing to get `in_features` value in the method `set_prediction_head`
+    if model.default_cfg["num_classes"] == 0 and target_size is not None:
+        model = timm.create_model(architecture_name, pretrained=pretrained, num_classes=1000)
 
     # load custom weights
     if checkpoint_path is not None:
@@ -50,11 +57,13 @@ def get_model(
 
         # identify target size in the weights
         cls_name = model.default_cfg["classifier"]
-        weights_target_size = len(weights[f"{cls_name}.bias"])
-        model_target_size = model.default_cfg["num_classes"]
-        if weights_target_size != model_target_size:
-            # set different target size based on the checkpoint weights
-            model = set_prediction_head(model, weights_target_size)
+        if f"{cls_name}.bias" in weights and f"{cls_name}.weight" in weights:
+            weights_target_size = weights[f"{cls_name}.bias"].shape[0]
+            model_target_size = model.default_cfg["num_classes"]
+            if weights_target_size != model_target_size:
+                # set different target size based on the checkpoint weights
+                in_features = weights[f"{cls_name}.weight"].shape[1]
+                model = set_prediction_head(model, weights_target_size, in_features=in_features)
 
         # load checkpoint weights
         model.load_state_dict(weights, strict=strict)
@@ -66,7 +75,7 @@ def get_model(
     return model
 
 
-def set_prediction_head(model: nn.Module, target_size: int):
+def set_prediction_head(model: nn.Module, target_size: int, *, in_features: int = None):
     """Replace prediction head of a `timm` model.
 
     Parameters
@@ -75,6 +84,10 @@ def set_prediction_head(model: nn.Module, target_size: int):
         PyTorch model from `timm` library.
     target_size
         Output feature size of the new prediction head.
+    in_features
+        Number of input features for the prediction head.
+        The parameter is needed in special cases,
+        e.g., when the current prediction head is `nn.Identity`.
 
     Returns
     -------
@@ -89,7 +102,8 @@ def set_prediction_head(model: nn.Module, target_size: int):
     for i, part_name in enumerate(parts):
         if i == len(parts) - 1:
             last_layer = getattr(module, part_name)
-            setattr(module, part_name, nn.Linear(last_layer.in_features, target_size))
+            in_features = in_features or last_layer.in_features
+            setattr(module, part_name, nn.Linear(in_features, target_size))
         else:
             module = getattr(module, part_name)
     return model
