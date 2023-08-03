@@ -159,6 +159,7 @@ class TrainingState:
         metric_value
             Value of metric based on which checkpoint is saved.
         """
+        metric_name = metric_name.lower()
         self.t_logger.info(
             f"Epoch {epoch} - "
             f"Save checkpoint with best validation {metric_name}: {metric_value:.6f}"

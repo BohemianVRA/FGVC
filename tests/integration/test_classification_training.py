@@ -1,3 +1,4 @@
+import os
 import re
 from pathlib import Path
 from typing import Tuple
@@ -124,6 +125,7 @@ def test_classification_trainer_1(
         path=tmp_path,
         resume=False,
     )
+    print(os.listdir(tmp_path))
     assert (tmp_path / "training.log").is_file()
     assert (tmp_path / "best_loss.pth").is_file()
     assert (tmp_path / "best_f1.pth").is_file()
@@ -177,6 +179,7 @@ def test_classification_trainer_2(
         path=tmp_path,
         resume=False,
     )
+    print(os.listdir(tmp_path))
     assert (tmp_path / "training.log").is_file()
     assert not (tmp_path / "best_loss.pth").is_file()
     assert not (tmp_path / "best_f1.pth").is_file()
@@ -235,6 +238,7 @@ def test_classification_trainer_3(
         path=tmp_path_1,
         resume=False,
     )
+    print(os.listdir(tmp_path))
     finish.assert_called_once()
     assert (tmp_path_1 / "training.log").is_file()
     assert (tmp_path_1 / "best_loss.pth").is_file()
@@ -262,6 +266,7 @@ def test_classification_trainer_3(
         path=tmp_path_1,
         resume=True,
     )
+    print(os.listdir(tmp_path))
     assert (tmp_path_1 / f"epoch_{num_epochs}.pth").is_file()
     assert not (tmp_path_1 / "checkpoint.pth.tar").is_file()
 
@@ -293,6 +298,7 @@ def test_classification_trainer_3(
         path=tmp_path_2,
         resume=False,
     )
+    print(os.listdir(tmp_path))
     assert (tmp_path_1 / "training.log").is_file()
 
     # load training logs and parse losses
