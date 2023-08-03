@@ -55,6 +55,10 @@ class ScoresMonitor:
 
     def _update_scores(self, preds: Union[np.ndarray, dict], targs: Union[np.ndarray, dict]):
         batch_scores = self.metrics_fc(preds, targs)
+        if not isinstance(batch_scores, dict):
+            raise ValueError(
+                "Method `scores_fn(preds, targs)` should return dictionary with scores."
+            )
         batch_scores = {k: v / self.num_samples for k, v in batch_scores.items()}
         if self._avg_scores is None:
             self._avg_scores = batch_scores
@@ -62,36 +66,42 @@ class ScoresMonitor:
             for k in self._avg_scores.keys():
                 self._avg_scores[k] += batch_scores[k]
 
+    def _init_preds_targs_all(self, preds: Union[np.ndarray, dict], targs: Union[np.ndarray, dict]):
+        def init_array(x):
+            return np.zeros((self.num_samples, *x.shape[1:]), dtype=x.dtype)
+
+        # initialize empty arrays
+        # use it instead of linked list to detect memory error from start
+        if isinstance(preds, dict):
+            self._preds_all = {k: init_array(v) for k, v in preds.items()}
+            self._bs = preds[list(preds.keys())[0]].shape[0]
+        else:
+            self._preds_all = init_array(preds)
+            self._bs = preds.shape[0]
+        if isinstance(targs, dict):
+            self._targs_all = {k: init_array(v) for k, v in targs.items()}
+        else:
+            self._targs_all = init_array(targs)
+        self._i = 0
+
     def _store_preds_targs(self, preds: Union[np.ndarray, dict], targs: Union[np.ndarray, dict]):
         if self._preds_all is None and self._targs_all is None:
-
-            def init_array(x):
-                return np.zeros((self.num_samples, *x.shape[1:]), dtype=x.dtype)
-
-            # initialize empty array
-            if isinstance(preds, dict):
-                self._preds_all = {k: init_array(v) for k, v in preds.items()}
-                self._bs = preds[list(preds.keys())[0]].shape[0]
-            else:
-                self._preds_all = init_array(preds)
-                self._bs = preds.shape[0]
-            if isinstance(targs, dict):
-                self._targs_all = {k: init_array(v) for k, v in targs.items()}
-            else:
-                self._targs_all = init_array(targs)
-            self._i = 0
+            self._init_preds_targs_all(preds, targs)
 
         start_index = self._i * self._bs
-        end_index = (self._i + 1) * self._bs
         if isinstance(preds, dict):
             for k, v in preds.items():
+                end_index = start_index + len(v)
                 self._preds_all[k][start_index:end_index] = v
         else:
+            end_index = start_index + len(preds)
             self._preds_all[start_index:end_index] = preds
         if isinstance(targs, dict):
             for k, v in targs.items():
+                end_index = start_index + len(v)
                 self._targs_all[k][start_index:end_index] = v
         else:
+            end_index = start_index + len(targs)
             self._targs_all[start_index:end_index] = targs
         self._i += 1
 
@@ -105,9 +115,39 @@ class ScoresMonitor:
         targs
             Numpy array or dictionary of numpy arrays with ground-truth targets.
         """
+        # validate inputs
+        if (
+            isinstance(preds, np.ndarray)
+            and isinstance(targs, np.ndarray)
+            and len(preds) != len(targs)
+        ):
+            raise ValueError(
+                "Predictions (Array) and targets (Array) should have the same batch size."
+            )
+        if isinstance(preds, dict):
+            values = list(preds.values())
+            if any(len(values[0]) != len(x) for x in values[1:]):
+                raise ValueError("Predictions (Dict[Array]) should have the same batch size.")
+        if isinstance(targs, dict):
+            values = list(targs.values())
+            if any(len(values[0]) != len(x) for x in values[1:]):
+                raise ValueError("Targets (Dict[Array]) should have the same batch size.")
+        if isinstance(preds, dict) and isinstance(targs, np.ndarray):
+            if any(len(targs) != len(x) for x in preds.values()):
+                raise ValueError(
+                    "Predictions (Dict[Array]) and targets (Array) should have the same batch size."
+                )
+        if isinstance(preds, np.ndarray) and isinstance(targs, dict):
+            if any(len(preds) != len(x) for x in targs.values()):
+                raise ValueError(
+                    "Predictions (Array) and targets (Dict[Array]) should have the same batch size."
+                )
+
+        # update scores if batch evaluation is enabled
         if self.eval_batches:
             self._update_scores(preds, targs)
 
+        # store predictions
         if not self.eval_batches or self.store_preds_targs:
             self._store_preds_targs(preds, targs)
 
