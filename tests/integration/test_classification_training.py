@@ -1,7 +1,7 @@
-import os
 import re
 from pathlib import Path
 from typing import Tuple
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -106,7 +106,6 @@ def test_classification_trainer_1(
     validloader: DataLoader,
 ):
     """Test training model on dummy data using Classification Trainer for few epochs."""
-    tmp_path = str(tmp_path)
     num_epochs = 3
     optimizer = sgd(model.parameters(), lr=0.01)
     scheduler = cosine(optimizer, epochs=num_epochs)
@@ -125,16 +124,16 @@ def test_classification_trainer_1(
         path=tmp_path,
         resume=False,
     )
-    assert os.path.isfile(os.path.join(tmp_path, "training.log"))
-    assert os.path.isfile(os.path.join(tmp_path, "best_loss.pth"))
-    assert os.path.isfile(os.path.join(tmp_path, "best_f1.pth"))
-    assert os.path.isfile(os.path.join(tmp_path, "best_accuracy.pth"))
-    assert os.path.isfile(os.path.join(tmp_path, f"epoch_{num_epochs}.pth"))
-    assert not os.path.isfile(os.path.join(tmp_path, "checkpoint.pth.tar"))
-    with open(os.path.join(tmp_path, "training.log")) as f:
-        training_log = f.read()
+    assert (tmp_path / "training.log").is_file()
+    assert (tmp_path / "best_loss.pth").is_file()
+    assert (tmp_path / "best_f1.pth").is_file()
+    assert (tmp_path / "best_accuracy.pth").is_file()
+    assert (tmp_path / f"epoch_{num_epochs}.pth").is_file()
+    assert not (tmp_path / "checkpoint.pth.tar").is_file()
 
     # parse training log
+    with open(tmp_path / "training.log") as f:
+        training_log = f.read()
     loss_logs = re.findall(
         r"Epoch [0-9]+ - avg_train_loss: [0-9.]+ +avg_val_loss: [0-9.]+", training_log
     )
@@ -160,7 +159,6 @@ def test_classification_trainer_2(
 
     Test training without validation loader.
     """
-    tmp_path = str(tmp_path)
     num_epochs = 3
     optimizer = sgd(model.parameters(), lr=0.01)
     scheduler = cosine(optimizer, epochs=num_epochs)
@@ -179,13 +177,13 @@ def test_classification_trainer_2(
         path=tmp_path,
         resume=False,
     )
-    assert os.path.isfile(os.path.join(tmp_path, "training.log"))
-    assert not os.path.isfile(os.path.join(tmp_path, "best_loss.pth"))
-    assert not os.path.isfile(os.path.join(tmp_path, "best_f1.pth"))
-    assert not os.path.isfile(os.path.join(tmp_path, "best_accuracy.pth"))
-    assert os.path.isfile(os.path.join(tmp_path, f"epoch_{num_epochs}.pth"))
-    assert not os.path.isfile(os.path.join(tmp_path, "checkpoint.pth.tar"))
-    with open(os.path.join(tmp_path, "training.log")) as f:
+    assert (tmp_path / "training.log").is_file()
+    assert not (tmp_path / "best_loss.pth").is_file()
+    assert not (tmp_path / "best_f1.pth").is_file()
+    assert not (tmp_path / "best_accuracy.pth").is_file()
+    assert (tmp_path / f"epoch_{num_epochs}.pth").is_file()
+    assert not (tmp_path / "checkpoint.pth.tar").is_file()
+    with open(tmp_path / "training.log") as f:
         training_log = f.read()
 
     # parse training log
@@ -200,3 +198,114 @@ def test_classification_trainer_2(
     # test that training loss decreases
     for prev, curr in zip(train_losses[:-1], train_losses[1:]):
         assert prev > curr
+
+
+def test_classification_trainer_3(
+    tmp_path: Path,
+    model: nn.Module,
+    trainloader: DataLoader,
+    validloader: DataLoader,
+):
+    """Test training model on dummy data using Classification Trainer for few epochs.
+
+    Test resuming training.
+    """
+    tmp_path_1 = tmp_path / "exp1"
+    tmp_path_2 = tmp_path / "exp2"
+    num_epochs = 5
+    optimizer = sgd(model.parameters(), lr=0.01)
+    scheduler = cosine(optimizer, epochs=num_epochs)
+
+    # train for 3 epochs and then break without finishing the training
+    # the breaking is done through mocking TrainingState.finish method
+    patcher = patch("fgvc.core.training.classification_trainer.TrainingState.finish")
+    finish = patcher.start()
+    trainer = ClassificationTrainer(
+        model=model,
+        trainloader=trainloader,
+        validloader=validloader,
+        criterion=nn.CrossEntropyLoss(),
+        optimizer=optimizer,
+        scheduler=scheduler,
+        device=torch.device("cpu"),
+    )
+    trainer.train(
+        num_epochs=3,
+        seed=777,
+        path=tmp_path_1,
+        resume=False,
+    )
+    finish.assert_called_once()
+    assert (tmp_path_1 / "training.log").is_file()
+    assert (tmp_path_1 / "best_loss.pth").is_file()
+    assert (tmp_path_1 / "best_f1.pth").is_file()
+    assert (tmp_path_1 / "best_accuracy.pth").is_file()
+    # file should not exist because `training_state.finish()` was prevented from calling
+    assert not (tmp_path_1 / f"epoch_{num_epochs}.pth").is_file()
+    # file should exist because `training_state.finish()` was prevented from calling
+    assert (tmp_path_1 / "checkpoint.pth.tar").is_file()
+    patcher.stop()  # unmock the `training_state.finish()` method
+
+    # resume training
+    trainer = ClassificationTrainer(
+        model=model,
+        trainloader=trainloader,
+        validloader=validloader,
+        criterion=nn.CrossEntropyLoss(),
+        optimizer=optimizer,
+        scheduler=scheduler,
+        device=torch.device("cpu"),
+    )
+    trainer.train(
+        num_epochs=num_epochs,
+        seed=777,
+        path=tmp_path_1,
+        resume=True,
+    )
+    assert (tmp_path_1 / f"epoch_{num_epochs}.pth").is_file()
+    assert not (tmp_path_1 / "checkpoint.pth.tar").is_file()
+
+    # load training logs and parse losses
+    with open(tmp_path_1 / "training.log") as f:
+        training_log_1 = f.read()
+    loss_logs_1 = re.findall(
+        r"Epoch [0-9]+ - avg_train_loss: [0-9.]+ +avg_val_loss: [0-9.]+", training_log_1
+    )
+    train_losses_1, val_losses_1 = [], []
+    for log in loss_logs_1:
+        epoch, train_loss, val_loss = parse_losses(log)
+        train_losses_1.append(train_loss)
+        val_losses_1.append(val_loss)
+
+    # train again without interruption to compare the losses
+    trainer = ClassificationTrainer(
+        model=model,
+        trainloader=trainloader,
+        validloader=validloader,
+        criterion=nn.CrossEntropyLoss(),
+        optimizer=optimizer,
+        scheduler=scheduler,
+        device=torch.device("cpu"),
+    )
+    trainer.train(
+        num_epochs=num_epochs,
+        seed=777,
+        path=tmp_path_2,
+        resume=False,
+    )
+    assert (tmp_path_1 / "training.log").is_file()
+
+    # load training logs and parse losses
+    with open(tmp_path_2 / "training.log") as f:
+        training_log_2 = f.read()
+    loss_logs_2 = re.findall(
+        r"Epoch [0-9]+ - avg_train_loss: [0-9.]+ +avg_val_loss: [0-9.]+", training_log_2
+    )
+    train_losses_2, val_losses_2 = [], []
+    for log in loss_logs_2:
+        epoch, train_loss, val_loss = parse_losses(log)
+        train_losses_2.append(train_loss)
+        val_losses_2.append(val_loss)
+
+    assert np.allclose(train_losses_1, train_losses_2)
+    assert np.allclose(val_losses_1, val_losses_2)
