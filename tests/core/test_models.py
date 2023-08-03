@@ -15,6 +15,7 @@ from fgvc.core.models import get_model, get_model_target_size
         ("swin_tiny_patch4_window7_224",),
         ("resnet18",),
         ("convnext_tiny",),
+        ("vit_small_patch14_dinov2.lvd142m",),
     ],
 )
 def test_get_model_1(architecture_name: str):
@@ -36,6 +37,8 @@ def test_get_model_1(architecture_name: str):
         assert model.fc.out_features == 600
     elif architecture_name == "convnext_tiny":
         assert model.head.fc.out_features == 600
+    elif architecture_name == "vit_small_patch14_dinov2.lvd142m":
+        assert model.head.out_features == 600
     else:
         raise ValueError()
 
@@ -69,6 +72,7 @@ def test_get_model_2():
         ("swin_tiny_patch4_window7_224",),
         ("resnet18",),
         ("convnext_tiny",),
+        ("vit_small_patch14_dinov2.lvd142m",),
     ],
 )
 def test_get_model_3(architecture_name: str):
@@ -89,6 +93,46 @@ def test_get_model_3(architecture_name: str):
         architecture_name=architecture_name,
         pretrained=False,
         target_size=600,
+        checkpoint_path=buffer,
+    )
+    state_dict = model.state_dict()
+    assert target_state_dict.keys() == state_dict.keys()
+
+
+@pytest.mark.parametrize(
+    argnames=["architecture_name"],
+    argvalues=[
+        ("vit_small_patch14_dinov2.lvd142m",),
+        ("convnextv2_nano.fcmae",),
+        ("eva02_tiny_patch14_224.mim_in22k",),
+    ],
+)
+@pytest.mark.parametrize(
+    argnames=["num_classes"],
+    argvalues=[
+        (None,),
+        (100,),
+    ],
+)
+def test_get_model_4(architecture_name: str, num_classes: int):
+    """Test getting `timm` model and setting custom prediction head.
+
+    The test case tests creating models without prediction head.
+    """
+    # create checkpoint for testing
+    model = timm.create_model(
+        model_name=architecture_name, pretrained=False, num_classes=num_classes
+    )
+    target_state_dict = model.state_dict()
+    buffer = io.BytesIO()
+    torch.save(model.state_dict(), buffer)
+    buffer.seek(0)
+
+    # test function
+    model = get_model(
+        architecture_name=architecture_name,
+        pretrained=False,
+        target_size=None,
         checkpoint_path=buffer,
     )
     state_dict = model.state_dict()
