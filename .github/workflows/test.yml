@@ -1,4 +1,4 @@
-name: Unit Test
+name: Test
 
 on:
   pull_request:
@@ -31,6 +31,38 @@ jobs:
         uses: pmeier/pytest-results-action@main
         with:
           path: unit_test_log.xml
+          # Add a summary of the results at the top of the report
+          summary: true
+          # Select which results should be included in the report.
+          display-options: fEX
+          # Fail the workflow if no JUnit XML was found.
+          fail-on-empty: true
+
+  integration-test:
+    name: Integration Test
+    needs: unit-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.9" ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install tox
+      - name: Run PyTest using Tox
+        run: tox run -e integration_test
+      - name: Report failing tests
+        if: always()
+        uses: pmeier/pytest-results-action@main
+        with:
+          path: integration_test_log.xml
           # Add a summary of the results at the top of the report
           summary: true
           # Select which results should be included in the report.

@@ -78,7 +78,7 @@ class TrainingState:
             self.best_scores_loss = None
 
             self.best_metrics = {}  # best other metrics like accuracy or f1 score
-            self.best_scores_metrics = {}
+            self.best_scores_metrics = {}  # string with all scores for each best metric
 
             self.t_logger.info("Training started.")
         self.start_training_time = time.time()
@@ -115,7 +115,8 @@ class TrainingState:
         random.setstate(random_state["python_random_state"])
         np.random.set_state(random_state["np_random_state"])
         torch.set_rng_state(random_state["torch_random_state"])
-        torch.cuda.set_rng_state(random_state["torch_cuda_random_state"])
+        if torch.cuda.is_available() and random_state["torch_cuda_random_state"] is not None:
+            torch.cuda.set_rng_state(random_state["torch_cuda_random_state"])
 
     def _save_training_state(self, epoch: int):
         if self.optimizer is not None:
@@ -129,7 +130,9 @@ class TrainingState:
                 python_random_state=random.getstate(),
                 np_random_state=np.random.get_state(),
                 torch_random_state=torch.get_rng_state(),
-                torch_cuda_random_state=torch.cuda.get_rng_state(),
+                torch_cuda_random_state=torch.cuda.get_rng_state()
+                if torch.cuda.is_available()
+                else None,
             )
 
             torch.save(
@@ -156,6 +159,7 @@ class TrainingState:
         metric_value
             Value of metric based on which checkpoint is saved.
         """
+        metric_name = metric_name.lower()
         self.t_logger.info(
             f"Epoch {epoch} - "
             f"Save checkpoint with best validation {metric_name}: {metric_value:.6f}"
@@ -188,7 +192,7 @@ class TrainingState:
         self.t_logger.info(f"Epoch {epoch} - {scores_str}")
 
         # save model checkpoint based on validation loss
-        if valid_loss is not None and valid_loss < self.best_loss:
+        if valid_loss is not None and valid_loss is not np.nan and valid_loss < self.best_loss:
             self.best_loss = valid_loss
             self.best_scores_loss = scores_str
             self._save_checkpoint(epoch, "loss", self.best_loss)
@@ -199,6 +203,8 @@ class TrainingState:
                 # set first values for self.best_metrics
                 self.best_metrics = valid_metrics.copy()
                 self.best_scores_metrics = {k: scores_str for k in self.best_metrics.keys()}
+                for metric_name, metric_value in valid_metrics.items():
+                    self._save_checkpoint(epoch, metric_name, metric_value)
             else:
                 for metric_name, metric_value in valid_metrics.items():
                     if metric_value > self.best_metrics[metric_name]:
