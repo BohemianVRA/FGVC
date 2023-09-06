@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-    branches:  # temporary for testing
-      - ci/fix-sphinx-docs-pipeline
 #    branches:
 #      - main
 #      - dev
@@ -24,8 +22,8 @@ jobs:
       uses: actions/configure-pages@v3
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install tox
+        pip install -U pip
+        pip install -U tox
     - name: Build HTML
       run: |
         tox run -e docs
