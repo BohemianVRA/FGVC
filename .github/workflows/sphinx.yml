@@ -2,11 +2,15 @@ name: Sphinx Publish
 
 on:
   push:
-    branches:
-      - main
-      - dev
-    paths:
-      - 'docs/**'
+    tags:
+      - 'v*'
+    branches:  # temporary for testing
+      - ci/fix-sphinx-docs-pipeline
+#    branches:
+#      - main
+#      - dev
+#    paths:
+#      - 'docs/**'
 
 jobs:
   build:
