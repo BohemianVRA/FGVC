@@ -6,10 +6,6 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-import sys
-
-sys.path.append("..")
-
 
 project = "FGVC"
 copyright = "2023, Rail Chamidullin, Lukas Picek"

@@ -2,11 +2,13 @@ name: Sphinx Publish
 
 on:
   push:
-    branches:
-      - main
-      - dev
-    paths:
-      - 'docs/**'
+    tags:
+      - 'v*'
+#    branches:
+#      - main
+#      - dev
+#    paths:
+#      - 'docs/**'
 
 jobs:
   build:
@@ -20,15 +22,16 @@ jobs:
       uses: actions/configure-pages@v3
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -U pip
+        pip install -U tox
     - name: Build HTML
-      uses: ammaraskar/sphinx-action@master
+      run: |
+        tox run -e docs
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v1
       with:
         name: github-pages
-        path: docs/build/html/
+        path: docs/build/
 
   deploy:
     name: Deploy to GitHub Pages
