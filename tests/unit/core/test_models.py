@@ -142,9 +142,7 @@ def test_get_model_4(architecture_name: str, num_classes: int):
 def test_get_model_5():
     """Test getting `timm` model with checkpoint and not replacing prediction head."""
     # create checkpoint for testing
-    model = timm.create_model(
-        model_name="vit_small_patch16_224", pretrained=False, num_classes=100
-    )
+    model = timm.create_model(model_name="vit_small_patch16_224", pretrained=False, num_classes=100)
     target_state_dict = model.state_dict()
     buffer = io.BytesIO()
     torch.save(model.state_dict(), buffer)
