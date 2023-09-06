@@ -1,11 +1,14 @@
 import io
+import logging
 import warnings
 from collections import OrderedDict
-from typing import Union
+from typing import Optional, Union
 
 import timm
 import torch
 import torch.nn as nn
+
+logger = logging.getLogger("fgvc")
 
 
 def get_model(
@@ -49,6 +52,7 @@ def get_model(
 
     # load custom weights
     if checkpoint_path is not None:
+        logger.debug("Loading pre-trained checkpoint.")
         weights = torch.load(checkpoint_path, map_location="cpu")
 
         # remove prefix "module." created by nn.DataParallel wrapper
@@ -70,7 +74,12 @@ def get_model(
 
     # set classification head
     if target_size is not None:
-        model = set_prediction_head(model, target_size)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model_target_size = get_model_target_size(model)
+        if target_size != model_target_size:
+            logger.debug("Setting new prediction head with random initial weights.")
+            model = set_prediction_head(model, target_size)
 
     return model
 
@@ -109,7 +118,7 @@ def set_prediction_head(model: nn.Module, target_size: int, *, in_features: int 
     return model
 
 
-def get_model_target_size(model: nn.Module) -> int:
+def get_model_target_size(model: nn.Module) -> Optional[int]:
     """Get target size (number of output classes) of a `timm` model.
 
     Parameters
@@ -133,10 +142,11 @@ def get_model_target_size(model: nn.Module) -> int:
     parts = cls_name.split(".")
     module = model
     for i, part_name in enumerate(parts):
-        if i == len(parts) - 1:
-            target_size = getattr(module, part_name).out_features
-        else:
-            module = getattr(module, part_name)
+        module = getattr(module, part_name)
+    # set target size of the last nested module if it is a linear layer
+    # other layers like nn.Identity are ignored
+    if hasattr(module, "out_features"):
+        target_size = module.out_features
 
     if target_size is None:
         warnings.warn(

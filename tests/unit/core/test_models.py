@@ -139,6 +139,28 @@ def test_get_model_4(architecture_name: str, num_classes: int):
     assert target_state_dict.keys() == state_dict.keys()
 
 
+def test_get_model_5():
+    """Test getting `timm` model with checkpoint and not replacing prediction head."""
+    # create checkpoint for testing
+    model = timm.create_model(model_name="vit_small_patch16_224", pretrained=False, num_classes=100)
+    target_state_dict = model.state_dict()
+    buffer = io.BytesIO()
+    torch.save(model.state_dict(), buffer)
+    buffer.seek(0)
+
+    # test function
+    model = get_model(
+        architecture_name="vit_small_patch16_224",
+        pretrained=False,
+        target_size=100,
+        checkpoint_path=buffer,
+    )
+    state_dict = model.state_dict()
+    assert target_state_dict.keys() == state_dict.keys()
+    for k in target_state_dict.keys():
+        torch.testing.assert_close(target_state_dict[k], state_dict[k])
+
+
 @pytest.mark.parametrize(
     argnames=["architecture_name"],
     argvalues=[
