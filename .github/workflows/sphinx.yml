@@ -2,11 +2,8 @@ name: Sphinx Publish
 
 on:
   push:
-    tags:
-      - 'v*'
-#    branches:
-#      - main
-#      - dev
+    branches:
+      - docs
 #    paths:
 #      - 'docs/**'
 
