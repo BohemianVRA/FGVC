@@ -11,7 +11,8 @@ import yaml
 try:
     import huggingface_hub
 
-    assert hasattr(huggingface_hub, "__version__")  # verify package import not local dir
+    # verify package import not local dir
+    assert hasattr(huggingface_hub, "__version__")
     HuggingFaceAPI = huggingface_hub.HfApi
     HFHubCreateRepo = huggingface_hub.create_repo
 except (ImportError, AssertionError):
@@ -41,23 +42,20 @@ SAVED_MODEL_NAMES = {
     "f1": "best_f1",
     "loss": "best_loss",
     "recall": "best_recall@3",
-    "last_epoch": "epoch"
+    "last_epoch": "epoch",
 }
 
 
 @if_huggingface_hub_is_installed
 def export_to_huggingface_hub_from_checkpoint(
-        *,
-        exp_path: str = None,
-        repo_owner: str = None,
-        saved_model: str = None
+    *, exp_path: str = None, repo_owner: str = None, saved_model: str = None
 ) -> str:
-    """ Exports a saved model to the HuggingFace Hub.
+    """Exports a saved model to the HuggingFace Hub.
 
     Creates a new model repo if it does not exist. If it does exist,
     the pytorch_model.bin and config.json files will be overwritten.
-    Can be run from CLI with 'python hfhub.py --exp-path <exp_path> --repo-owner <repo_owner>
-    (optionally --saved-model <saved_model>)'
+    Can be run from CLI with 'python hfhub.py --exp-path <exp_path>
+     --repo-owner <repo_owner> (optionally --saved-model <saved_model>)'
 
     Parameters
     ----------
@@ -78,7 +76,7 @@ def export_to_huggingface_hub_from_checkpoint(
     """
     # load script args
     if exp_path is None or repo_owner is None:
-        args, extra_args = load_args()
+        args, extra_args = _hfhub_load_args()
         exp_path = args.exp_path
         repo_owner = args.repo_owner
         saved_model = args.saved_model
@@ -107,7 +105,7 @@ def export_to_huggingface_hub_from_checkpoint(
 
     # timm supports specific config.json file
     config_path_yaml = osp.join(exp_path, "config.yaml")
-    with open(config_path_yaml, 'r') as fp:
+    with open(config_path_yaml, "r") as fp:
         config_data = yaml.safe_load(fp)
 
     config_path_json = osp.join(exp_path, "config.json")
@@ -141,9 +139,10 @@ def export_to_huggingface_hub_from_checkpoint(
     return repo_name
 
 
-def load_args():
+def _hfhub_load_args():
     """Load script arguments."""
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--exp-path",
@@ -160,7 +159,7 @@ def load_args():
     parser.add_argument(
         "--saved-model",
         help="Specify to select a specific model to export (accuracy, f1, loss, "
-             "recall, last_epoch).",
+        "recall, last_epoch).",
         type=str,
         required=False,
     )
@@ -173,10 +172,10 @@ def _create_timm_config(config, config_path_json):
     timm_config = {
         "architecture": config["architecture"],
         "input_size": [3, *config["image_size"]],  # assumes 3 color channels
-        "num_classes": config["number_of_classes"]
+        "num_classes": config["number_of_classes"],
     }
 
-    with open(config_path_json, 'w') as fp:
+    with open(config_path_json, "w") as fp:
         json.dump(timm_config, fp, indent=4)
 
 
