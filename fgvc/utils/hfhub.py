@@ -1,14 +1,11 @@
-import json
 import os
 import os.path as osp
 import torch
+import yaml
+import json
 import logging
 import warnings
 from functools import wraps
-from collections.abc import MutableMapping
-
-import yaml
-
 
 try:
     import huggingface_hub
