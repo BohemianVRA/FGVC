@@ -1,11 +1,12 @@
-import os
-import os.path as osp
-import torch
-import yaml
 import json
 import logging
+import os
+import os.path as osp
 import warnings
 from functools import wraps
+
+import torch
+import yaml
 
 try:
     import huggingface_hub
@@ -61,8 +62,9 @@ def export_to_huggingface_hub_from_checkpoint(
     Parameters
     ----------
     exp_path
-        A dictionary with experiment configuration. Must contain config.yaml and the appropriate model.pth file.
-        Config must have "architecture", "image_size", and "number_of_classes" to create the timm config.json
+        A dictionary with experiment configuration. Must contain config.yaml and
+        the appropriate model.pth file. Config must have "architecture", "image_size", and
+         "number_of_classes" to create the timm config.json.
     repo_owner
         The "shortcut" of the HuggingFace repository owner name (owner_name/repository_name).
     saved_model
@@ -140,6 +142,8 @@ def export_to_huggingface_hub_from_checkpoint(
 
 
 def load_args():
+    """Load script arguments."""
+
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -156,7 +160,8 @@ def load_args():
     )
     parser.add_argument(
         "--saved-model",
-        help="Specify to select a specific model to export (accuracy, f1, loss, recall, last_epoch).",
+        help="Specify to select a specific model to export (accuracy, f1, loss, "
+             "recall, last_epoch).",
         type=str,
         required=False,
     )
@@ -165,6 +170,8 @@ def load_args():
 
 
 def _create_timm_config(config, config_path_json):
+    """Create timm config.json file."""
+
     timm_config = {
         "architecture": config["architecture"],
         "input_size": [3, *config["image_size"]],  # assumes 3 color channels
