@@ -52,8 +52,8 @@ def export_to_huggingface_hub_from_checkpoint(
         repo_owner: str = None,
         saved_model: str = None
 ) -> str:
-    """
-    Exports a saved model to the HuggingFace Hub.
+    """ Exports a saved model to the HuggingFace Hub.
+
     Creates a new model repo if it does not exist. If it does exist,
     the pytorch_model.bin and config.json files will be overwritten.
     Can be run from CLI with 'python hfhub.py --exp-path <exp_path> --repo-owner <repo_owner>
@@ -143,7 +143,6 @@ def export_to_huggingface_hub_from_checkpoint(
 
 def load_args():
     """Load script arguments."""
-
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -171,7 +170,6 @@ def load_args():
 
 def _create_timm_config(config, config_path_json):
     """Create timm config.json file."""
-
     timm_config = {
         "architecture": config["architecture"],
         "input_size": [3, *config["image_size"]],  # assumes 3 color channels
