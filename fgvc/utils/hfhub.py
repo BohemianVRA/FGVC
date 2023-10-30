@@ -53,7 +53,7 @@ def export_to_huggingface_hub_from_checkpoint(
     """Exports a saved model to the HuggingFace Hub.
 
     Creates a new model repo if it does not exist. If it does exist,
-    the pytorch_model.bin and config.json files will be overwritten.
+    the pytorch_model.bin and config.json files will be overwritten!
     Can be run from CLI with 'python hfhub.py --exp-path <exp_path>
      --repo-owner <repo_owner> (optionally --saved-model <saved_model>)'
 
@@ -66,7 +66,7 @@ def export_to_huggingface_hub_from_checkpoint(
     repo_owner
         The "shortcut" of the HuggingFace repository owner name (owner_name/repository_name).
     saved_model
-        String key to select the saved model to export (accuracy, f1, loss, recall, last_epoch).
+        (optional) String key to select the saved model to export (accuracy, f1, loss, recall, last_epoch).
         best_accuracy.pth is the default.
 
     Returns
@@ -74,13 +74,6 @@ def export_to_huggingface_hub_from_checkpoint(
     repo_name
         The whole HuggingFace repository name suitable to download the model through timm.
     """
-    # load script args
-    if exp_path is None or repo_owner is None:
-        args, extra_args = _hfhub_load_args()
-        exp_path = args.exp_path
-        repo_owner = args.repo_owner
-        saved_model = args.saved_model
-
     api = HuggingFaceAPI()
 
     saved_model_type = SAVED_MODEL_NAMES.get(saved_model, "best_accuracy")
@@ -105,6 +98,7 @@ def export_to_huggingface_hub_from_checkpoint(
 
     # timm supports specific config.json file
     config_path_yaml = osp.join(exp_path, "config.yaml")
+    assert osp.exists(config_path_yaml), f"Config path {config_path_yaml} does not exist."
     with open(config_path_yaml, "r") as fp:
         config_data = yaml.safe_load(fp)
 
@@ -139,34 +133,6 @@ def export_to_huggingface_hub_from_checkpoint(
     return repo_name
 
 
-def _hfhub_load_args():
-    """Load script arguments."""
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--exp-path",
-        help="Path to a exp directory.",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--repo-owner",
-        help="Name of the HuggingFace repository owner (shortcut).",
-        type=str,
-        default=True,
-    )
-    parser.add_argument(
-        "--saved-model",
-        help="Specify to select a specific model to export (accuracy, f1, loss, "
-        "recall, last_epoch).",
-        type=str,
-        required=False,
-    )
-    args, extra_args = parser.parse_known_args()
-    return args, extra_args
-
-
 def _create_timm_config(config, config_path_json):
     """Create timm config.json file."""
     timm_config = {
@@ -177,7 +143,3 @@ def _create_timm_config(config, config_path_json):
 
     with open(config_path_json, "w") as fp:
         json.dump(timm_config, fp, indent=4)
-
-
-if __name__ == "__main__":
-    export_to_huggingface_hub_from_checkpoint()
