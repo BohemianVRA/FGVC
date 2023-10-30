@@ -66,8 +66,9 @@ def export_to_huggingface_hub_from_checkpoint(
     repo_owner
         The "shortcut" of the HuggingFace repository owner name (owner_name/repository_name).
     saved_model
-        (optional) String key to select the saved model to export (accuracy, f1, loss, recall, last_epoch).
-        best_accuracy.pth is the default.
+        (optional) String key to select the saved model to export
+        (accuracy, f1, loss, recall, last_epoch).
+        The "best_accuracy.pth" is the default.
 
     Returns
     -------

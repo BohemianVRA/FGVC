@@ -8,4 +8,11 @@ from .train import train_clf
 
 def app() -> None:
     """Command line interface entry point used by the `fgvc` package."""
-    fire.Fire({"log-model": log_model, "log-model-hfhub": log_model_hfhub, "train": train_clf, "test": test_clf})
+    fire.Fire(
+        {
+            "log-model": log_model,
+            "log-model-hfhub": log_model_hfhub,
+            "train": train_clf,
+            "test": test_clf,
+        }
+    )

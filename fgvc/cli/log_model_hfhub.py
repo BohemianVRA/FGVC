@@ -1,5 +1,6 @@
 import argparse
 import logging
+
 from fgvc.utils.hfhub import export_to_huggingface_hub_from_checkpoint
 
 logger = logging.getLogger("script")
