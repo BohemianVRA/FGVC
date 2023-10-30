@@ -8,7 +8,6 @@ logger = logging.getLogger("script")
 
 def hfhub_load_args():
     """Load script arguments via `argparse` library."""
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--exp-path",
