@@ -46,6 +46,7 @@ def export_to_hfhub(
     model_card: str = None,
 ) -> str:
     """Wraps the export_to_huggingface_hub_from_checkpoint() with a CLI interface.
+
     Can be run from CLI with:
     'python hfhub.py --exp-path <exp_path> --repo-owner <repo_owner>
     (optionally --saved-model <saved_model> --model-card <model_card>)'

@@ -55,8 +55,8 @@ def export_model_to_huggingface_hub_from_checkpoint(
     saved_model: str = None,
     model_card: str = None,
 ) -> str:
-    """
-    Exports a saved model to the HuggingFace Hub.
+    """Exports a saved model to the HuggingFace Hub.
+
     Creates a new model repo if it does not exist. If it does exist,
     the pytorch_model.bin and config.json files will be overwritten.
 
@@ -231,8 +231,8 @@ from PIL import Image
 from urllib.request import urlopen
 model = timm.create_model("hf-hub:{repo_name}", pretrained=True)
 model = model.eval()
-train_transforms = T.Compose([T.Resize(({image_size}, {image_size})), 
-                              T.ToTensor(), 
+train_transforms = T.Compose([T.Resize(({image_size}, {image_size})),
+                              T.ToTensor(),
                               T.Normalize({list(model_mean)}, {list(model_std)})])
 img = Image.open(PATH_TO_YOUR_IMAGE)
 output = model(train_transforms(img).unsqueeze(0))
@@ -252,7 +252,6 @@ def create_model_card_file(model_card: str, exp_path: str) -> str:
 
 def hfhub_load_args() -> tuple[argparse.Namespace, list[str]]:
     """Load script arguments."""
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--exp-path",
@@ -291,9 +290,10 @@ def export_to_hfhub(
     model_card: str = None,
 ) -> str:
     """Wraps the export_to_huggingface_hub_from_checkpoint() with a CLI interface.
+
     Can be run from CLI with 'python hfhub.py --exp-path <exp_path> --repo-owner <repo_owner>
     (optionally --saved-model <saved_model> --model-card <model_card>)'
-    '"""
+    """
     if exp_path is None or repo_owner is None:
         args, extra_args = hfhub_load_args()
         config = {"exp_path": args.exp_path}
