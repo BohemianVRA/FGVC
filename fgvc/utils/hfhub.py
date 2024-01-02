@@ -47,19 +47,13 @@ SAVED_MODEL_NAMES = {
 }
 
 
-def remove_suffix(input_string, suffix):
-    if suffix and input_string.endswith(suffix):
-        return input_string[: -len(suffix)]
-    return input_string
-
-
 @if_huggingface_hub_is_installed
 def export_model_to_huggingface_hub_from_checkpoint(
-        *,
-        config: dict = None,
-        repo_owner: str = None,
-        saved_model: str = None,
-        model_card: str = None,
+    *,
+    config: dict = None,
+    repo_owner: str = None,
+    saved_model: str = None,
+    model_card: str = None,
 ) -> str:
     """
     Exports a saved model to the HuggingFace Hub.
@@ -107,7 +101,7 @@ def export_model_to_huggingface_hub_from_checkpoint(
     # Save selected model saves as bin
     model = torch.load(model_path)
     print(model_path)
-    model_bin_path = f'{remove_suffix(model_path, ".pth")}.bin'
+    model_bin_path = f'{model_path.removesuffix(".pth")}.bin'
 
     logging.info(f"Saving model to {model_bin_path}")
 
@@ -188,7 +182,7 @@ def _create_timm_config(config: dict, config_path_json: str):
 
 
 def _create_model_repo_name(repo_owner: str, config: dict) -> str:
-    """Create a new HuggingFace model name"""
+    """Create a new HuggingFace model name."""
     dataset = config.get("dataset", "").lower()
     image_size = config["image_size"][-1]
 
@@ -217,18 +211,16 @@ def get_default_model_card(config: dict, repo_name: str) -> str:
 tags:
 - FGVC
 ---
-# Model card for {repo_name}
-
+# Model card for {repo_name}\n
 ## Model Details
 - **Model Type:** ??
-- **Model Architecture:** {architecture} 
+- **Model Architecture:** {architecture}
 - **Model Stats:**
   - Params (M): ??
   - Image size: {image_size} x {image_size}
 - **Papers:**
 - **Original:** ??
-- **Train Dataset:** {dataset}
-
+- **Train Dataset:** {dataset}\n
 ## Model Usage
 ### Image Embeddings
 ```python
@@ -241,12 +233,11 @@ model = timm.create_model("hf-hub:{repo_name}", pretrained=True)
 model = model.eval()
 train_transforms = T.Compose([T.Resize(({image_size}, {image_size})), 
                               T.ToTensor(), 
-                              T.Normalize({list(model_mean)}, {list(model_std)})]) 
+                              T.Normalize({list(model_mean)}, {list(model_std)})])
 img = Image.open(PATH_TO_YOUR_IMAGE)
 output = model(train_transforms(img).unsqueeze(0))
 # output is a (1, num_features) shaped tensor
-```
-"""
+```\n"""
     return model_card
 
 
@@ -278,7 +269,7 @@ def hfhub_load_args() -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument(
         "--saved-model",
         help="Specify to select a specific model to export (accuracy, f1, loss, "
-             "recall, last_epoch).",
+        "recall, last_epoch).",
         type=str,
         required=False,
     )
@@ -293,11 +284,11 @@ def hfhub_load_args() -> tuple[argparse.Namespace, list[str]]:
 
 
 def export_to_hfhub(
-        *,
-        exp_path: str = None,
-        repo_owner: str = None,
-        saved_model: str = None,
-        model_card: str = None,
+    *,
+    exp_path: str = None,
+    repo_owner: str = None,
+    saved_model: str = None,
+    model_card: str = None,
 ) -> str:
     """Wraps the export_to_huggingface_hub_from_checkpoint() with a CLI interface.
     Can be run from CLI with 'python hfhub.py --exp-path <exp_path> --repo-owner <repo_owner>

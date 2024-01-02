@@ -7,8 +7,7 @@ logger = logging.getLogger("script")
 
 
 def hfhub_load_args() -> tuple[argparse.Namespace, list[str]]:
-    """ Load script arguments."""
-
+    """Load script arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--exp-path",
@@ -25,7 +24,7 @@ def hfhub_load_args() -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument(
         "--saved-model",
         help="Specify to select a specific model to export (accuracy, f1, loss, "
-             "recall, last_epoch).",
+        "recall, last_epoch).",
         type=str,
         required=False,
     )
@@ -40,16 +39,17 @@ def hfhub_load_args() -> tuple[argparse.Namespace, list[str]]:
 
 
 def export_to_hfhub(
-        *,
-        exp_path: str = None,
-        repo_owner: str = None,
-        saved_model: str = None,
-        model_card: str = None,
+    *,
+    exp_path: str = None,
+    repo_owner: str = None,
+    saved_model: str = None,
+    model_card: str = None,
 ) -> str:
     """Wraps the export_to_huggingface_hub_from_checkpoint() with a CLI interface.
-    Can be run from CLI with 'python hfhub.py --exp-path <exp_path> --repo-owner <repo_owner>
+    Can be run from CLI with:
+    'python hfhub.py --exp-path <exp_path> --repo-owner <repo_owner>
     (optionally --saved-model <saved_model> --model-card <model_card>)'
-    '"""
+    """
     if exp_path is None or repo_owner is None:
         args, extra_args = hfhub_load_args()
         config = {"exp_path": args.exp_path}
