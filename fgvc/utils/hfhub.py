@@ -1,15 +1,14 @@
-import os
-import os.path as osp
-import torch
-import logging
-import warnings
 import argparse
 import json
-import yaml
-
-from functools import wraps
+import logging
+import os
+import os.path as osp
+import warnings
 from copy import deepcopy
+from functools import wraps
 
+import torch
+import yaml
 
 try:
     import huggingface_hub
@@ -56,11 +55,11 @@ def remove_suffix(input_string, suffix):
 
 @if_huggingface_hub_is_installed
 def export_model_to_huggingface_hub_from_checkpoint(
-    *,
-    config: dict = None,
-    repo_owner: str = None,
-    saved_model: str = None,
-    model_card: str = None,
+        *,
+        config: dict = None,
+        repo_owner: str = None,
+        saved_model: str = None,
+        model_card: str = None,
 ) -> str:
     """
     Exports a saved model to the HuggingFace Hub.
@@ -70,9 +69,9 @@ def export_model_to_huggingface_hub_from_checkpoint(
     Parameters
     ----------
     config
-        A dictionary with experiment configuration. Must have "exp_path" (directory with the FGVC run),
-        "architecture", "image_size", and "number_of_classes" as valid keys. Also, should have
-        "dataset" key.
+        A dictionary with experiment configuration. Must have "exp_path" (directory with the
+        FGVC run),"architecture", "image_size", and "number_of_classes" as valid keys.
+        Also, should have "dataset" key.
     repo_owner
         The "shortcut" of the HuggingFace repository owner name (owner_name/repository_name).
     saved_model
@@ -279,7 +278,7 @@ def hfhub_load_args() -> tuple[argparse.Namespace, list[str]]:
     parser.add_argument(
         "--saved-model",
         help="Specify to select a specific model to export (accuracy, f1, loss, "
-        "recall, last_epoch).",
+             "recall, last_epoch).",
         type=str,
         required=False,
     )
@@ -294,11 +293,11 @@ def hfhub_load_args() -> tuple[argparse.Namespace, list[str]]:
 
 
 def export_to_hfhub(
-    *,
-    exp_path: str = None,
-    repo_owner: str = None,
-    saved_model: str = None,
-    model_card: str = None,
+        *,
+        exp_path: str = None,
+        repo_owner: str = None,
+        saved_model: str = None,
+        model_card: str = None,
 ) -> str:
     """Wraps the export_to_huggingface_hub_from_checkpoint() with a CLI interface.
     Can be run from CLI with 'python hfhub.py --exp-path <exp_path> --repo-owner <repo_owner>
