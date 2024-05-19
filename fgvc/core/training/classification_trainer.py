@@ -5,6 +5,7 @@ from typing import Callable
 import numpy as np
 import torch
 import torch.nn as nn
+from PIL import ImageFile
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
@@ -21,6 +22,8 @@ from .scores_monitor import LossMonitor, ScoresMonitor
 from .training_outputs import PredictOutput, TrainEpochOutput
 from .training_state import TrainingState
 from .training_utils import get_gradient_norm
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
