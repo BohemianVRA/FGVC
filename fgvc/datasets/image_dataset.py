@@ -5,8 +5,10 @@ import numpy as np
 import pandas as pd
 import torch
 import torchvision.transforms as T
-from PIL import Image
+from PIL import Image, ImageFile
 from torch.utils.data import Dataset
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 class ImageDataset(Dataset):
