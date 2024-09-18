@@ -1,4 +1,4 @@
-from .classification import BCEWithLogitsLoss, FocalLossWithLogits, SeesawLossWithLogits
+from .classification import BCEWithLogitsLoss, FocalLossWithLogits, SeesawLossWithLogits, RecallatK
 from .common import ComposeLoss
 from .segmentation import BinaryDiceLoss, DiceLoss
 
@@ -9,4 +9,5 @@ __all__ = [
     "ComposeLoss",
     "BinaryDiceLoss",
     "DiceLoss",
+    "RecallatK",
 ]

@@ -99,18 +99,6 @@ class DiceLossWithLogits(nn.Module):
         return 1 - dice
 
 
-def loss_select(loss, opt, to_optim):
-    if loss == 'recallatk':
-        loss_params = {'anneal': opt.sigmoid_temperature, 'batch_size': opt.bs,
-                       "samples_per_class": opt.samples_per_class, 'feat_dims': opt.embed_dim,
-                       'k_vals': opt.k_vals_train, 'k_temperatures': opt.k_temperatures, 'mixup': opt.mixup}
-        criterion = RecallatK(**loss_params)
-    else:
-        raise Exception('Loss {} not available!'.format(loss))
-
-    return criterion, to_optim
-
-
 def sigmoid(tensor: torch.Tensor, temperature: float = 1.0):
     exponent = -tensor / temperature
     exponent = torch.clamp(exponent, min=-50, max=50)
@@ -124,14 +112,14 @@ class RecallatK(torch.nn.Module):
             sigmoid_temperature: float,
             batch_size: int,
             samples_per_class: int,
-            num_id: int,  # batch size / samples per class - number of samples in one class drawn before choosing the next class
+            # num_id: int,  # batch size / samples per class - number of samples in one class drawn before choosing the next class
             # feat_dims,
             k_values: list[int],  # selection of k values
             k_temperatures: list[int],  # Temperature for training recall@k vals
-            use_mixup: bool  # not used here
+            mixup: bool  # not used here
     ):
         super(RecallatK, self).__init__()
-        assert (batch_size % num_id == 0)
+        # assert (batch_size % num_id == 0)
         self.sigmoid_temperature = sigmoid_temperature
         self.batch_size = batch_size
         self.samples_per_class = samples_per_class
@@ -140,43 +128,54 @@ class RecallatK(torch.nn.Module):
         # self.feat_dims = feat_dims
         self.k_values = [min(batch_size, k) for k in k_values]
         self.k_temperatures = k_temperatures
-        self.use_mixup = use_mixup
+        self.use_mixup = mixup
 
-    def forward(self, preds: torch.Tensor, query_id):
+    def forward(self, logits: torch.Tensor, targs: torch.Tensor) -> float:
+        if logits.shape[0] % self.batch_size == 0:
+            preds = logits
+        else:  # last batch padding
+            pad_size = self.batch_size - logits.shape[0]
+            preds = torch.cat([logits, torch.zeros((pad_size, logits.shape[1]), device=logits.device)])
+
         batch_size = preds.shape[0]
         num_id = self.num_id
         # anneal = self.sigmoid_temperature
         # feat_dims = self.feat_dims
-        k_values = self.k_values
+        # k_values = self.k_values
         k_temperatures = self.k_temperatures
         samples_per_class = self.samples_per_class
+        normalization_values = torch.Tensor([min(k, (samples_per_class - 1)) for k in self.k_values]).cuda()
 
-        normalization_values = torch.Tensor([min(k, (samples_per_class - 1)) for k in k_values]).cuda()
-        group_num = int(query_id / samples_per_class)
-        # q_id_ = group_num * samples_per_class
+        loss = 0.
 
-        sim_all = (preds[query_id] * preds).sum(1)
-        sim_all_g = sim_all.view(num_id, int(batch_size / num_id))
-        sim_diff_all = sim_all.unsqueeze(-1) - sim_all_g[group_num, :].unsqueeze(0).repeat(batch_size, 1)
-        sim_sg = sigmoid(sim_diff_all, temperature=self.sigmoid_temperature)
-        for i in range(samples_per_class):
-            sim_sg[group_num * samples_per_class + i, i] = 0.
-        sim_all_rk = (1.0 + torch.sum(sim_sg, dim=0)).unsqueeze(dim=0)
+        for query_id in range(0, logits.shape[0]):
+            group_num = int(query_id / samples_per_class)
+            # q_id_ = group_num * samples_per_class
 
-        sim_all_rk[:, query_id % samples_per_class] = 0.
-        sim_all_rk = sim_all_rk.unsqueeze(dim=-1).repeat(1, 1, len(k_values))
-        k_values = torch.Tensor(k_values).cuda()
-        k_values = k_values.unsqueeze(dim=0).unsqueeze(dim=0).repeat(1, samples_per_class, 1)
-        sim_all_rk = k_values - sim_all_rk
-        for given_k in range(0, len(self.k_values)):
-            sim_all_rk[:, :, given_k] = sigmoid(sim_all_rk[:, :, given_k], temperature=float(k_temperatures[given_k]))
+            sim_all = (preds[query_id] * preds).sum(1)
+            sim_all_g = sim_all.view(num_id, int(batch_size / num_id))
+            sim_diff_all = sim_all.unsqueeze(-1) - sim_all_g[group_num, :].unsqueeze(0).repeat(batch_size, 1)
+            sim_sg = sigmoid(sim_diff_all, temperature=self.sigmoid_temperature)
+            for i in range(samples_per_class):
+                sim_sg[group_num * samples_per_class + i, i] = 0.
+            sim_all_rk = (1.0 + torch.sum(sim_sg, dim=0)).unsqueeze(dim=0)
 
-        sim_all_rk[:, query_id % samples_per_class, :] = 0.
-        k_vals_loss = torch.Tensor(self.k_values).cuda()
-        k_vals_loss = k_vals_loss.unsqueeze(dim=0)
-        recall = torch.sum(sim_all_rk, dim=1)
-        recall = torch.minimum(recall, k_vals_loss)
-        recall = torch.sum(recall, dim=0)
-        recall = torch.div(recall, normalization_values)
-        recall = torch.sum(recall) / len(self.k_values)
-        return (1. - recall) / batch_size
+            sim_all_rk[:, query_id % samples_per_class] = 0.
+            sim_all_rk = sim_all_rk.unsqueeze(dim=-1).repeat(1, 1, len(self.k_values))
+            _k_values = torch.Tensor(self.k_values).cuda()
+            _k_values = _k_values.unsqueeze(dim=0).unsqueeze(dim=0).repeat(1, samples_per_class, 1)
+            sim_all_rk = _k_values - sim_all_rk
+            for given_k in range(0, len(self.k_values)):
+                sim_all_rk[:, :, given_k] = sigmoid(sim_all_rk[:, :, given_k], temperature=float(k_temperatures[given_k]))
+
+            sim_all_rk[:, query_id % samples_per_class, :] = 0.
+            k_vals_loss = torch.Tensor(self.k_values).cuda()
+            k_vals_loss = k_vals_loss.unsqueeze(dim=0)
+            recall = torch.sum(sim_all_rk, dim=1)
+            recall = torch.minimum(recall, k_vals_loss)
+            recall = torch.sum(recall, dim=0)
+            recall = torch.div(recall, normalization_values)
+            recall = torch.sum(recall) / len(self.k_values)
+            loss += (1. - recall) / batch_size
+
+        return loss
