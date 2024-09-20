@@ -106,17 +106,14 @@ def sigmoid(tensor: torch.Tensor, temperature: float = 1.0):
     return y
 
 
-class RecallatK(torch.nn.Module):
+class RecallatK(nn.Module):
     def __init__(
             self,
             sigmoid_temperature: float,
             batch_size: int,
             samples_per_class: int,
-            # num_id: int,  # batch size / samples per class - number of samples in one class drawn before choosing the next class
-            # feat_dims,
             k_values: list[int],  # selection of k values
             k_temperatures: list[int],  # Temperature for training recall@k vals
-            mixup: bool  # not used here
     ):
         super(RecallatK, self).__init__()
         # assert (batch_size % num_id == 0)
@@ -128,7 +125,6 @@ class RecallatK(torch.nn.Module):
         # self.feat_dims = feat_dims
         self.k_values = [min(batch_size, k) for k in k_values]
         self.k_temperatures = k_temperatures
-        self.use_mixup = mixup
 
     def forward(self, logits: torch.Tensor, targs: torch.Tensor) -> float:
         if logits.shape[0] % self.batch_size == 0:
@@ -139,9 +135,6 @@ class RecallatK(torch.nn.Module):
 
         batch_size = preds.shape[0]
         num_id = self.num_id
-        # anneal = self.sigmoid_temperature
-        # feat_dims = self.feat_dims
-        # k_values = self.k_values
         k_temperatures = self.k_temperatures
         samples_per_class = self.samples_per_class
         normalization_values = torch.Tensor([min(k, (samples_per_class - 1)) for k in self.k_values]).cuda()

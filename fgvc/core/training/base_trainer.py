@@ -8,6 +8,7 @@ from .training_outputs import BatchOutput, PredictOutput, TrainEpochOutput
 from .training_utils import to_device, to_numpy
 
 from fgvc.losses import RecallatK
+from fgvc.core.training.multistage_train import train_batch_multistage, predict_as_mini_batch
 
 
 class BaseTrainer:
@@ -44,6 +45,7 @@ class BaseTrainer:
         accumulation_steps: int = 1,
         clip_grad: float = None,
         device: torch.device = None,
+        mini_batch_size: int = None,
         **kwargs,
     ):
         super().__init__()
@@ -59,6 +61,9 @@ class BaseTrainer:
         self.optimizer = optimizer
         self.accumulation_steps = accumulation_steps
         self.clip_grad = clip_grad
+
+        # multistage training and prediction
+        self.mini_batch_size = mini_batch_size
 
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -86,9 +91,8 @@ class BaseTrainer:
         if hasattr(self, "apply_mixup") and len(imgs) % 2 == 0:  # batch size should be even
             imgs, targs = self.apply_mixup(imgs, targs)
 
-        if isinstance(self.criterion, RecallatK):
-            preds, _loss = train_batch_recall(self.model, imgs, self.criterion, 64, device=self.device, embedding_dim=182)
-
+        if isinstance(self.criterion, RecallatK) and self.mini_batch_size is not None:
+            preds, _loss = train_batch_multistage(self.model, imgs, targs, self.criterion, mini_batch_size=self.mini_batch_size, device=self.device)
         else:
             preds = self.model(imgs)
             loss = self.criterion(preds, targs)
@@ -124,8 +128,8 @@ class BaseTrainer:
 
         # run inference and compute loss
         with torch.no_grad():
-            if isinstance(self.criterion, RecallatK):
-                preds =predict_as_mini_batch(model, images=imgs, mini_batch_size=64, device=self.device, embedding_dim=182)
+            if isinstance(self.criterion, RecallatK) and self.mini_batch_size is not None:
+                preds = predict_as_mini_batch(model, images=imgs, mini_batch_size=self.mini_batch_size, device=self.device)
             else:
                 preds = model(imgs)
 
@@ -149,57 +153,3 @@ class BaseTrainer:
     def train(self, *args, **kwargs):
         """Train neural network."""
         raise NotImplementedError()
-
-
-def predict_as_mini_batch(model, images, mini_batch_size, device, embedding_dim):
-    batch_size = images.shape[0]
-    output = torch.zeros((batch_size, embedding_dim)).to(device)
-    # print("First forward pass")
-    for j in range(0, batch_size, mini_batch_size):
-        input_x = images[j:j + mini_batch_size, :].to(device)
-        x = model(input_x)
-        output[j:j+mini_batch_size, :] = copy.copy(x)
-        del x
-        torch.cuda.empty_cache()
-
-    return output[:batch_size, ...]
-
-
-def train_batch_recall(model: nn.Module, images, criterion, mini_batch_size, device, embedding_dim):
-    batch_size = images.shape[0]
-    output = predict_as_mini_batch(model, images, mini_batch_size, device, embedding_dim)
-
-    # if criterion.mixup:
-    #     output_mixup = pos_mixup(output, criterion.num_id)
-    #     num_samples = output_mixup.shape[0]
-    # else:
-    num_samples = output.shape[0]
-
-    output.retain_grad()
-    loss = 0.
-
-    # print("Recall criterion")
-    # for q in range(0, num_samples):
-        # if criterion.mixup:
-        #     # loss += criterion(output_mixup, q)
-        #     continue
-        # else:
-    loss += criterion(output, [])
-    # loss_collect.append(loss.item())
-    _loss = loss.item()
-    loss.backward()
-    output_grad = copy.copy(output.grad)
-    del loss
-    # del output
-    # if criterion.mixup:
-    #     del output_mixup
-    torch.cuda.empty_cache()
-
-    # print("Last backward pass")
-    for j in range(0, batch_size, mini_batch_size):
-        input_x = images[j:j+mini_batch_size, :].to(device)
-        x = model(input_x)
-        x.backward(output_grad[j:j+mini_batch_size, :])
-        del x
-
-    return output, _loss

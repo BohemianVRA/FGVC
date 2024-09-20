@@ -10,7 +10,8 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from fgvc.core.metrics import classification_scores
+from fgvc.losses import RecallatK
+from fgvc.core.metrics import classification_scores, cluster_classification_scores
 from fgvc.utils.utils import set_random_seed
 from fgvc.utils.wandb import log_progress
 
@@ -95,18 +96,26 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         apply_ema: bool = False,
         ema_start_epoch: int = 0,
         ema_decay: float = 0.9999,
+        # multistage training
+        mini_batch_size: int = None,
         **kwargs,
     ):
         if train_scores_fn is None:
 
             def _train_scores_fn(preds, targs):
-                return classification_scores(preds, targs, top_k=None, return_dict=True)
+                if isinstance(criterion, RecallatK):
+                    return cluster_classification_scores(preds, targs, k_values=criterion.k_values, return_dict=True)
+                else:
+                    return classification_scores(preds, targs, return_dict=True)
 
             train_scores_fn = _train_scores_fn
         if valid_scores_fn is None:
 
             def _valid_scores_fn(preds, targs):
-                return classification_scores(preds, targs, top_k=3, return_dict=True)
+                if isinstance(criterion, RecallatK):
+                    return cluster_classification_scores(preds, targs, k_values=criterion.k_values, return_dict=True)
+                else:
+                    return classification_scores(preds, targs, return_dict=True)
 
             valid_scores_fn = _valid_scores_fn
         assert hasattr(train_scores_fn, "__call__")
@@ -133,6 +142,8 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             apply_ema=apply_ema,
             ema_start_epoch=ema_start_epoch,
             ema_decay=ema_decay,
+            mini_batch_size=mini_batch_size,
+            **kwargs
         )
         if len(kwargs) > 0:
             warnings.warn(f"Class {self.__class__.__name__} got unused key arguments: {kwargs}")
@@ -303,7 +314,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
                 "avg_val_loss": f"{predict_output.avg_loss:.4f}",
                 **{
                     s: f"{predict_output.avg_scores.get(s, np.nan):.2%}"
-                    for s in ["F1", "Accuracy", "Recall@3"]
+                    for s in predict_output.avg_scores.keys()
                 },
                 "time": f"{elapsed_epoch_time:.0f}s",
             }
