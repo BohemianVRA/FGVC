@@ -134,7 +134,10 @@ class BaseTrainer:
                 preds = model(imgs)
 
         loss = 0.0
-        if self.criterion is not None:
+        if isinstance(self.criterion, RecallatK):
+            targs = to_device(targs, device=self.device)
+
+        elif self.criterion is not None:
             targs = to_device(targs, device=self.device)
             loss = self.criterion(preds, targs).item()
 

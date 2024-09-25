@@ -2,7 +2,7 @@ from typing import Dict, Optional, Tuple, Type, Union
 
 import pandas as pd
 from PIL import ImageFile
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, SequentialSampler
 
 from fgvc.core.augmentations import (
     heavy_transforms,
@@ -19,6 +19,7 @@ from .poison_dataset import PoisonDataset
 from .prediction_dataset import PredictionDataset
 from .segmentation_dataset import BinarySegmentationDataset
 from .taxonomy_dataset import TaxonomyDataset
+from .recall_dataset import TrainDatasetrsk, BaseTripletDataset
 
 __all__ = (
     "ImageDataset",
@@ -26,6 +27,8 @@ __all__ = (
     "PredictionDataset",
     "BinarySegmentationDataset",
     "TaxonomyDataset",
+    "TrainDatasetrsk",
+    "BaseTripletDataset",
     "get_dataloaders",
     "IMAGENET_MEAN",
     "IMAGENET_STD",
@@ -129,6 +132,9 @@ def get_dataloaders(
         trainloader_kws = dataloader_kws.copy()
         if "shuffle" not in trainloader_kws:
             trainloader_kws["shuffle"] = True
+        if isinstance(trainset, TrainDatasetrsk):
+            trainloader_kws["sampler"] = SequentialSampler(trainset)
+            trainloader_kws.pop("shuffle")
         trainloader = DataLoader(
             trainset, batch_size=batch_size, num_workers=num_workers, **trainloader_kws
         )
@@ -138,7 +144,11 @@ def get_dataloaders(
 
     # create validation dataset and dataloader
     if val_data is not None:
-        valset = dataset_cls(val_data, transform=val_tfm, **dataset_kws)
+        if issubclass(dataset_cls, TrainDatasetrsk):
+            valset = BaseTripletDataset(val_data, transform=val_tfm, **dataset_kws)
+        else:
+            valset = dataset_cls(val_data, transform=val_tfm, **dataset_kws)
+
         valloader_kws = dataloader_kws.copy()
         if "shuffle" not in valloader_kws:
             valloader_kws["shuffle"] = False

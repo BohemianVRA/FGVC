@@ -16,10 +16,10 @@ def predict_as_mini_batch(model: nn.Module, images: torch.Tensor, mini_batch_siz
         del x
         torch.cuda.empty_cache()
 
-    return output[:batch_size, ...]
+    return output
 
 
-def train_batch_multistage(model: nn.Module, images: torch.Tensor, targs: torch.Tensor, criterion: nn.Module, mini_batch_size: int, device: torch.device) -> (torch.Tensor, float):
+def train_batch_multistage(model: nn.Module, images: torch.Tensor, targs: torch.Tensor, criterion: nn.Module, mini_batch_size: int, device: torch.device) ->(torch.Tensor, float):
     batch_size = images.shape[0]
     output = predict_as_mini_batch(model, images, mini_batch_size, device)
 
@@ -37,7 +37,7 @@ def train_batch_multistage(model: nn.Module, images: torch.Tensor, targs: torch.
         input_x = images[j:j+mini_batch_size, :].to(device)
         x = model(input_x)
         x.backward(output_grad[j:j+mini_batch_size, :])
-        del x
+        # del x
 
     return output, _loss
 

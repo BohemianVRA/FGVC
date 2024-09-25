@@ -11,6 +11,8 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from fgvc.losses import RecallatK
+from fgvc.datasets.recall_dataset import TrainDatasetrsk
+
 from fgvc.core.metrics import classification_scores, cluster_classification_scores
 from fgvc.utils.utils import set_random_seed
 from fgvc.utils.wandb import log_progress
@@ -279,6 +281,10 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             # apply training and validation on one epoch
             start_epoch_time = time.time()
             train_output = self.train_epoch(epoch, self.trainloader)
+
+            if isinstance(self.trainloader.dataset, TrainDatasetrsk):
+                self.trainloader.dataset.reshuffle()
+
             predict_output = PredictOutput()
             ema_predict_output = None
             if self.validloader is not None:
