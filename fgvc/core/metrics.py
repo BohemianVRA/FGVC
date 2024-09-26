@@ -1,6 +1,7 @@
 from typing import Optional, Tuple, Union
-import sklearn.metrics as metrics
+
 import numpy as np
+import sklearn.metrics as metrics
 from scipy.special import expit
 from sklearn.metrics import (
     accuracy_score,
@@ -58,12 +59,13 @@ def classification_scores(
 
 
 def cluster_classification_scores(
-        preds: np.ndarray, targs: np.ndarray, k_values: tuple, *, return_dict: bool = True
+    preds: np.ndarray, targs: np.ndarray, k_values: tuple, *, return_dict: bool = True
 ) -> Union[dict, Tuple]:
     import faiss
+
     n_classes = len(np.unique(targs))
     targs = np.hstack(targs).reshape(-1, 1)
-    preds = np.vstack(preds).astype('float32')
+    preds = np.vstack(preds).astype("float32")
     cpu_cluster_index = faiss.IndexFlatL2(preds.shape[-1])
     kmeans = faiss.Clustering(preds.shape[-1], n_classes)
 

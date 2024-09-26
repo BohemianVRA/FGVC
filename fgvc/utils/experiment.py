@@ -8,7 +8,7 @@ import pandas as pd
 import torch.nn as nn
 import yaml
 
-from fgvc.core.models import get_model
+from fgvc.core.models import get_model, ContrastiveModelWrapper
 from fgvc.core.optimizers import Optimizer, SchedulerType, get_optimizer, get_scheduler
 
 logger = logging.getLogger("script")
@@ -427,16 +427,25 @@ def load_model(
                 "Invalid value in config parameter 'pretrained_checkpoint'. "
                 "Use one of the options: 'timm' | 'none' | <path>."
             )
-
-    model = get_model(
-        config["architecture"],
-        config["number_of_classes"],
-        pretrained=pretrained,
-        checkpoint_path=checkpoint_path,
-        strict=strict,
-    )
-    model_mean = tuple(model.default_cfg["mean"])
-    model_std = tuple(model.default_cfg["std"])
+    if config["loss"] == "RecallatKSurrogate":
+        # TODO Fix integration
+        model = ContrastiveModelWrapper(
+            model_name=config["architecture"],
+            embeddings_dim=config["number_of_classes"],
+            pretrained=pretrained
+        )
+        model_mean = tuple(model.model.default_cfg["mean"])
+        model_std = tuple(model.model.default_cfg["std"])
+    else:
+        model = get_model(
+            config["architecture"],
+            config["number_of_classes"],
+            pretrained=pretrained,
+            checkpoint_path=checkpoint_path,
+            strict=strict,
+        )
+        model_mean = tuple(model.default_cfg["mean"])
+        model_std = tuple(model.default_cfg["std"])
     if config.get("multigpu", False):  # multi gpu model
         model = nn.DataParallel(model)
         logger.info("Using nn.DataParallel for multiple GPU support.")

@@ -10,10 +10,9 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
-from fgvc.losses import RecallatK
-from fgvc.datasets.recall_dataset import TrainRecallDataset
-
 from fgvc.core.metrics import classification_scores, cluster_classification_scores
+from fgvc.datasets.recall_dataset import TrainRecallDataset
+from fgvc.losses import RecallatKSurrogate
 from fgvc.utils.utils import set_random_seed
 from fgvc.utils.wandb import log_progress
 
@@ -105,8 +104,10 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         if train_scores_fn is None:
 
             def _train_scores_fn(preds, targs):
-                if isinstance(criterion, RecallatK):
-                    return cluster_classification_scores(preds, targs, k_values=criterion.k_values, return_dict=True)
+                if isinstance(criterion, RecallatKSurrogate):
+                    return cluster_classification_scores(
+                        preds, targs, k_values=criterion.k_values, return_dict=True
+                    )
                 else:
                     return classification_scores(preds, targs, return_dict=True)
 
@@ -114,8 +115,10 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         if valid_scores_fn is None:
 
             def _valid_scores_fn(preds, targs):
-                if isinstance(criterion, RecallatK):
-                    return cluster_classification_scores(preds, targs, k_values=criterion.k_values, return_dict=True)
+                if isinstance(criterion, RecallatKSurrogate):
+                    return cluster_classification_scores(
+                        preds, targs, k_values=criterion.k_values, return_dict=True
+                    )
                 else:
                     return classification_scores(preds, targs, return_dict=True)
 
@@ -145,7 +148,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             ema_start_epoch=ema_start_epoch,
             ema_decay=ema_decay,
             mini_batch_size=mini_batch_size,
-            **kwargs
+            **kwargs,
         )
         if len(kwargs) > 0:
             warnings.warn(f"Class {self.__class__.__name__} got unused key arguments: {kwargs}")

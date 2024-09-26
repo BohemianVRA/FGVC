@@ -17,9 +17,9 @@ from fgvc.core.augmentations.const import IMAGENET_MEAN, IMAGENET_STD
 from .image_dataset import ImageDataset
 from .poison_dataset import PoisonDataset
 from .prediction_dataset import PredictionDataset
+from .recall_dataset import BaseTripletDataset, TrainRecallDataset
 from .segmentation_dataset import BinarySegmentationDataset
 from .taxonomy_dataset import TaxonomyDataset
-from .recall_dataset import TrainRecallDataset, BaseTripletDataset
 
 __all__ = (
     "ImageDataset",
@@ -132,9 +132,11 @@ def get_dataloaders(
         trainloader_kws = dataloader_kws.copy()
         if "shuffle" not in trainloader_kws:
             trainloader_kws["shuffle"] = True
+
         if isinstance(trainset, TrainRecallDataset):
             trainloader_kws["sampler"] = SequentialSampler(trainset)
             trainloader_kws.pop("shuffle")
+
         trainloader = DataLoader(
             trainset, batch_size=batch_size, num_workers=num_workers, **trainloader_kws
         )
@@ -160,3 +162,33 @@ def get_dataloaders(
         valloader = None
 
     return trainloader, valloader, (trainset, valset), (train_tfm, val_tfm)
+
+
+def get_dataloaders_contrastive(
+    train_data: Optional[Union[pd.DataFrame, list, dict]],
+    val_data: Optional[Union[pd.DataFrame, list, dict]],
+    augmentations: str,
+    image_size: tuple,
+    samples_per_class: int = 4,
+    model_mean: tuple = IMAGENET_MEAN,
+    model_std: tuple = IMAGENET_STD,
+    batch_size: int = 32,
+    num_workers: int = 8,
+) -> Tuple[DataLoader, DataLoader]:
+    """Wrapper function. Return dataloaders for contrastive learning."""
+    trainloader, validloader, _, _ = get_dataloaders(
+        train_data,
+        val_data,
+        augmentations=augmentations,
+        image_size=image_size,
+        model_mean=model_mean,
+        model_std=model_std,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        dataset_cls=TrainRecallDataset,
+        dataset_kws={
+            "batch_size": batch_size,
+            "samples_per_class": samples_per_class,
+        },
+    )
+    return trainloader, validloader

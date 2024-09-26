@@ -1,24 +1,85 @@
 import warnings
-import os.path as osp
 from collections import defaultdict
 
 warnings.filterwarnings("ignore")
-from typing import Tuple
 import copy
 import random
+from typing import Tuple
 
 import albumentations as A
 import numpy as np
 import pandas as pd
-from torchvision import transforms
 import torch
-import torchvision.transforms as T
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset
 
-from fgvc.datasets.image_dataset import ImageDataset
-
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+flatten = lambda l: [item for sublist in l for item in sublist]
+
+
+class TrainRecallDataset(Dataset):
+    def __init__(self, train_df: pd.DataFrame, transform, **dataset_kws):
+        class_to_images = defaultdict(list)
+        for index, (class_id, image_path) in train_df[["class_id", "image_path"]].iterrows():
+            class_to_images[class_id].append(image_path)
+
+        self.class_to_images = class_to_images
+        self.dataset = None
+        self.batch_size = dataset_kws["batch_size"]
+        self.samples_per_class = dataset_kws["samples_per_class"]
+        for class_id in self.class_to_images:
+            self.class_to_images[class_id] = [
+                (class_id, image_path) for image_path in self.class_to_images[class_id]
+            ]
+
+        self.available_classes = [*self.class_to_images.keys()]
+        self.transform = transform
+        self.reshuffle()
+
+    def reshuffle(self):
+        class_to_images = copy.deepcopy(self.class_to_images)
+        for class_id in class_to_images:
+            random.shuffle(class_to_images[class_id])
+        classes = copy.deepcopy(self.available_classes)
+        random.shuffle(classes)
+        total_batches, batch = [], []
+        while True:
+            for class_id in classes:
+                if (len(class_to_images[class_id]) >= self.samples_per_class) and (
+                        len(batch) < self.batch_size / self.samples_per_class
+                ):
+                    batch.append(class_to_images[class_id][: self.samples_per_class])
+                    class_to_images[class_id] = class_to_images[class_id][self.samples_per_class:]
+
+            if len(batch) == self.batch_size / self.samples_per_class:
+                total_batches.append(batch)
+                batch = []
+            else:
+                break
+
+        random.shuffle(total_batches)
+        self.dataset = flatten(flatten(total_batches))
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str]:
+        batch_item = self.dataset[idx]
+        class_id, file_path = batch_item
+
+        image_pil = Image.open(file_path).convert("RGB")
+        image = self.apply_transforms(image_pil)
+        return image, class_id, file_path
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def apply_transforms(self, image: Image.Image) -> torch.Tensor:
+        """Apply augmentation transformations on the image."""
+        if self.transform is not None:
+            if isinstance(self.transform, A.Compose):
+                image = self.transform(image=np.asarray(image))["image"]
+            else:
+                image = self.transform(image)
+        return image
 
 
 class BaseTripletDataset(Dataset):
@@ -56,13 +117,16 @@ class BaseTripletDataset(Dataset):
         # transf_list.extend([transforms.ToTensor(), normalize])
         # self.transform = transforms.Compose(transf_list)
         self.transform = transform
-        self.image_list = [[(file_path, class_id) for file_path in self.image_dict[class_id]] for class_id in self.image_dict.keys()]
+        self.image_list = [
+            [(file_path, class_id) for file_path in self.image_dict[class_id]]
+            for class_id in self.image_dict.keys()
+        ]
         self.image_list = [x for y in self.image_list for x in y]
         self.is_init = True
 
     def ensure_3dim(self, img):
         if len(img.size) == 2:
-            img = img.convert('RGB')
+            img = img.convert("RGB")
         return img
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str]:
@@ -131,69 +195,3 @@ class BaseTripletDataset(Dataset):
 
     def __len__(self):
         return self.n_files
-
-
-flatten = lambda l: [item for sublist in l for item in sublist]
-
-
-class TrainRecallDataset(Dataset):
-    def __init__(self, train_df: pd.DataFrame, transform, **dataset_kws):
-        class_to_images = defaultdict(list)
-        for index, (class_id, image_path) in train_df[["class_id", "image_path"]].iterrows():
-            class_to_images[class_id].append(image_path)
-
-        self.class_to_images = class_to_images
-        self.dataset = None
-        self.dataset_name = dataset_kws.get("dataset_name", None)
-        self.batch_size = dataset_kws["batch_size"]
-        self.samples_per_class = dataset_kws["samples_per_class"]
-        for class_id in self.class_to_images:
-            self.class_to_images[class_id] = [(class_id, image_path) for image_path in self.class_to_images[class_id]]
-
-        self.available_classes = [*self.class_to_images.keys()]
-        self.transform = transform
-        self.reshuffle()
-
-    def reshuffle(self):
-        image_dict = copy.deepcopy(self.class_to_images)
-        print('shuffling data')
-        for sub in image_dict:
-            random.shuffle(image_dict[sub])
-        classes = [*image_dict]
-        random.shuffle(classes)
-        total_batches = []
-        batch = []
-        while True:
-            for sub_class in classes:
-                if (len(image_dict[sub_class]) >= self.samples_per_class) and (len(batch) < self.batch_size / self.samples_per_class):
-                    batch.append(image_dict[sub_class][:self.samples_per_class])
-                    image_dict[sub_class] = image_dict[sub_class][self.samples_per_class:]
-
-            if len(batch) == self.batch_size / self.samples_per_class:
-                total_batches.append(batch)
-                batch = []
-            else:
-                break
-
-        random.shuffle(total_batches)
-        self.dataset = flatten(flatten(total_batches))
-
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str]:
-        batch_item = self.dataset[idx]
-        class_id, file_path = batch_item
-
-        image_pil = Image.open(file_path).convert("RGB")
-        image = self.apply_transforms(image_pil)
-        return image, class_id, file_path
-
-    def __len__(self):
-        return len(self.dataset)
-
-    def apply_transforms(self, image: Image.Image) -> torch.Tensor:
-        """Apply augmentation transformations on the image."""
-        if self.transform is not None:
-            if isinstance(self.transform, A.Compose):
-                image = self.transform(image=np.asarray(image))["image"]
-            else:
-                image = self.transform(image)
-        return image
