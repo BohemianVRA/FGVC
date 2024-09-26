@@ -1,11 +1,9 @@
 import warnings
 import os.path as osp
+from collections import defaultdict
 
 warnings.filterwarnings("ignore")
 from typing import Tuple
-from torch.utils.data import dataset
-from torchvision import transforms
-import scipy.io
 import copy
 import random
 
@@ -17,6 +15,8 @@ import torch
 import torchvision.transforms as T
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset
+
+from fgvc.datasets.image_dataset import ImageDataset
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -120,8 +120,6 @@ class BaseTripletDataset(Dataset):
         #     else:
         #         return self.image_list[idx][-1], self.transform(self.ensure_3dim(Image.open(self.image_list[idx][0])))
 
-
-
     def apply_transforms(self, image: Image.Image) -> torch.Tensor:
         """Apply augmentation transformations on the image."""
         if self.transform is not None:
@@ -130,6 +128,7 @@ class BaseTripletDataset(Dataset):
             else:
                 image = self.transform(image)
         return image
+
     def __len__(self):
         return self.n_files
 
@@ -137,43 +136,26 @@ class BaseTripletDataset(Dataset):
 flatten = lambda l: [item for sublist in l for item in sublist]
 
 
-class TrainDatasetrsk(Dataset):
+class TrainRecallDataset(Dataset):
     def __init__(self, train_df: pd.DataFrame, transform, **dataset_kws):
-        train_image_dict = {}
+        class_to_images = defaultdict(list)
         for index, (class_id, image_path) in train_df[["class_id", "image_path"]].iterrows():
-            if class_id not in train_image_dict.keys():
-                train_image_dict[class_id] = []
-            train_image_dict[class_id].append(image_path)
+            class_to_images[class_id].append(image_path)
 
-        self.image_dict = train_image_dict
+        self.class_to_images = class_to_images
         self.dataset = None
         self.dataset_name = dataset_kws.get("dataset_name", None)
         self.batch_size = dataset_kws["batch_size"]
         self.samples_per_class = dataset_kws["samples_per_class"]
-        for sub in self.image_dict:
-            newsub = []
-            for instance in self.image_dict[sub]:
-                newsub.append((sub, instance))
-            self.image_dict[sub] = newsub
-        self.avail_classes = [*self.image_dict]
-        # normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        # transf_list = []
-        # transf_list.extend([
-        #     transforms.RandomResizedCrop(size=224) if opt.arch in ['resnet50', 'resnet50_mcn', 'ViTB16', 'ViTB32',
-        #                                                            'DeiTB'] else transforms.RandomResizedCrop(size=227),
-        #     transforms.RandomHorizontalFlip(0.5)])
-        # transf_list.extend([transforms.ToTensor(), normalize])
-        # self.transform = transforms.Compose(transf_list)
+        for class_id in self.class_to_images:
+            self.class_to_images[class_id] = [(class_id, image_path) for image_path in self.class_to_images[class_id]]
+
+        self.available_classes = [*self.class_to_images.keys()]
         self.transform = transform
         self.reshuffle()
 
-    def ensure_3dim(self, img):
-        if len(img.size) == 2:
-            img = img.convert('RGB')
-        return img
-
     def reshuffle(self):
-        image_dict = copy.deepcopy(self.image_dict)
+        image_dict = copy.deepcopy(self.class_to_images)
         print('shuffling data')
         for sub in image_dict:
             random.shuffle(image_dict[sub])
@@ -215,9 +197,3 @@ class TrainDatasetrsk(Dataset):
             else:
                 image = self.transform(image)
         return image
-
-    # def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str]:
-    #     image, file_path = self.get_image(idx)
-    #     class_id = self.get_class_id(idx)
-    #     image = self.apply_transforms(image)
-    #     return image, class_id, file_path

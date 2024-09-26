@@ -61,7 +61,7 @@ def cluster_classification_scores(
         preds: np.ndarray, targs: np.ndarray, k_values: tuple, *, return_dict: bool = True
 ) -> Union[dict, Tuple]:
     import faiss
-    n_classes = np.unique(targs).sum()
+    n_classes = len(np.unique(targs))
     targs = np.hstack(targs).reshape(-1, 1)
     preds = np.vstack(preds).astype('float32')
     cpu_cluster_index = faiss.IndexFlatL2(preds.shape[-1])

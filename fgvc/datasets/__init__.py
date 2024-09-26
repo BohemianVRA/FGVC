@@ -19,7 +19,7 @@ from .poison_dataset import PoisonDataset
 from .prediction_dataset import PredictionDataset
 from .segmentation_dataset import BinarySegmentationDataset
 from .taxonomy_dataset import TaxonomyDataset
-from .recall_dataset import TrainDatasetrsk, BaseTripletDataset
+from .recall_dataset import TrainRecallDataset, BaseTripletDataset
 
 __all__ = (
     "ImageDataset",
@@ -27,7 +27,7 @@ __all__ = (
     "PredictionDataset",
     "BinarySegmentationDataset",
     "TaxonomyDataset",
-    "TrainDatasetrsk",
+    "TrainRecallDataset",
     "BaseTripletDataset",
     "get_dataloaders",
     "IMAGENET_MEAN",
@@ -132,7 +132,7 @@ def get_dataloaders(
         trainloader_kws = dataloader_kws.copy()
         if "shuffle" not in trainloader_kws:
             trainloader_kws["shuffle"] = True
-        if isinstance(trainset, TrainDatasetrsk):
+        if isinstance(trainset, TrainRecallDataset):
             trainloader_kws["sampler"] = SequentialSampler(trainset)
             trainloader_kws.pop("shuffle")
         trainloader = DataLoader(
@@ -144,7 +144,7 @@ def get_dataloaders(
 
     # create validation dataset and dataloader
     if val_data is not None:
-        if issubclass(dataset_cls, TrainDatasetrsk):
+        if issubclass(dataset_cls, TrainRecallDataset):
             valset = BaseTripletDataset(val_data, transform=val_tfm, **dataset_kws)
         else:
             valset = dataset_cls(val_data, transform=val_tfm, **dataset_kws)

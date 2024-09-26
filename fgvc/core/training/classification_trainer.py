@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 
 from fgvc.losses import RecallatK
-from fgvc.datasets.recall_dataset import TrainDatasetrsk
+from fgvc.datasets.recall_dataset import TrainRecallDataset
 
 from fgvc.core.metrics import classification_scores, cluster_classification_scores
 from fgvc.utils.utils import set_random_seed
@@ -282,7 +282,7 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             start_epoch_time = time.time()
             train_output = self.train_epoch(epoch, self.trainloader)
 
-            if isinstance(self.trainloader.dataset, TrainDatasetrsk):
+            if isinstance(self.trainloader.dataset, TrainRecallDataset):
                 self.trainloader.dataset.reshuffle()
 
             predict_output = PredictOutput()
