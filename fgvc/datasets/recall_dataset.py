@@ -25,18 +25,18 @@ class TrainRecallDataset(Dataset):
     Generated batches provide consecutive 'samples per class' for each class up to the batch size.
     For instance, a dataset has classes x samples: 1x8, 2x6, and 3x4, samples per class are 4,
     then first batch could look like: [1, 1, 1, 1, 3, 3, 3, 3, 2, 2, 2, 2].
-    Also, batch_size / samples_per_class <= num_classes, or no batch will be constructed.
+    Also, `batch_size` / `samples_per_class` <= `num_classes`, or no batch will be constructed.
     To regenerate batches, reshuffle() must be explicitly called.
-    The provided 'dataset' is a subset of 'train_df' samples.
+    The provided `dataset` is a subset of `train_df` samples.
 
     Parameters
     ----------
     train_df
-        Dataframe with training data. Must have "class_id" and "image_path".
+        Dataframe with training data. Must have `class_id` and `image_path`.
     transform
         Image transform function.
     dataset_kws
-        Must have "batch_size" and "samples_per_class".
+        Must have `batch_size` and `samples_per_class`.
     """
     def __init__(self, train_df: pd.DataFrame, transform: Union[A.Compose, T.Compose], **dataset_kws):
         class_to_images = defaultdict(list)
@@ -57,7 +57,7 @@ class TrainRecallDataset(Dataset):
         self.reshuffle()
 
     def reshuffle(self):
-        """Reshuffles data and regenerates batches / inner 'dataset'."""
+        """Reshuffles data and regenerates batches / inner `dataset`."""
         class_to_images = copy.deepcopy(self.class_to_images)
         for class_id in class_to_images:
             random.shuffle(class_to_images[class_id])

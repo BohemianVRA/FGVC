@@ -96,7 +96,7 @@ def classification_scores(
 def cluster_classification_scores(
     preds: np.ndarray, targs: np.ndarray, k_values: tuple, *, return_dict: bool = True
 ) -> Union[dict, Tuple]:
-    """Compute NMI and recalls at k_values.
+    """Compute NMI and recalls at `k_values`.
 
     Uses different clustering functions based on the installed packages (scikit, faiss).
     Taken from: https://github.com/yash0307/RecallatK_surrogate

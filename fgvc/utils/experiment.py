@@ -8,7 +8,7 @@ import pandas as pd
 import torch.nn as nn
 import yaml
 
-from fgvc.core.models import get_model, ContrastiveModelWrapper
+from fgvc.core.models import get_model, ContrastiveViTWrapper
 from fgvc.core.optimizers import Optimizer, SchedulerType, get_optimizer, get_scheduler
 
 logger = logging.getLogger("script")
@@ -380,6 +380,7 @@ def load_model(
          - "none" - randomly initialized weights.
          - <path> - path to a custom checkpoint.
      - (optional) `multigpu` - if true, use `nn.DataParallel` model wrapper.
+     - (optional) `contrastive` - if true, use Contrastive model wrapper, `embeddings_dim` must be provided.
 
     Pre-trained checkpoint can be set using `config` dictionary or `checkpoint_path` argument.
 
@@ -427,15 +428,17 @@ def load_model(
                 "Invalid value in config parameter 'pretrained_checkpoint'. "
                 "Use one of the options: 'timm' | 'none' | <path>."
             )
-    if config["loss"] == "RecallatKSurrogate":
-        # TODO Fix integration
-        model = ContrastiveModelWrapper(
-            model_name=config["architecture"],
-            embeddings_dim=config["number_of_classes"],
-            pretrained=pretrained
-        )
-        model_mean = tuple(model.model.default_cfg["mean"])
-        model_std = tuple(model.model.default_cfg["std"])
+    if config.get("contrastive", False):
+        if "vit" in config["architecture"]:
+            logger.info("Using ContrastiveViT model.")
+            assert checkpoint_path is None, NotImplementedError()
+            model = ContrastiveViTWrapper(
+                model_name=config["architecture"],
+                embeddings_dim=config["embeddings_dim"],
+                pretrained=pretrained
+            )
+        else:
+            raise NotImplementedError("Only ContrastiveViT is implemented.")
     else:
         model = get_model(
             config["architecture"],
@@ -444,8 +447,8 @@ def load_model(
             checkpoint_path=checkpoint_path,
             strict=strict,
         )
-        model_mean = tuple(model.default_cfg["mean"])
-        model_std = tuple(model.default_cfg["std"])
+    model_mean = tuple(model.default_cfg["mean"])
+    model_std = tuple(model.default_cfg["std"])
     if config.get("multigpu", False):  # multi gpu model
         model = nn.DataParallel(model)
         logger.info("Using nn.DataParallel for multiple GPU support.")

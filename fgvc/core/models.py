@@ -160,71 +160,47 @@ def get_model_target_size(model: nn.Module) -> Optional[int]:
 
 #  Models for contrastive learning #
 class GeM(nn.Module):
-    def __init__(self, p=3, eps=1e-6):
+    """Generalized mean Pooling layer.
+
+    Taken from: https://github.com/yash0307/RecallatK_surrogate
+
+    """
+    def __init__(self, p: float = 3, eps: float = 1e-6):
         super(GeM, self).__init__()
         self.p = nn.Parameter(torch.ones(1) * p)
         self.eps = eps
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
         return self.gem(x, p=self.p, eps=self.eps)
 
-    def gem(self, x, p=3, eps=1e-6):
+    def gem(self, x: torch.Tensor, p: nn.Parameter, eps: float = 1e-6) -> torch.Tensor:
+        """GeM pooling."""
         return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1.0 / p)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
-            self.__class__.__name__
-            + "("
-            + "p="
-            + "{:.4f}".format(self.p.data.tolist()[0])
-            + ", "
-            + "eps="
-            + str(self.eps)
-            + ")"
+            f"{self.__class__.__name__} (p={self.p.data.tolist()[0]:.4f}, eps={self.eps})"
         )
 
 
-class ContrastiveModelWrapper(nn.Module):
+class ContrastiveViTWrapper(nn.Module):
+    """Wrapper class for ViT models.
+
+    Additional pooling, linear and normalization layers are appended to the model.
+    Model output is of `embeddings_dim` size.
+    Taken from: https://github.com/yash0307/RecallatK_surrogate
+    """
     def __init__(self, model_name: str, embeddings_dim: int, pretrained=True):
-        super(ContrastiveModelWrapper, self).__init__()
+        super(ContrastiveViTWrapper, self).__init__()
         self.model = timm.create_model(model_name, pretrained=pretrained)
         self.default_cfg = self.model.default_cfg
-        # if pretrained:
-        #     self.model = timm.create_model('vit_base_patch16_224_in21k', pretrained=True)
-        # else:
-        #     self.model = timm.create_model('vit_base_patch16_224', pretrained=False)
         self.gem = GeM()
         self.model.head = torch.nn.Linear(self.model.head.in_features, embeddings_dim)
         self.model.layer_norm = torch.nn.LayerNorm(self.model.head.in_features)
 
-    def forward(self, x):
-        x = self.model.patch_embed(x)
-        cls_token = self.model.cls_token.expand(x.shape[0], -1, -1)
-        x = torch.cat((cls_token, x), dim=1)
-        x = self.model.pos_drop(x + self.model.pos_embed)
-        x = self.model.blocks(x)
-        x = self.model.norm(x)
-        # x = self.model.pre_logits(x[:, 0])
-        # x = self.model.layer_norm(x)
-        x = self.model.layer_norm(x[:, 0])
-        x = self.model.head(x)
-        return torch.nn.functional.normalize(x, dim=-1)
-
-
-class ViTB32(nn.Module):
-    def __init__(self, embeddings_dim: int, pretrained=True):
-        super(ViTB32, self).__init__()
-        if pretrained:
-            print("Getting pretrained weights...")
-            self.model = timm.create_model("vit_base_patch32_224_in21k", pretrained=True)
-        else:
-            print("Not utilizing pretrained weights!")
-            self.model = timm.create_model("vit_base_patch32_224", pretrained=False)
-        self.gem = GeM()
-        self.model.head = torch.nn.Linear(self.model.head.in_features, embeddings_dim)
-        self.model.layer_norm = torch.nn.LayerNorm(self.model.head.in_features)
-
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
         x = self.model.patch_embed(x)
         cls_token = self.model.cls_token.expand(x.shape[0], -1, -1)
         x = torch.cat((cls_token, x), dim=1)
