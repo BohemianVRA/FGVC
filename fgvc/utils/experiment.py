@@ -8,7 +8,7 @@ import pandas as pd
 import torch.nn as nn
 import yaml
 
-from fgvc.core.models import get_model, ContrastiveViTWrapper
+from fgvc.core.models import ContrastiveResNetWrapper, ContrastiveViTWrapper, get_model
 from fgvc.core.optimizers import Optimizer, SchedulerType, get_optimizer, get_scheduler
 
 logger = logging.getLogger("script")
@@ -380,7 +380,9 @@ def load_model(
          - "none" - randomly initialized weights.
          - <path> - path to a custom checkpoint.
      - (optional) `multigpu` - if true, use `nn.DataParallel` model wrapper.
-     - (optional) `contrastive` - if true, use Contrastive model wrapper, `embeddings_dim` must be provided.
+     - (optional) `contrastive`:
+        - if true, use Contrastive model wrapper.
+        - `embeddings_dim` must be provided.
 
     Pre-trained checkpoint can be set using `config` dictionary or `checkpoint_path` argument.
 
@@ -429,16 +431,26 @@ def load_model(
                 "Use one of the options: 'timm' | 'none' | <path>."
             )
     if config.get("contrastive", False):
+        assert checkpoint_path is None, NotImplementedError(
+            "Not implemented for Contrastive wrappers."
+        )
         if "vit" in config["architecture"]:
             logger.info("Using ContrastiveViT model.")
-            assert checkpoint_path is None, NotImplementedError()
             model = ContrastiveViTWrapper(
                 model_name=config["architecture"],
                 embeddings_dim=config["embeddings_dim"],
-                pretrained=pretrained
+                pretrained=pretrained,
             )
+        elif "resnet" in config["architecture"]:
+            logger.info("Using ContrastiveResNet model.")
+            model = ContrastiveResNetWrapper(
+                model_name=config["architecture"],
+                embeddings_dim=config["embeddings_dim"],
+                pretrained=pretrained,
+            )
+
         else:
-            raise NotImplementedError("Only ContrastiveViT is implemented.")
+            raise NotImplementedError("Only Contrastive ViT and ResNet are implemented.")
     else:
         model = get_model(
             config["architecture"],

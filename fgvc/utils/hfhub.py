@@ -6,7 +6,7 @@ import os.path as osp
 import warnings
 from copy import deepcopy
 from functools import wraps
-from typing import Tuple, List
+from typing import List, Tuple
 
 import torch
 import yaml

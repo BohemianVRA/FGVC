@@ -15,9 +15,9 @@ def predict_as_mini_batch(
     embedding_dim = get_model_target_size(model)
     output = torch.zeros((batch_size, embedding_dim)).to(device)
     for j in range(0, batch_size, mini_batch_size):
-        input_x = images[j: j + mini_batch_size, :].to(device)
+        input_x = images[j : j + mini_batch_size, :].to(device)
         x = model(input_x)
-        output[j: j + mini_batch_size, :] = copy.copy(x)
+        output[j : j + mini_batch_size, :] = copy.copy(x)
         del x
         torch.cuda.empty_cache()
 
@@ -50,6 +50,8 @@ def train_batch_multistage(
         Pytorch tensor with ground truth labels images.
     criterion
         Loss function.
+    mini_batch_size
+        Size of the mini batch.
     device
         Device to use (cpu,0,1,2,...).
 
@@ -72,8 +74,8 @@ def train_batch_multistage(
     torch.cuda.empty_cache()
 
     for j in range(0, batch_size, mini_batch_size):
-        input_x = images[j: j + mini_batch_size, :].to(device)
+        input_x = images[j : j + mini_batch_size, :].to(device)
         x = model(input_x)
-        x.backward(output_grad[j: j + mini_batch_size, :])
+        x.backward(output_grad[j : j + mini_batch_size, :])
 
     return output, _loss

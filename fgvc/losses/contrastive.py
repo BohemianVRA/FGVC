@@ -1,4 +1,5 @@
 from typing import Tuple
+
 import torch
 import torch.nn as nn
 
@@ -76,9 +77,9 @@ class RecallatKSurrogate(nn.Module):
 
             similarity_all = (logits[query_id] * logits).sum(1)
             similarity_all_grouped = similarity_all.view(num_id, samples_per_class)
-            similarity_diff_all = similarity_all.unsqueeze(-1) - similarity_all_grouped[group_num, :].unsqueeze(
-                0
-            ).repeat(batch_size, 1)
+            similarity_diff_all = similarity_all.unsqueeze(-1) - similarity_all_grouped[
+                group_num, :
+            ].unsqueeze(0).repeat(batch_size, 1)
             similarity_sigmoid = sigmoid(similarity_diff_all, temperature=self.sigmoid_temperature)
             for i in range(samples_per_class):
                 similarity_sigmoid[group_num * samples_per_class + i, i] = 0.0

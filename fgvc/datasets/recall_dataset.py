@@ -10,13 +10,11 @@ import albumentations as A
 import numpy as np
 import pandas as pd
 import torch
+import torchvision.transforms as T
 from PIL import Image, ImageFile
 from torch.utils.data import Dataset
-import torchvision.transforms as T
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
-flatten = lambda l: [item for sublist in l for item in sublist]
 
 
 class TrainRecallDataset(Dataset):
@@ -38,7 +36,10 @@ class TrainRecallDataset(Dataset):
     dataset_kws
         Must have `batch_size` and `samples_per_class`.
     """
-    def __init__(self, train_df: pd.DataFrame, transform: Union[A.Compose, T.Compose], **dataset_kws):
+
+    def __init__(
+        self, train_df: pd.DataFrame, transform: Union[A.Compose, T.Compose], **dataset_kws
+    ):
         class_to_images = defaultdict(list)
         for index, (class_id, image_path) in train_df[["class_id", "image_path"]].iterrows():
             class_to_images[class_id].append(image_path)
@@ -67,20 +68,23 @@ class TrainRecallDataset(Dataset):
         while True:
             for class_id in classes:
                 if (len(class_to_images[class_id]) >= self.samples_per_class) and (
-                        len(batch) < self.batch_size / self.samples_per_class
+                    len(batch) < self.batch_size / self.samples_per_class
                 ):
                     batch.append(class_to_images[class_id][: self.samples_per_class])
-                    class_to_images[class_id] = class_to_images[class_id][self.samples_per_class:]
+                    class_to_images[class_id] = class_to_images[class_id][self.samples_per_class :]
 
             if len(batch) == self.batch_size / self.samples_per_class:
                 total_batches.append(batch)
                 batch = []
             else:
-                assert len(total_batches) != 0, "No train data. Try reduce batch size, so batch_size / samples_per_class <= num_classes"
+                assert len(total_batches) != 0, (
+                    "No train data."
+                    "Try reduce batch size, so batch_size / samples_per_class <= num_classes"
+                )
                 break
 
         random.shuffle(total_batches)
-        self.dataset = flatten(flatten(total_batches))
+        self.dataset = [i for batch in total_batches for class_list in batch for i in class_list]
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str]:
         batch_item = self.dataset[idx]
@@ -101,4 +105,3 @@ class TrainRecallDataset(Dataset):
             else:
                 image = self.transform(image)
         return image
-

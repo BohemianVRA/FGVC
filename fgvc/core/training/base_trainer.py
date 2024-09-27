@@ -1,5 +1,3 @@
-import copy
-
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
@@ -92,8 +90,7 @@ class BaseTrainer:
         if hasattr(self, "apply_mixup") and len(imgs) % 2 == 0:  # batch size should be even
             imgs, targs = self.apply_mixup(imgs, targs)
 
-        if isinstance(self.criterion, RecallatKSurrogate):
-            assert self.mini_batch_size is not None, "Set mini_batch_size"
+        if self.mini_batch_size is not None:
             preds, _loss = train_batch_multistage(
                 self.model,
                 imgs,
@@ -137,8 +134,7 @@ class BaseTrainer:
 
         # run inference and compute loss
         with torch.no_grad():
-            if isinstance(self.criterion, RecallatKSurrogate) and self.mini_batch_size is not None:
-                assert self.mini_batch_size is not None, "Set mini_batch_size"
+            if self.mini_batch_size is not None:
                 preds = predict_as_mini_batch(
                     model, images=imgs, mini_batch_size=self.mini_batch_size, device=self.device
                 )

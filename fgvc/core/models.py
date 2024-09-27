@@ -165,6 +165,7 @@ class GeM(nn.Module):
     Taken from: https://github.com/yash0307/RecallatK_surrogate
 
     """
+
     def __init__(self, p: float = 3, eps: float = 1e-6):
         super(GeM, self).__init__()
         self.p = nn.Parameter(torch.ones(1) * p)
@@ -179,9 +180,7 @@ class GeM(nn.Module):
         return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1.0 / p)
 
     def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__} (p={self.p.data.tolist()[0]:.4f}, eps={self.eps})"
-        )
+        return f"{self.__class__.__name__} (p={self.p.data.tolist()[0]:.4f}, eps={self.eps})"
 
 
 class ContrastiveViTWrapper(nn.Module):
@@ -191,6 +190,7 @@ class ContrastiveViTWrapper(nn.Module):
     Model output is of `embeddings_dim` size.
     Taken from: https://github.com/yash0307/RecallatK_surrogate
     """
+
     def __init__(self, model_name: str, embeddings_dim: int, pretrained=True):
         super(ContrastiveViTWrapper, self).__init__()
         self.model = timm.create_model(model_name, pretrained=pretrained)
@@ -214,32 +214,40 @@ class ContrastiveViTWrapper(nn.Module):
         return torch.nn.functional.normalize(x, dim=-1)
 
 
-# class ResNet50(nn.Module):
-#     def __init__(self, opt, list_style=False, no_norm=False):
-#         super(ResNet50, self).__init__()
-#         self.pars = opt
-#         if not opt.not_pretrained:
-#             print('Getting pretrained weights...')
-#             self.model = ptm.__dict__['resnet50'](num_classes=1000, pretrained='imagenet')
-#             print('Done.')
-#         else:
-#             print('Not utilizing pretrained weights!')
-#             self.model = ptm.__dict__['resnet50'](num_classes=1000, pretrained=None)
-#         for module in filter(lambda m: type(m) == nn.BatchNorm2d, self.model.modules()):
-#             module.eval()
-#             module.train = lambda _: None
-#         self.gem = GeM()
-#         self.model.last_linear = torch.nn.Linear(self.model.last_linear.in_features, opt.embed_dim)
-#         self.model.layer_norm = torch.nn.LayerNorm(self.model.last_linear.in_features)
-#         self.layer_blocks = nn.ModuleList([self.model.layer1, self.model.layer2, self.model.layer3, self.model.layer4])
-#
-#     def forward(self, x, is_init_cluster_generation=False):
-#         x = self.model.maxpool(self.model.relu(self.model.bn1(self.model.conv1(x))))
-#         for layerblock in self.layer_blocks:
-#             x = layerblock(x)
-#         #x = self.model.avgpool(x)
-#         x = self.gem(x)
-#         x = x.view(x.size(0),-1)
-#         x = self.model.layer_norm(x)
-#         mod_x = self.model.last_linear(x)
-#         return torch.nn.functional.normalize(mod_x, dim=-1)
+class ContrastiveResNetWrapper(nn.Module):
+    """Wrapper class for ResNet models.
+
+    Additional pooling, linear and normalization layers are appended to the model.
+    Model output is of `embeddings_dim` size.
+    Taken from: https://github.com/yash0307/RecallatK_surrogate
+
+    !Tested only for some variants!
+    """
+
+    def __init__(self, model_name: str, embeddings_dim: int, pretrained=True):
+        super(ContrastiveResNetWrapper, self).__init__()
+        self.model = timm.create_model(model_name, pretrained=pretrained)
+        self.default_cfg = self.model.default_cfg
+        for module in filter(lambda m: type(m) is nn.BatchNorm2d, self.model.modules()):
+            module.eval()
+            module.train = lambda _: None
+        self.gem = GeM()
+
+        classifier = self.model.get_classifier()
+        self.model.fc = torch.nn.Linear(classifier.in_features, embeddings_dim)
+        self.model.layer_norm = torch.nn.LayerNorm(classifier.in_features)
+        self.layer_blocks = nn.ModuleList(
+            [self.model.layer1, self.model.layer2, self.model.layer3, self.model.layer4]
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        x = self.model.maxpool(self.model.act1(self.model.bn1(self.model.conv1(x))))
+        for layerblock in self.layer_blocks:
+            x = layerblock(x)
+        # x = self.model.avgpool(x)
+        x = self.gem(x)
+        x = x.view(x.size(0), -1)
+        x = self.model.layer_norm(x)
+        mod_x = self.model.fc(x)
+        return torch.nn.functional.normalize(mod_x, dim=-1)

@@ -1,6 +1,6 @@
 import argparse
 import logging
-from typing import Tuple, List
+from typing import List, Tuple
 
 from fgvc.utils.hfhub import export_model_to_huggingface_hub_from_checkpoint
 

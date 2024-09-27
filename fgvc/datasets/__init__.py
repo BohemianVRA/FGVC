@@ -199,6 +199,6 @@ def get_dataloaders_contrastive(
         train_dataloader_kws={
             "sampler": SequentialSampler,
             "shuffle": False,
-        }
+        },
     )
     return trainloader, valloader
