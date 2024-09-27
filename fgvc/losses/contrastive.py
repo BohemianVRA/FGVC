@@ -14,6 +14,7 @@ def sigmoid(tensor: torch.Tensor, temperature: float = 1.0):
 
 class RecallatKSurrogate(nn.Module):
     """Implementation of Recall@k Surrogate Loss.
+
     Based on https://github.com/yash0307/RecallatK_surrogate.
 
     The loss was proposed in a paper for CVPR2022.
