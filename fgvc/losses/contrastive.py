@@ -1,8 +1,10 @@
+from typing import Tuple
 import torch
 import torch.nn as nn
 
 
 def sigmoid(tensor: torch.Tensor, temperature: float = 1.0):
+    """Implementation of a sigmoid function."""
     exponent = -tensor / temperature
     exponent = torch.clamp(exponent, min=-50, max=50)
     y = 1.0 / (1.0 + torch.exp(exponent))
@@ -35,8 +37,8 @@ class RecallatKSurrogate(nn.Module):
         batch_size: int,
         samples_per_class: int = 4,
         sigmoid_temperature: float = 1.0,
-        k_values: tuple[int] = (1, 2, 4, 8),
-        k_temperatures: tuple[int] = (1, 2, 4, 8),
+        k_values: Tuple[int] = (1, 2, 4, 8),
+        k_temperatures: Tuple[int] = (1, 2, 4, 8),
     ):
         super(RecallatKSurrogate, self).__init__()
         self.sigmoid_temperature = sigmoid_temperature
@@ -48,6 +50,7 @@ class RecallatKSurrogate(nn.Module):
         self.k_temperatures = k_temperatures
 
     def forward(self, logits: torch.Tensor, targs: torch.Tensor) -> float:
+        """Evaluate RecallatK loss."""
         assert (
             self.batch_size == logits.shape[0]
         ), f"Input must have batch size of {self.batch_size}"
@@ -72,14 +75,14 @@ class RecallatKSurrogate(nn.Module):
             group_num = int(query_id / samples_per_class)
 
             similarity_all = (logits[query_id] * logits).sum(1)
-            sim_all_g = similarity_all.view(num_id, int(batch_size / num_id))
-            sim_diff_all = similarity_all.unsqueeze(-1) - sim_all_g[group_num, :].unsqueeze(
+            similarity_all_grouped = similarity_all.view(num_id, samples_per_class)
+            similarity_diff_all = similarity_all.unsqueeze(-1) - similarity_all_grouped[group_num, :].unsqueeze(
                 0
             ).repeat(batch_size, 1)
-            sim_sg = sigmoid(sim_diff_all, temperature=self.sigmoid_temperature)
+            similarity_sigmoid = sigmoid(similarity_diff_all, temperature=self.sigmoid_temperature)
             for i in range(samples_per_class):
-                sim_sg[group_num * samples_per_class + i, i] = 0.0
-            sim_all_rk = (1.0 + torch.sum(sim_sg, dim=0)).unsqueeze(dim=0)
+                similarity_sigmoid[group_num * samples_per_class + i, i] = 0.0
+            sim_all_rk = (1.0 + torch.sum(similarity_sigmoid, dim=0)).unsqueeze(dim=0)
 
             sim_all_rk[:, query_id % samples_per_class] = 0.0
             sim_all_rk = sim_all_rk.unsqueeze(dim=-1).repeat(1, 1, len(self.k_values))

@@ -6,6 +6,7 @@ import os.path as osp
 import warnings
 from copy import deepcopy
 from functools import wraps
+from typing import Tuple, List
 
 import torch
 import yaml
@@ -250,7 +251,7 @@ def create_model_card_file(model_card: str, exp_path: str) -> str:
     return model_card_path
 
 
-def hfhub_load_args() -> tuple[argparse.Namespace, list[str]]:
+def hfhub_load_args() -> Tuple[argparse.Namespace, List[str]]:
     """Load script arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument(

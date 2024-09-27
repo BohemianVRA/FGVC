@@ -17,7 +17,7 @@ from fgvc.core.augmentations.const import IMAGENET_MEAN, IMAGENET_STD
 from .image_dataset import ImageDataset
 from .poison_dataset import PoisonDataset
 from .prediction_dataset import PredictionDataset
-from .recall_dataset import BaseTripletDataset, TrainRecallDataset
+from .recall_dataset import TrainRecallDataset
 from .segmentation_dataset import BinarySegmentationDataset
 from .taxonomy_dataset import TaxonomyDataset
 
@@ -28,7 +28,6 @@ __all__ = (
     "BinarySegmentationDataset",
     "TaxonomyDataset",
     "TrainRecallDataset",
-    "BaseTripletDataset",
     "get_dataloaders",
     "IMAGENET_MEAN",
     "IMAGENET_STD",
@@ -147,7 +146,7 @@ def get_dataloaders(
     # create validation dataset and dataloader
     if val_data is not None:
         if issubclass(dataset_cls, TrainRecallDataset):
-            valset = BaseTripletDataset(val_data, transform=val_tfm, **dataset_kws)
+            valset = ImageDataset(val_data, transform=val_tfm, **dataset_kws)
         else:
             valset = dataset_cls(val_data, transform=val_tfm, **dataset_kws)
 

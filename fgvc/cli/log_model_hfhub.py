@@ -1,12 +1,13 @@
 import argparse
 import logging
+from typing import Tuple, List
 
 from fgvc.utils.hfhub import export_model_to_huggingface_hub_from_checkpoint
 
 logger = logging.getLogger("script")
 
 
-def hfhub_load_args() -> tuple[argparse.Namespace, list[str]]:
+def hfhub_load_args() -> Tuple[argparse.Namespace, List[str]]:
     """Load script arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument(

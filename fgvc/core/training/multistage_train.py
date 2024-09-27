@@ -1,4 +1,5 @@
 import copy
+from typing import Sequence
 
 import torch
 import torch.nn as nn
@@ -7,16 +8,16 @@ from fgvc.core.models import get_model_target_size
 
 
 def predict_as_mini_batch(
-    model: nn.Module, images: torch.Tensor, mini_batch_size: int, device: torch.device
+    model: nn.Module, images: Sequence[torch.Tensor], mini_batch_size: int, device: torch.device
 ) -> torch.Tensor:
     """Makes predictions for the batch of images iteratively, using mini batches."""
     batch_size = images.shape[0]
     embedding_dim = get_model_target_size(model)
     output = torch.zeros((batch_size, embedding_dim)).to(device)
     for j in range(0, batch_size, mini_batch_size):
-        input_x = images[j : j + mini_batch_size, :].to(device)
+        input_x = images[j: j + mini_batch_size, :].to(device)
         x = model(input_x)
-        output[j : j + mini_batch_size, :] = copy.copy(x)
+        output[j: j + mini_batch_size, :] = copy.copy(x)
         del x
         torch.cuda.empty_cache()
 
@@ -71,9 +72,8 @@ def train_batch_multistage(
     torch.cuda.empty_cache()
 
     for j in range(0, batch_size, mini_batch_size):
-        input_x = images[j : j + mini_batch_size, :].to(device)
+        input_x = images[j: j + mini_batch_size, :].to(device)
         x = model(input_x)
-        x.backward(output_grad[j : j + mini_batch_size, :])
-        # del x
+        x.backward(output_grad[j: j + mini_batch_size, :])
 
     return output, _loss

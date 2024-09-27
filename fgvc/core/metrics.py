@@ -10,6 +10,49 @@ from sklearn.metrics import (
     top_k_accuracy_score,
 )
 
+try:
+    import faiss
+    assert hasattr(faiss, "__version__")  # verify package import not local dir
+
+    def _faiss_clustering(preds, targs, k_values):
+
+        n_classes = len(np.unique(targs))
+        cpu_cluster_index = faiss.IndexFlatL2(preds.shape[-1])
+        kmeans = faiss.Clustering(preds.shape[-1], n_classes)
+
+        kmeans.niter = 20
+        kmeans.min_points_per_centroid = 1
+        kmeans.max_points_per_centroid = 1000000000
+
+        kmeans.train(preds, cpu_cluster_index)
+        computed_centroids = faiss.vector_float_to_array(kmeans.centroids).reshape(n_classes, preds.shape[-1])
+        faiss_search_index = faiss.IndexFlatL2(computed_centroids.shape[-1])
+        faiss_search_index.add(computed_centroids)
+        _, model_generated_cluster_labels = faiss_search_index.search(preds, 1)
+        nmi_score = metrics.cluster.normalized_mutual_info_score(model_generated_cluster_labels.reshape(-1), targs.reshape(-1))
+        faiss_search_index = faiss.IndexFlatL2(preds.shape[-1])
+        faiss_search_index.add(preds)
+        _, k_closest_points = faiss_search_index.search(preds, int(np.max(k_values) + 1))
+        return nmi_score, k_closest_points
+
+    clustering_fn = _faiss_clustering
+
+except (ImportError, AssertionError):
+    from sklearn.cluster import KMeans
+    from scipy.spatial.distance import squareform, pdist
+
+    def _scikit_clustering(preds, targs, k_values):
+        n_classes = len(np.unique(targs))
+        targs = np.hstack(targs).reshape(-1, 1)
+        preds = np.vstack(preds).astype("float32")
+        kmeans = KMeans(n_clusters=n_classes, random_state=0).fit(preds)
+        model_generated_cluster_labels = kmeans.labels_
+        nmi_score = metrics.cluster.normalized_mutual_info_score(model_generated_cluster_labels.reshape(-1), targs.reshape(-1))
+        k_closest_points = squareform(pdist(preds)).argsort(1)[:, :int(np.max(k_values)+1)]
+        return nmi_score, k_closest_points
+
+    clustering_fn = _scikit_clustering
+
 
 def classification_scores(
     preds: np.ndarray, targs: np.ndarray, *, top_k: Optional[int] = 3, return_dict: bool = True
@@ -61,27 +104,11 @@ def classification_scores(
 def cluster_classification_scores(
     preds: np.ndarray, targs: np.ndarray, k_values: tuple, *, return_dict: bool = True
 ) -> Union[dict, Tuple]:
-    import faiss
-
-    n_classes = len(np.unique(targs))
+    """Compute NMI, recalls at k_values."""
     targs = np.hstack(targs).reshape(-1, 1)
     preds = np.vstack(preds).astype("float32")
-    cpu_cluster_index = faiss.IndexFlatL2(preds.shape[-1])
-    kmeans = faiss.Clustering(preds.shape[-1], n_classes)
+    nmi_score, k_closest_points = clustering_fn(preds, targs, k_values)
 
-    kmeans.niter = 20
-    kmeans.min_points_per_centroid = 1
-    kmeans.max_points_per_centroid = 1000000000
-
-    kmeans.train(preds, cpu_cluster_index)
-    computed_centroids = faiss.vector_float_to_array(kmeans.centroids).reshape(n_classes, preds.shape[-1])
-    faiss_search_index = faiss.IndexFlatL2(computed_centroids.shape[-1])
-    faiss_search_index.add(computed_centroids)
-    _, model_generated_cluster_labels = faiss_search_index.search(preds, 1)
-    nmi_score = metrics.cluster.normalized_mutual_info_score(model_generated_cluster_labels.reshape(-1), targs.reshape(-1))
-    faiss_search_index = faiss.IndexFlatL2(preds.shape[-1])
-    faiss_search_index.add(preds)
-    _, k_closest_points = faiss_search_index.search(preds, int(np.max(k_values) + 1))
     k_closest_classes = targs.reshape(-1)[k_closest_points[:, 1:]]
     recall_all_k = []
     for k in k_values:
