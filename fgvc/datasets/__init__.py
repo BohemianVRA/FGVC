@@ -57,9 +57,12 @@ def get_dataloaders(
     *,
     transforms_fns: Dict[str, callable] = None,
     transforms_kws: dict = None,
-    dataset_cls: Type[ImageDataset] = ImageDataset,
-    dataset_kws: dict = None,
-    dataloader_kws: dict = None,
+    train_dataset_cls: Type[ImageDataset] = ImageDataset,
+    val_dataset_cls: Type[ImageDataset] = ImageDataset,
+    train_dataset_kws: dict = None,
+    val_dataset_kws: dict = None,
+    train_dataloader_kws: dict = None,
+    val_dataloader_kws: dict = None,
 ) -> Tuple[DataLoader, DataLoader, tuple, tuple]:
     """Create training and validation augmentation transformations, datasets, and DataLoaders.
 
@@ -88,13 +91,20 @@ def get_dataloaders(
         and corresponding functions to create training and validation augmentations as values.
     transforms_kws
         Additional keyword arguments for the transformation function.
-    dataset_cls
-        Dataset class that implements `__len__` and `__getitem__` functions
+    train_dataset_cls
+        Train Dataset class that implements `__len__` and `__getitem__` functions
         and inherits from `torch.utils.data.Dataset` PyTorch class.
-    dataset_kws
-        Additional keyword arguments for the Dataset class.
-    dataloader_kws
-        Additional keyword arguments for the DataLoader class.
+    val_dataset_cls
+        Validation Dataset class that implements `__len__` and `__getitem__` functions
+        and inherits from `torch.utils.data.Dataset` PyTorch class.
+    train_dataset_kws
+        Additional keyword arguments for the train Dataset class.
+    val_dataset_kws
+        Additional keyword arguments for the validation Dataset class.
+    train_dataloader_kws
+        Additional keyword arguments for the train DataLoader class.
+    val_dataloader_kws
+        Additional keyword arguments for the validation DataLoader class.
 
     Returns
     -------
@@ -110,8 +120,10 @@ def get_dataloaders(
     transforms_fns = transforms_fns or default_tranforms
     assert len(transforms_fns) > 0
     transforms_kws = transforms_kws or {}
-    dataset_kws = dataset_kws or {}
-    dataloader_kws = dataloader_kws or {}
+    train_dataset_kws = train_dataset_kws or {}
+    val_dataset_kws = val_dataset_kws or {}
+    train_dataloader_kws = train_dataloader_kws or {}
+    val_dataloader_kws = val_dataloader_kws or {}
 
     # create training and validation augmentations
     if augmentations in transforms_fns:
@@ -127,15 +139,12 @@ def get_dataloaders(
 
     # create training dataset and dataloader
     if train_data is not None:
-        trainset = dataset_cls(train_data, transform=train_tfm, **dataset_kws)
-        trainloader_kws = dataloader_kws.copy()
+        trainset = train_dataset_cls(train_data, transform=train_tfm, **train_dataset_kws)
+        trainloader_kws = train_dataloader_kws.copy()
+        if "sampler" in trainloader_kws:
+            trainloader_kws["sampler"] = trainloader_kws["sampler"](trainset)
         if "shuffle" not in trainloader_kws:
             trainloader_kws["shuffle"] = True
-
-        if isinstance(trainset, TrainRecallDataset):
-            trainloader_kws["sampler"] = SequentialSampler(trainset)
-            trainloader_kws.pop("shuffle")
-
         trainloader = DataLoader(
             trainset, batch_size=batch_size, num_workers=num_workers, **trainloader_kws
         )
@@ -145,12 +154,10 @@ def get_dataloaders(
 
     # create validation dataset and dataloader
     if val_data is not None:
-        if issubclass(dataset_cls, TrainRecallDataset):
-            valset = ImageDataset(val_data, transform=val_tfm, **dataset_kws)
-        else:
-            valset = dataset_cls(val_data, transform=val_tfm, **dataset_kws)
-
-        valloader_kws = dataloader_kws.copy()
+        valset = val_dataset_cls(val_data, transform=val_tfm, **val_dataset_kws)
+        valloader_kws = val_dataloader_kws.copy()
+        if "sampler" in valloader_kws:
+            valloader_kws["sampler"] = valloader_kws["sampler"](valset)
         if "shuffle" not in valloader_kws:
             valloader_kws["shuffle"] = False
         valloader = DataLoader(
@@ -175,7 +182,7 @@ def get_dataloaders_contrastive(
     num_workers: int = 8,
 ) -> Tuple[DataLoader, DataLoader]:
     """Wrapper function. Return dataloaders for contrastive learning."""
-    trainloader, validloader, _, _ = get_dataloaders(
+    trainloader, valloader, _, _ = get_dataloaders(
         train_data,
         val_data,
         augmentations=augmentations,
@@ -184,10 +191,14 @@ def get_dataloaders_contrastive(
         model_std=model_std,
         batch_size=batch_size,
         num_workers=num_workers,
-        dataset_cls=TrainRecallDataset,
-        dataset_kws={
+        train_dataset_cls=TrainRecallDataset,
+        train_dataset_kws={
             "batch_size": batch_size,
             "samples_per_class": samples_per_class,
         },
+        train_dataloader_kws={
+            "sampler": SequentialSampler,
+            "shuffle": False,
+        }
     )
-    return trainloader, validloader
+    return trainloader, valloader

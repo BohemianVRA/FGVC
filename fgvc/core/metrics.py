@@ -1,7 +1,7 @@
-from typing import Optional, Tuple, Union
-
 import numpy as np
+import warnings
 import sklearn.metrics as metrics
+from typing import Optional, Tuple, Union, Sequence
 from scipy.special import expit
 from sklearn.metrics import (
     accuracy_score,
@@ -14,42 +14,34 @@ try:
     import faiss
     assert hasattr(faiss, "__version__")  # verify package import not local dir
 
-    def _faiss_clustering(preds, targs, k_values):
-
-        n_classes = len(np.unique(targs))
+    def _faiss_clustering(preds: np.ndarray, n_classes: int, k_values: Sequence[int]) -> Tuple:
         cpu_cluster_index = faiss.IndexFlatL2(preds.shape[-1])
         kmeans = faiss.Clustering(preds.shape[-1], n_classes)
-
         kmeans.niter = 20
         kmeans.min_points_per_centroid = 1
         kmeans.max_points_per_centroid = 1000000000
-
         kmeans.train(preds, cpu_cluster_index)
         computed_centroids = faiss.vector_float_to_array(kmeans.centroids).reshape(n_classes, preds.shape[-1])
         faiss_search_index = faiss.IndexFlatL2(computed_centroids.shape[-1])
         faiss_search_index.add(computed_centroids)
         _, model_generated_cluster_labels = faiss_search_index.search(preds, 1)
-        nmi_score = metrics.cluster.normalized_mutual_info_score(model_generated_cluster_labels.reshape(-1), targs.reshape(-1))
         faiss_search_index = faiss.IndexFlatL2(preds.shape[-1])
         faiss_search_index.add(preds)
         _, k_closest_points = faiss_search_index.search(preds, int(np.max(k_values) + 1))
-        return nmi_score, k_closest_points
+        return model_generated_cluster_labels, k_closest_points
 
     clustering_fn = _faiss_clustering
 
 except (ImportError, AssertionError):
     from sklearn.cluster import KMeans
     from scipy.spatial.distance import squareform, pdist
+    warnings.warn("Using scikit learn clustering function.")
 
-    def _scikit_clustering(preds, targs, k_values):
-        n_classes = len(np.unique(targs))
-        targs = np.hstack(targs).reshape(-1, 1)
-        preds = np.vstack(preds).astype("float32")
+    def _scikit_clustering(preds: np.ndarray, n_classes, k_values: Sequence[int]) -> Tuple:
         kmeans = KMeans(n_clusters=n_classes, random_state=0).fit(preds)
         model_generated_cluster_labels = kmeans.labels_
-        nmi_score = metrics.cluster.normalized_mutual_info_score(model_generated_cluster_labels.reshape(-1), targs.reshape(-1))
         k_closest_points = squareform(pdist(preds)).argsort(1)[:, :int(np.max(k_values)+1)]
-        return nmi_score, k_closest_points
+        return model_generated_cluster_labels, k_closest_points
 
     clustering_fn = _scikit_clustering
 
@@ -104,11 +96,32 @@ def classification_scores(
 def cluster_classification_scores(
     preds: np.ndarray, targs: np.ndarray, k_values: tuple, *, return_dict: bool = True
 ) -> Union[dict, Tuple]:
-    """Compute NMI, recalls at k_values."""
-    targs = np.hstack(targs).reshape(-1, 1)
-    preds = np.vstack(preds).astype("float32")
-    nmi_score, k_closest_points = clustering_fn(preds, targs, k_values)
+    """Compute NMI and recalls at k_values.
 
+    Uses different clustering functions based on the installed packages (scikit, faiss).
+    Taken from: https://github.com/yash0307/RecallatK_surrogate
+
+    Parameters
+    ----------
+    preds
+        Numpy array with predictions.
+    targs
+        Numpy array with ground-truth targets.
+    k_values
+        Sequence of k values to compute top k recall.
+    return_dict
+        If True, the method returns dictionary with metrics.
+
+    Returns
+    -------
+    scores
+        A dictionary or tuple with clustering scores.
+    """
+    n_classes = len(np.unique(targs))
+    preds = np.vstack(preds).astype("float32")
+    targs = np.hstack(targs).reshape(-1, 1)
+    model_generated_cluster_labels, k_closest_points = clustering_fn(preds, n_classes, k_values)
+    nmi_score = metrics.cluster.normalized_mutual_info_score(model_generated_cluster_labels.reshape(-1), targs.reshape(-1))
     k_closest_classes = targs.reshape(-1)[k_closest_points[:, 1:]]
     recall_all_k = []
     for k in k_values:
