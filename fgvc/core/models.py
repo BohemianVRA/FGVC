@@ -160,7 +160,7 @@ def get_model_target_size(model: nn.Module) -> Optional[int]:
 
 #  Models for contrastive learning #
 class GeM(nn.Module):
-    """Generalized mean Pooling layer.
+    """Generalized Mean pooling layer.
 
     Taken from: https://github.com/yash0307/RecallatK_surrogate
 
@@ -176,7 +176,7 @@ class GeM(nn.Module):
         return self.gem(x, p=self.p, eps=self.eps)
 
     def gem(self, x: torch.Tensor, p: nn.Parameter, eps: float = 1e-6) -> torch.Tensor:
-        """GeM pooling."""
+        """Generalized Mean pooling."""
         return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1.0 / p)
 
     def __repr__(self) -> str:
