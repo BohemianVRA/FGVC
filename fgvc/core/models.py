@@ -186,7 +186,6 @@ def extend_model_contrastive(
     model
         Extended `timm` model.
     """
-
     if "vit" in architecture_name:
         logger.info("Using ContrastiveViT model.")
         model = ContrastiveViTWrapper(
