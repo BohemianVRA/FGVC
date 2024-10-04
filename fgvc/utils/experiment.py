@@ -441,7 +441,7 @@ def load_model(
                 embeddings_dim=config["embeddings_dim"],
                 pretrained=pretrained,
             )
-        elif "resnet" in config["architecture"]:
+        elif "resnet" in config["architecture"] or "resnext" in config["architecture"]:
             logger.info("Using ContrastiveResNet model.")
             model = ContrastiveResNetWrapper(
                 model_name=config["architecture"],

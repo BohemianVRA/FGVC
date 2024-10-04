@@ -221,7 +221,7 @@ class ContrastiveResNetWrapper(nn.Module):
     Model output is of `embeddings_dim` size.
     Taken from: https://github.com/yash0307/RecallatK_surrogate
 
-    !Tested only for some variants!
+    May not work for all variants! The default model in paper is resnet50.
     """
 
     def __init__(self, model_name: str, embeddings_dim: int, pretrained=True):

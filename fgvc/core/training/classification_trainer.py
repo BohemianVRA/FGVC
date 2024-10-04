@@ -101,12 +101,17 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
         mini_batch_size: int = None,
         **kwargs,
     ):
+        clustering_kws = kwargs.pop("clustering_kws", {})
         if train_scores_fn is None:
 
             def _train_scores_fn(preds, targs):
                 if isinstance(criterion, RecallatKSurrogate):
                     return cluster_classification_scores(
-                        preds, targs, k_values=criterion.k_values, return_dict=True
+                        preds,
+                        targs,
+                        k_values=criterion.k_values,
+                        return_dict=True,
+                        clustering_kws=clustering_kws,
                     )
                 else:
                     return classification_scores(preds, targs, return_dict=True)
@@ -117,7 +122,11 @@ class ClassificationTrainer(SchedulerMixin, MixupMixin, EMAMixin, BaseTrainer):
             def _valid_scores_fn(preds, targs):
                 if isinstance(criterion, RecallatKSurrogate):
                     return cluster_classification_scores(
-                        preds, targs, k_values=criterion.k_values, return_dict=True
+                        preds,
+                        targs,
+                        k_values=criterion.k_values,
+                        return_dict=True,
+                        clustering_kws=clustering_kws,
                     )
                 else:
                     return classification_scores(preds, targs, return_dict=True)
