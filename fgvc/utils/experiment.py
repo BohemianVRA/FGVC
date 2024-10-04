@@ -8,7 +8,7 @@ import pandas as pd
 import torch.nn as nn
 import yaml
 
-from fgvc.core.models import ContrastiveResNetWrapper, ContrastiveViTWrapper, get_model
+from fgvc.core.models import get_model
 from fgvc.core.optimizers import Optimizer, SchedulerType, get_optimizer, get_scheduler
 
 logger = logging.getLogger("script")
@@ -431,30 +431,18 @@ def load_model(
                 "Use one of the options: 'timm' | 'none' | <path>."
             )
     if config.get("contrastive", False):
-        assert checkpoint_path is None, NotImplementedError(
-            "Not implemented for Contrastive wrappers."
+        model = get_model(
+            config["architecture"],
+            target_size=config["embeddings_dim"],
+            pretrained=pretrained,
+            checkpoint_path=checkpoint_path,
+            strict=strict,
+            contrastive=True,
         )
-        if "vit" in config["architecture"]:
-            logger.info("Using ContrastiveViT model.")
-            model = ContrastiveViTWrapper(
-                model_name=config["architecture"],
-                embeddings_dim=config["embeddings_dim"],
-                pretrained=pretrained,
-            )
-        elif "resnet" in config["architecture"] or "resnext" in config["architecture"]:
-            logger.info("Using ContrastiveResNet model.")
-            model = ContrastiveResNetWrapper(
-                model_name=config["architecture"],
-                embeddings_dim=config["embeddings_dim"],
-                pretrained=pretrained,
-            )
-
-        else:
-            raise NotImplementedError("Only Contrastive ViT and ResNet are implemented.")
     else:
         model = get_model(
             config["architecture"],
-            config["number_of_classes"],
+            target_size=config["number_of_classes"],
             pretrained=pretrained,
             checkpoint_path=checkpoint_path,
             strict=strict,
