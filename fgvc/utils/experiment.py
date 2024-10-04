@@ -380,6 +380,9 @@ def load_model(
          - "none" - randomly initialized weights.
          - <path> - path to a custom checkpoint.
      - (optional) `multigpu` - if true, use `nn.DataParallel` model wrapper.
+     - (optional) `contrastive`:
+        - if true, use Contrastive model wrapper.
+        - `embeddings_dim` must be provided.
 
     Pre-trained checkpoint can be set using `config` dictionary or `checkpoint_path` argument.
 
@@ -427,14 +430,23 @@ def load_model(
                 "Invalid value in config parameter 'pretrained_checkpoint'. "
                 "Use one of the options: 'timm' | 'none' | <path>."
             )
-
-    model = get_model(
-        config["architecture"],
-        config["number_of_classes"],
-        pretrained=pretrained,
-        checkpoint_path=checkpoint_path,
-        strict=strict,
-    )
+    if config.get("contrastive", False):
+        model = get_model(
+            config["architecture"],
+            target_size=config["embeddings_dim"],
+            pretrained=pretrained,
+            checkpoint_path=checkpoint_path,
+            strict=strict,
+            contrastive=True,
+        )
+    else:
+        model = get_model(
+            config["architecture"],
+            target_size=config["number_of_classes"],
+            pretrained=pretrained,
+            checkpoint_path=checkpoint_path,
+            strict=strict,
+        )
     model_mean = tuple(model.default_cfg["mean"])
     model_std = tuple(model.default_cfg["std"])
     if config.get("multigpu", False):  # multi gpu model

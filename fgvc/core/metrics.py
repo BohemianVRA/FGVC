@@ -1,6 +1,8 @@
-from typing import Optional, Tuple, Union
+import warnings
+from typing import Optional, Sequence, Tuple, Union
 
 import numpy as np
+import sklearn.metrics as metrics
 from scipy.special import expit
 from sklearn.metrics import (
     accuracy_score,
@@ -8,6 +10,49 @@ from sklearn.metrics import (
     multilabel_confusion_matrix,
     top_k_accuracy_score,
 )
+
+try:
+    import faiss
+
+    assert hasattr(faiss, "__version__")  # verify package import not local dir
+
+    def _faiss_clustering(
+        preds: np.ndarray, n_classes: int, k_values: Sequence[int], **kwargs
+    ) -> Tuple:
+        cpu_cluster_index = faiss.IndexFlatL2(preds.shape[-1])
+        kmeans = faiss.Clustering(preds.shape[-1], n_classes)
+        kmeans.niter = kwargs.get("niter", 20)
+        kmeans.min_points_per_centroid = kwargs.get("min_points_per_centroid", 1)
+        kmeans.max_points_per_centroid = kwargs.get("max_points_per_centroid", 1000000000)
+        kmeans.train(preds, cpu_cluster_index)
+        computed_centroids = faiss.vector_float_to_array(kmeans.centroids).reshape(
+            n_classes, preds.shape[-1]
+        )
+        faiss_search_index = faiss.IndexFlatL2(computed_centroids.shape[-1])
+        faiss_search_index.add(computed_centroids)
+        _, model_generated_cluster_labels = faiss_search_index.search(preds, 1)
+        faiss_search_index = faiss.IndexFlatL2(preds.shape[-1])
+        faiss_search_index.add(preds)
+        _, k_closest_points = faiss_search_index.search(preds, int(np.max(k_values) + 1))
+        return model_generated_cluster_labels, k_closest_points
+
+    clustering_fn = _faiss_clustering
+
+except (ImportError, AssertionError):
+    from scipy.spatial.distance import pdist, squareform
+    from sklearn.cluster import KMeans
+
+    warnings.warn("Using scikit learn clustering function.")
+
+    def _scikit_clustering(
+        preds: np.ndarray, n_classes, k_values: Sequence[int], **kwargs
+    ) -> Tuple:
+        kmeans = KMeans(n_clusters=n_classes, random_state=0, **kwargs).fit(preds)
+        model_generated_cluster_labels = kmeans.labels_
+        k_closest_points = squareform(pdist(preds)).argsort(1)[:, : int(np.max(k_values) + 1)]
+        return model_generated_cluster_labels, k_closest_points
+
+    clustering_fn = _scikit_clustering
 
 
 def classification_scores(
@@ -53,6 +98,69 @@ def classification_scores(
         scores["F1"] = f1
     else:
         scores = acc, acc_k, f1
+
+    return scores
+
+
+def cluster_classification_scores(
+    preds: np.ndarray,
+    targs: np.ndarray,
+    k_values: tuple,
+    *,
+    return_dict: bool = True,
+    clustering_kws: dict = None,
+) -> Union[dict, Tuple]:
+    """Compute NMI and recalls at `k_values`.
+
+    Uses different clustering functions based on the installed packages (scikit, faiss).
+    Taken from: https://github.com/yash0307/RecallatK_surrogate
+
+    Parameters
+    ----------
+    preds
+        Numpy array with predictions.
+    targs
+        Numpy array with ground-truth targets.
+    k_values
+        Sequence of k values to compute top k recall.
+    return_dict
+        If True, the method returns dictionary with metrics.
+    clustering_kws:
+        Additional kwargs for kmeans classes.
+
+    Returns
+    -------
+    scores
+        A dictionary or tuple with clustering scores.
+    """
+    n_classes = len(np.unique(targs))
+    preds = np.vstack(preds).astype("float32")
+    targs = np.hstack(targs).reshape(-1, 1)
+    clustering_kws = clustering_kws or {}
+    model_generated_cluster_labels, k_closest_points = clustering_fn(
+        preds, n_classes, k_values, **clustering_kws
+    )
+    nmi_score = metrics.cluster.normalized_mutual_info_score(
+        model_generated_cluster_labels.reshape(-1), targs.reshape(-1)
+    )
+    k_closest_classes = targs.reshape(-1)[k_closest_points[:, 1:]]
+    recall_all_k = []
+    for k in k_values:
+        recall_at_k = np.sum(
+            [
+                1
+                for target, recalled_predictions in zip(targs, k_closest_classes)
+                if target in recalled_predictions[:k]
+            ]
+        ) / len(targs)
+        recall_all_k.append(recall_at_k)
+
+    if return_dict:
+        scores = {"NMI": nmi_score}
+        for k, recall in zip(k_values, recall_all_k):
+            scores[f"Recall@{k}"] = recall
+    else:
+        scores = nmi_score, *recall_all_k
 
     return scores
 

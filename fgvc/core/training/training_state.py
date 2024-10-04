@@ -130,9 +130,9 @@ class TrainingState:
                 python_random_state=random.getstate(),
                 np_random_state=np.random.get_state(),
                 torch_random_state=torch.get_rng_state(),
-                torch_cuda_random_state=torch.cuda.get_rng_state()
-                if torch.cuda.is_available()
-                else None,
+                torch_cuda_random_state=(
+                    torch.cuda.get_rng_state() if torch.cuda.is_available() else None
+                ),
             )
 
             torch.save(

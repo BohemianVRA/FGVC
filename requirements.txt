@@ -1,5 +1,5 @@
 PyYAML>=6.0
-numpy>=1.22.3
+numpy==1.22.3
 scipy>=1.8.1
 scikit-learn>=1.1.1
 matplotlib>=3.5.2

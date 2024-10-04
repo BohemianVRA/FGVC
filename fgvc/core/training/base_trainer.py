@@ -3,6 +3,9 @@ import torch.nn as nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
+from fgvc.core.training.multistage_train import predict_as_mini_batch, train_batch_multistage
+from fgvc.losses import RecallatKSurrogate
+
 from .training_outputs import BatchOutput, PredictOutput, TrainEpochOutput
 from .training_utils import to_device, to_numpy
 
@@ -41,6 +44,7 @@ class BaseTrainer:
         accumulation_steps: int = 1,
         clip_grad: float = None,
         device: torch.device = None,
+        mini_batch_size: int = None,
         **kwargs,
     ):
         super().__init__()
@@ -56,6 +60,9 @@ class BaseTrainer:
         self.optimizer = optimizer
         self.accumulation_steps = accumulation_steps
         self.clip_grad = clip_grad
+
+        # multistage training and prediction
+        self.mini_batch_size = mini_batch_size
 
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -77,18 +84,29 @@ class BaseTrainer:
         assert len(batch) >= 2
         imgs, targs = batch[0], batch[1]
         imgs, targs = to_device(imgs, targs, device=self.device)
+
         # apply Mixup or Cutmix if MixupMixin is used in the final class
         targs_ = targs  # keep original targets to return by the method
         if hasattr(self, "apply_mixup") and len(imgs) % 2 == 0:  # batch size should be even
             imgs, targs = self.apply_mixup(imgs, targs)
 
-        preds = self.model(imgs)
-        loss = self.criterion(preds, targs)
-        _loss = loss.item()
+        if self.mini_batch_size is not None:
+            preds, _loss = train_batch_multistage(
+                self.model,
+                imgs,
+                targs,
+                self.criterion,
+                mini_batch_size=self.mini_batch_size,
+                device=self.device,
+            )
+        else:
+            preds = self.model(imgs)
+            loss = self.criterion(preds, targs)
+            _loss = loss.item()
 
-        # scale the loss to the mean of the accumulated batch size
-        loss = loss / self.accumulation_steps
-        loss.backward()
+            # scale the loss to the mean of the accumulated batch size
+            loss = loss / self.accumulation_steps
+            loss.backward()
 
         # convert to numpy
         preds, targs = to_numpy(preds, targs_)
@@ -116,9 +134,18 @@ class BaseTrainer:
 
         # run inference and compute loss
         with torch.no_grad():
-            preds = model(imgs)
+            if self.mini_batch_size is not None:
+                preds = predict_as_mini_batch(
+                    model, images=imgs, mini_batch_size=self.mini_batch_size, device=self.device
+                )
+            else:
+                preds = model(imgs)
+
         loss = 0.0
-        if self.criterion is not None:
+        if isinstance(self.criterion, RecallatKSurrogate):
+            targs = to_device(targs, device=self.device)
+
+        elif self.criterion is not None:
             targs = to_device(targs, device=self.device)
             loss = self.criterion(preds, targs).item()
 

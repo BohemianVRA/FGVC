@@ -7,6 +7,7 @@ from typing import Optional, Union
 import timm
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 logger = logging.getLogger("fgvc")
 
@@ -18,6 +19,7 @@ def get_model(
     *,
     checkpoint_path: Union[str, io.BytesIO] = None,
     strict: bool = True,
+    contrastive: bool = False,
 ) -> nn.Module:
     """Get a `timm` model.
 
@@ -35,6 +37,8 @@ def get_model(
         Whether to strictly enforce the keys in state_dict to match
         between the model and checkpoint weights from file.
         Used when argument checkpoint_path is specified.
+    contrastive
+        If true, extend the model with contrastive wrapper.
 
     Returns
     -------
@@ -49,6 +53,9 @@ def get_model(
     # classification head is missing to get `in_features` value in the method `set_prediction_head`
     if model.default_cfg["num_classes"] == 0 and target_size is not None:
         model = timm.create_model(architecture_name, pretrained=pretrained, num_classes=1000)
+
+    if contrastive:
+        model = extend_model_contrastive(architecture_name, model, target_size)
 
     # load custom weights
     if checkpoint_path is not None:
@@ -155,3 +162,140 @@ def get_model_target_size(model: nn.Module) -> Optional[int]:
         )
 
     return target_size
+
+
+def extend_model_contrastive(
+    architecture_name: str, model: nn.Module, embeddings_dim: int
+) -> nn.Module:
+    """Extend a `timm` model with additional layers.
+
+    These layers consist of GeM (Generalized Mean Pooling), norms and linear layers,
+    based on the https://github.com/yash0307/RecallatK_surrogate.
+
+    Parameters
+    ----------
+    architecture_name
+        Name of the network architecture from `timm` library.
+    model
+        `Timm` model
+    embeddings_dim
+        Output size of the final layer.
+
+    Returns
+    -------
+    model
+        Extended `timm` model.
+    """
+    if "vit" in architecture_name:
+        logger.info("Using ContrastiveViT model.")
+        model = ContrastiveViTWrapper(
+            model=model,
+            embeddings_dim=embeddings_dim,
+        )
+        return model
+    elif "resnet" in architecture_name or "resnext" in architecture_name:
+        logger.info("Using ContrastiveResNet model.")
+        model = ContrastiveResNetWrapper(
+            model=model,
+            embeddings_dim=embeddings_dim,
+        )
+        return model
+    else:
+        raise NotImplementedError(
+            f"Contrastive wrapper for: {architecture_name} is not implemented."
+        )
+
+
+#  Models for contrastive learning #
+class GeM(nn.Module):
+    """Generalized Mean pooling layer.
+
+    Taken from: https://github.com/yash0307/RecallatK_surrogate
+
+    """
+
+    def __init__(self, p: float = 3, eps: float = 1e-6):
+        super(GeM, self).__init__()
+        self.p = nn.Parameter(torch.ones(1) * p)
+        self.eps = eps
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        return self.gem(x, p=self.p, eps=self.eps)
+
+    def gem(self, x: torch.Tensor, p: nn.Parameter, eps: float = 1e-6) -> torch.Tensor:
+        """Generalized Mean pooling."""
+        return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1.0 / p)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__} (p={self.p.data.tolist()[0]:.4f}, eps={self.eps})"
+
+
+class ContrastiveViTWrapper(nn.Module):
+    """Wrapper class for ViT models.
+
+    Additional pooling, linear and normalization layers are appended to the model.
+    Model output is of `embeddings_dim` size.
+    Taken from: https://github.com/yash0307/RecallatK_surrogate
+    """
+
+    def __init__(self, model: nn.Module, embeddings_dim: int):
+        super(ContrastiveViTWrapper, self).__init__()
+        self.model = model
+        self.default_cfg = self.model.default_cfg
+        self.gem = GeM()
+        self.model.head = torch.nn.Linear(self.model.head.in_features, embeddings_dim)
+        self.model.layer_norm = torch.nn.LayerNorm(self.model.head.in_features)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        x = self.model.patch_embed(x)
+        cls_token = self.model.cls_token.expand(x.shape[0], -1, -1)
+        x = torch.cat((cls_token, x), dim=1)
+        x = self.model.pos_drop(x + self.model.pos_embed)
+        x = self.model.blocks(x)
+        x = self.model.norm(x)
+        # x = self.model.pre_logits(x[:, 0])
+        # x = self.model.layer_norm(x)
+        x = self.model.layer_norm(x[:, 0])
+        x = self.model.head(x)
+        return torch.nn.functional.normalize(x, dim=-1)
+
+
+class ContrastiveResNetWrapper(nn.Module):
+    """Wrapper class for ResNet models.
+
+    Additional pooling, linear and normalization layers are appended to the model.
+    Model output is of `embeddings_dim` size.
+    Taken from: https://github.com/yash0307/RecallatK_surrogate
+
+    May not work for all variants! The default model in paper is resnet50.
+    """
+
+    def __init__(self, model: nn.Module, embeddings_dim: int):
+        super(ContrastiveResNetWrapper, self).__init__()
+        self.model = model
+        self.default_cfg = self.model.default_cfg
+        for module in filter(lambda m: type(m) is nn.BatchNorm2d, self.model.modules()):
+            module.eval()
+            module.train = lambda _: None
+        self.gem = GeM()
+
+        classifier = self.model.get_classifier()
+        self.model.fc = torch.nn.Linear(classifier.in_features, embeddings_dim)
+        self.model.layer_norm = torch.nn.LayerNorm(classifier.in_features)
+        self.layer_blocks = nn.ModuleList(
+            [self.model.layer1, self.model.layer2, self.model.layer3, self.model.layer4]
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        x = self.model.maxpool(self.model.act1(self.model.bn1(self.model.conv1(x))))
+        for layerblock in self.layer_blocks:
+            x = layerblock(x)
+        # x = self.model.avgpool(x)
+        x = self.gem(x)
+        x = x.view(x.size(0), -1)
+        x = self.model.layer_norm(x)
+        mod_x = self.model.fc(x)
+        return torch.nn.functional.normalize(mod_x, dim=-1)
