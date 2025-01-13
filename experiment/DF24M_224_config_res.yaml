@@ -1,0 +1,26 @@
+# data
+augmentations: 'light'
+image_size: [224, 224]
+dataset: 'DF24M'
+
+# model
+architecture: 'resnet50'
+
+# training
+train:
+loss: 'RecallatK'
+optimizer: 'adamw'
+scheduler: 'plateau'
+epochs: 100
+learning_rate: 0.00001 #0.000002
+weight_decay:  0.0004 #0.00004
+batch_size: 400
+mini_batch_size: 100
+accumulation_steps: 1
+
+# other
+random_seed: 777
+workers: 8
+multigpu: False
+tags: ["DanishFungi2024-Mini", "224x224", "Transformer"]  # W&B Run tags
+root_path: "../"

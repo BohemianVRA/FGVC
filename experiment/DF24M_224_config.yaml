@@ -1,0 +1,30 @@
+# data
+augmentations: 'vit_heavy'
+image_size: [224, 224]
+dataset: 'DF24M'
+
+# model
+architecture: 'vit_base_patch16_224_in21k'
+
+# training
+train:
+loss: 'RecallatKSurrogate'
+optimizer: 'adamw'
+scheduler: 'cyclic_cosine'
+epochs: 50
+learning_rate: 0.00005 #0.000002
+weight_decay:  0.0004 #0.00004
+batch_size: 512
+mini_batch_size: 64
+accumulation_steps: 1
+
+# Additional contrastive learning parameters
+contrastive: True
+embeddings_dim: 512
+
+# other
+random_seed: 777
+workers: 8
+multigpu: False
+tags: ["DanishFungi2024-Mini"]  # W&B Run tags
+root_path: "../"
