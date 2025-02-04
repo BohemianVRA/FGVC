@@ -82,8 +82,10 @@ class BaseTrainer:
         BatchOutput tuple with predictions, ground-truth targets, and average loss.
         """
         assert len(batch) >= 2
-        imgs, targs = batch[0], batch[1]
+        imgs, targs, extra = batch[0], batch[1], batch[2:]
         imgs, targs = to_device(imgs, targs, device=self.device)
+        # if extra:
+        #     targs = (targs, to_device(extra[0], device=self.device))
 
         # apply Mixup or Cutmix if MixupMixin is used in the final class
         targs_ = targs  # keep original targets to return by the method
@@ -94,7 +96,7 @@ class BaseTrainer:
             preds, _loss = train_batch_multistage(
                 self.model,
                 imgs,
-                targs,
+                (targs, to_device(extra[0], device=self.device)),
                 self.criterion,
                 mini_batch_size=self.mini_batch_size,
                 device=self.device,
@@ -142,10 +144,7 @@ class BaseTrainer:
                 preds = model(imgs)
 
         loss = 0.0
-        if isinstance(self.criterion, RecallatKSurrogate):
-            targs = to_device(targs, device=self.device)
-
-        elif self.criterion is not None:
+        if self.criterion is not None:
             targs = to_device(targs, device=self.device)
             loss = self.criterion(preds, targs).item()
 

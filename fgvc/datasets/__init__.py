@@ -17,7 +17,7 @@ from fgvc.core.augmentations.const import IMAGENET_MEAN, IMAGENET_STD
 from .image_dataset import ImageDataset
 from .poison_dataset import PoisonDataset
 from .prediction_dataset import PredictionDataset
-from .recall_dataset import TrainRecallDataset
+from .recall_dataset import TrainRecallDataset, HierarchyDataset
 from .segmentation_dataset import BinarySegmentationDataset
 from .taxonomy_dataset import TaxonomyDataset
 
@@ -191,14 +191,14 @@ def get_dataloaders_contrastive(
         model_std=model_std,
         batch_size=batch_size,
         num_workers=num_workers,
-        train_dataset_cls=TrainRecallDataset,
-        train_dataset_kws={
-            "batch_size": batch_size,
-            "samples_per_class": samples_per_class,
-        },
-        train_dataloader_kws={
-            "sampler": SequentialSampler,
-            "shuffle": False,
-        },
+        train_dataset_cls=HierarchyDataset,
+        # train_dataset_kws={
+        #     "batch_size": batch_size,
+        #     "samples_per_class": samples_per_class,
+        # },
+        # train_dataloader_kws={
+        #     # "sampler": SequentialSampler,
+        #     "shuffle": False,
+        # },
     )
     return trainloader, valloader

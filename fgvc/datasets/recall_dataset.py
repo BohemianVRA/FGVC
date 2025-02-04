@@ -38,23 +38,30 @@ class TrainRecallDataset(Dataset):
     """
 
     def __init__(
-        self, train_df: pd.DataFrame, transform: Union[A.Compose, T.Compose], **dataset_kws
+            self, df: pd.DataFrame, transform: Union[A.Compose, T.Compose], **kwargs
     ):
-        class_to_images = defaultdict(list)
-        for index, (class_id, image_path) in train_df[["class_id", "image_path"]].iterrows():
-            class_to_images[class_id].append(image_path)
-
-        self.class_to_images = class_to_images
+        assert "image_path" in df
+        assert "class_id" in df
+        self.df = df
+        self.transform = transform
+        self.batch_size = kwargs["batch_size"]
+        self.samples_per_class = kwargs["samples_per_class"]
         self.dataset = None
-        self.batch_size = dataset_kws["batch_size"]
-        self.samples_per_class = dataset_kws["samples_per_class"]
+
+        assert self.batch_size / self.samples_per_class <= len(df["class_id"].unique())
+
+        class2image_paths = defaultdict(list)
+        for index, (class_id, image_path) in self.df[["class_id", "image_path"]].iterrows():
+            class2image_paths[class_id].append(image_path)
+
+        self.class_to_images = class2image_paths
         for class_id in self.class_to_images:
             self.class_to_images[class_id] = [
                 (class_id, image_path) for image_path in self.class_to_images[class_id]
             ]
 
         self.available_classes = [*self.class_to_images.keys()]
-        self.transform = transform
+
         self.reshuffle()
 
     def reshuffle(self):
@@ -105,3 +112,40 @@ class TrainRecallDataset(Dataset):
             else:
                 image = self.transform(image)
         return image
+
+
+class HierarchyDataset(Dataset):
+
+    def __init__(
+            self, df: pd.DataFrame, transform: Union[A.Compose, T.Compose], feature="genus", **kwargs
+    ):
+        assert "image_path" in df
+        assert "class_id" in df
+        assert feature in df
+
+        self.df = df
+        self.transform = transform
+        self.feature = feature
+
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int, str, str]:
+        img_path = self.df.iloc[idx]['image_path']
+        class_id = self.df.iloc[idx]['class_id']
+        feature_value = self.df.iloc[idx][self.feature]
+
+        image_pil = Image.open(img_path).convert("RGB")
+        image = self.apply_transforms(image_pil)
+        return image, class_id, feature_value, img_path
+
+    def __len__(self):
+        return len(self.df)
+
+    def apply_transforms(self, image: Image.Image) -> torch.Tensor:
+        """Apply augmentation transformations on the image."""
+        if self.transform is not None:
+            if isinstance(self.transform, A.Compose):
+                image = self.transform(image=np.asarray(image))["image"]
+            else:
+                image = self.transform(image)
+        return image
+

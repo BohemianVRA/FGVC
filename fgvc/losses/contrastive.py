@@ -51,9 +51,6 @@ class RecallatKSurrogate(nn.Module):
 
         self.k_values = [min(batch_size, k) for k in k_values]
         self.k_temperatures = k_temperatures
-        self.normalization_values = torch.Tensor(
-            [min(k, (samples_per_class - 1)) for k in self.k_values]
-        )
 
     def forward_orig(self, logits: torch.Tensor, targs: torch.Tensor) -> float:
         """Evaluate RecallatK loss."""
@@ -71,7 +68,10 @@ class RecallatKSurrogate(nn.Module):
         for cls_id in targs.unique():
             cls_to_logits[cls_id] = logits[targs == cls_id]
 
-        self.normalization_values.to(logits.device)
+        normalization_values = torch.Tensor(
+            [min(k, (self.samples_per_class - 1)) for k in self.k_values]
+        )
+        normalization_values.to(logits.device)
 
         loss = 0.0
         for query_id in range(0, logits.shape[0]):
@@ -115,10 +115,14 @@ class RecallatKSurrogate(nn.Module):
 
     def forward(self, logits: torch.Tensor, targs: torch.Tensor) -> float:
         """Evaluate RecallatK loss."""
-        assert logits.shape[0] == targs.shape[0], "Logits and targets must have the same batch size"
+        # assert logits.shape[0] == targs.shape[0], "Logits and targets must have the same batch size"
+
+        cls_targs, feature_targs = targs, None
+        if isinstance(targs, tuple):
+            cls_targs, feature_targs = targs
 
         # Reorder logits based on sorted targets
-        sorted_targs, indices = torch.sort(targs)
+        sorted_targs, indices = torch.sort(cls_targs)
         sorted_logits = logits[indices]
 
         # Create class-to-logits mapping
@@ -131,19 +135,37 @@ class RecallatKSurrogate(nn.Module):
             cls_to_logits[cls_id] = torch.stack(cls_to_logits[cls_id])
 
         # Compute loss
-        loss = 0.0
-        for cls_id, cls_logits in cls_to_logits.items():
-            self.normalization_values = torch.Tensor(
-                [min(k, (len(cls_to_logits[cls_id]) - 1)) for k in self.k_values]
-            ).to(logits.device)
-            same_group_mask = targs == cls_id
+        cls_loss = self.feature_loss(logits, cls_targs, cls_to_logits)
+        if feature_targs is None:
+            return cls_loss
 
-            num_samples = cls_logits.shape[0]
+        sorted_targs, indices = torch.sort(feature_targs)
+        sorted_logits = logits[indices]
+        feature_to_logits = defaultdict(list)
+        for idx, feature_id in enumerate(sorted_targs):
+            feature_to_logits[feature_id.item()].append(sorted_logits[idx])
+        for feature_id in feature_to_logits:
+            feature_to_logits[feature_id] = torch.stack(feature_to_logits[feature_id])
+        feature_loss = self.feature_loss(logits, feature_targs, feature_to_logits)
+
+        return cls_loss / 2 + feature_loss / 2
+
+
+
+    def feature_loss(self, logits: torch.Tensor, targs, feature_to_logits) -> float:
+        loss = 0.0
+        for feature_id, feature_logits in feature_to_logits.items():
+            normalization_values = torch.Tensor(
+                [min(k, (len(feature_to_logits[feature_id]) - 1)) for k in self.k_values]
+            ).to(logits.device)
+            same_group_mask = targs == feature_id
+
+            num_samples = feature_logits.shape[0]
             for query_idx in range(num_samples):
-                query_logit = cls_logits[query_idx]
+                query_logit = feature_logits[query_idx]
                 similarity_all = (query_logit * logits).sum(1)
                 similarity_in_cls = similarity_all[same_group_mask].unsqueeze(0)
-                similarity_diff = similarity_all.unsqueeze(-1) - similarity_in_cls.repeat(self.batch_size, 1)
+                similarity_diff = similarity_all.unsqueeze(-1) - similarity_in_cls.repeat(logits.shape[0], 1)
                 similarity_sigmoid = sigmoid(similarity_diff, temperature=self.sigmoid_temperature)
 
                 # Zero Out Self-Similarities
@@ -160,20 +182,20 @@ class RecallatKSurrogate(nn.Module):
                 _k_values = _k_values.unsqueeze(0).repeat(num_samples, 1)
 
                 sim_all_rk = _k_values - sim_all_rk
-                for given_k in range(len(self.k_values)):
-                    sim_all_rk[:, :, given_k] = sigmoid(
-                        sim_all_rk[:, :, given_k], temperature=float(self.k_temperatures[given_k])
+                for i, k_value in enumerate(self.k_values):
+                    sim_all_rk[:, :, i] = sigmoid(
+                        sim_all_rk[:, :, i], temperature=float(self.k_temperatures[i])
                     )
 
+                if sim_all_rk.shape[1] == 1:  # Leads to nan recall TODO
+                    continue
                 sim_all_rk[:, query_idx, :] = 0.0
 
                 k_vals_loss = torch.Tensor(self.k_values).to(logits.device).unsqueeze(dim=0)
                 recall = torch.sum(sim_all_rk, dim=1)
                 recall = torch.minimum(recall, k_vals_loss)
                 recall = torch.sum(recall, dim=0)
-                recall = torch.div(recall, self.normalization_values)
+                recall = torch.div(recall, normalization_values)
                 recall = torch.sum(recall) / len(self.k_values)
-                loss += (1.0 - recall) / self.batch_size
-
-
+                loss += (1.0 - recall) / logits.shape[0]
         return loss

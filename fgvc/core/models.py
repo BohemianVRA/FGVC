@@ -231,7 +231,13 @@ class GeM(nn.Module):
         return f"{self.__class__.__name__} (p={self.p.data.tolist()[0]:.4f}, eps={self.eps})"
 
 
-class ContrastiveViTWrapper(nn.Module):
+class ContrastiveWrapper(nn.Module):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class ContrastiveViTWrapper(ContrastiveWrapper):
     """Wrapper class for ViT models.
 
     Additional pooling, linear and normalization layers are appended to the model.
@@ -262,7 +268,7 @@ class ContrastiveViTWrapper(nn.Module):
         return torch.nn.functional.normalize(x, dim=-1)
 
 
-class ContrastiveResNetWrapper(nn.Module):
+class ContrastiveResNetWrapper(ContrastiveWrapper):
     """Wrapper class for ResNet models.
 
     Additional pooling, linear and normalization layers are appended to the model.
