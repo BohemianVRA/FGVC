@@ -1,0 +1,30 @@
+# data
+augmentations: 'vit_heavy'
+image_size: [224, 224]
+dataset: 'CUB_200_2011'
+
+# model
+architecture: 'vit_base_patch16_224_in21k'
+
+# training
+train:
+loss: 'RecallatKSurrogate'
+optimizer: 'adamw'
+scheduler: 'cyclic_cosine'
+epochs: 100
+learning_rate: 0.00005 #0.000002
+weight_decay:  0.0004 #0.00004
+batch_size: 512
+mini_batch_size: 8
+accumulation_steps: 1
+
+# Additional contrastive learning parameters
+contrastive: True
+embeddings_dim: 512
+
+# other
+random_seed: 777
+workers: 6
+multigpu: False
+tags: ["CUB-200"]  # W&B Run tags
+root_path: "../"

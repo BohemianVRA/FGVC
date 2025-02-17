@@ -133,6 +133,7 @@ def cluster_classification_scores(
     scores
         A dictionary or tuple with clustering scores.
     """
+    k_values = [1, 2, 3, 4, 8]
     n_classes = len(np.unique(targs))
     preds = np.vstack(preds).astype("float32")
     targs = np.hstack(targs).reshape(-1, 1)
@@ -144,6 +145,11 @@ def cluster_classification_scores(
         model_generated_cluster_labels.reshape(-1), targs.reshape(-1)
     )
     k_closest_classes = targs.reshape(-1)[k_closest_points[:, 1:]]
+
+    preds_argmax = k_closest_classes[:, 0].flatten()
+    labels = np.unique(targs)
+    # f1 = f1_score(targs, preds_argmax, labels=labels, average="macro", zero_division=0)
+
     recall_all_k = []
     for k in k_values:
         recall_at_k = np.sum(
@@ -158,7 +164,11 @@ def cluster_classification_scores(
     if return_dict:
         scores = {"NMI": nmi_score}
         for k, recall in zip(k_values, recall_all_k):
+            if k == 1:
+                scores["Accuracy"] = recall
+                continue
             scores[f"Recall@{k}"] = recall
+        # scores["F1"] = f1
     else:
         scores = nmi_score, *recall_all_k
 
