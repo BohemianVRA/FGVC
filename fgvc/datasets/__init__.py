@@ -191,7 +191,7 @@ def get_dataloaders_contrastive(
         model_std=model_std,
         batch_size=batch_size,
         num_workers=num_workers,
-        train_dataset_cls=HierarchyDataset,
+        # train_dataset_cls=HierarchyDataset, # TODO
         # train_dataset_kws={
         #     "batch_size": batch_size,
         #     "samples_per_class": samples_per_class,

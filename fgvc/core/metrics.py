@@ -148,7 +148,7 @@ def cluster_classification_scores(
 
     preds_argmax = k_closest_classes[:, 0].flatten()
     labels = np.unique(targs)
-    # f1 = f1_score(targs, preds_argmax, labels=labels, average="macro", zero_division=0)
+    f1 = f1_score(targs, preds_argmax, labels=labels, average="macro", zero_division=0)
 
     recall_all_k = []
     for k in k_values:
@@ -168,7 +168,7 @@ def cluster_classification_scores(
                 scores["Accuracy"] = recall
                 continue
             scores[f"Recall@{k}"] = recall
-        # scores["F1"] = f1
+        scores["F1"] = f1
     else:
         scores = nmi_score, *recall_all_k
 

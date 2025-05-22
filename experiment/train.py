@@ -1,7 +1,9 @@
 import argparse
 import logging
 import os
+import os.path as osp
 from typing import Tuple
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -186,6 +188,19 @@ def add_metadata_info_to_config(
     return config
 
 
+def encode_df_feature(df: pd.DataFrame, feature: str, le = None):
+    from sklearn.preprocessing import LabelEncoder
+    assert feature in df.columns.values
+
+    if le is None:
+        le = LabelEncoder()
+        labels = df[feature].unique()
+        le.fit(labels)
+
+    df[feature] = le.transform(df[feature])
+    return df, le
+
+
 def train_clf(
     *,
     train_metadata: str = None,
@@ -230,6 +245,9 @@ def train_clf(
     # load metadata
     logger.info("Loading training and validation metadata.")
     train_df, valid_df = load_train_metadata(train_metadata, valid_metadata)
+    # feature = "genus"
+    # _, le = encode_df_feature(train_df, feature)
+    # encode_df_feature(valid_df, feature,  le)
     config = add_metadata_info_to_config(config, train_df, valid_df)
 
     # load model and create optimizer and lr scheduler
@@ -244,7 +262,7 @@ def train_clf(
     trainloader, validloader = get_dataloaders_contrastive(
         train_df,
         valid_df,
-        samples_per_class=4,
+        # samples_per_class=4,
         augmentations=config["augmentations"],
         image_size=config["image_size"],
         model_mean=model_mean,
@@ -353,18 +371,18 @@ def train_clf(
 
 
 if __name__ == "__main__":
-    # import os.path as osp
-    # from pathlib import Path
-    # IMAGE_DIR = "/home/marek/datasets/fungiclef2023/DF20"
-    # TRAIN_METADATA_PATH = "/home/marek/datasets/fungiclef2023/DanishFungi2024-Mini-train.csv"
-    # TEST_METADATA_PATH = "/home/marek/datasets/fungiclef2023/DanishFungi2024-Mini-pubtest.csv"
-    #
-    # updated_train_metadata_path = osp.join(osp.dirname(TRAIN_METADATA_PATH), Path(TRAIN_METADATA_PATH).stem + "-updated.csv")
-    # updated_test_metadata_path = osp.join(osp.dirname(TEST_METADATA_PATH), Path(TEST_METADATA_PATH).stem + "-updated.csv")
+    IMAGE_DIR = "/home/marek/datasets/fungiclef2023/DF20"
+    TRAIN_METADATA_PATH = "/home/marek/datasets/fungiclef2023/DanishFungi2024-Mini-train.csv"
+    TEST_METADATA_PATH = "/home/marek/datasets/fungiclef2023/DanishFungi2024-Mini-pubtest.csv"
+
+    updated_train_metadata_path = osp.join(osp.dirname(TRAIN_METADATA_PATH), Path(TRAIN_METADATA_PATH).stem + "-updated.csv")
+    updated_test_metadata_path = osp.join(osp.dirname(TEST_METADATA_PATH), Path(TEST_METADATA_PATH).stem + "-updated.csv")
     train_clf(
-        # train_metadata=updated_train_metadata_path,
-        # valid_metadata=updated_test_metadata_path,
-        # config_path="./DF24M_224_config.yaml",
-        # cuda_devices="0",
-        # resume_exp_name="/home/marek/Projects/PythonLand/FGVC/runs/vit_base_patch16_224_in21k-RecallatKSurrogate-vit_heavy/exp7"
+        train_metadata=updated_train_metadata_path,
+        valid_metadata=updated_test_metadata_path,
+        config_path="./DF24M_224_config.yaml",
+        cuda_devices="0",
+        # wandb_entity='mhanzl',
+        # wandb_project='FGVC-Test',
+        # resume_exp_name="/home/marek/Projects/PythonLand/FGVC/runs/vit_base_patch16_224_in21k-RecallatKSurrogate-vit_heavy/exp57"
     )

@@ -10,7 +10,7 @@ architecture: 'vit_base_patch16_224_in21k'
 train:
 loss: 'RecallatKSurrogate'
 optimizer: 'adamw'
-scheduler: 'cyclic_cosine'
+scheduler: 'plateau'
 epochs: 100
 learning_rate: 0.00005 #0.000002
 weight_decay:  0.0004 #0.00004

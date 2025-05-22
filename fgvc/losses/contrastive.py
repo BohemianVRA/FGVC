@@ -136,9 +136,11 @@ class RecallatKSurrogate(nn.Module):
 
         # Compute loss
         cls_loss = self.feature_loss(logits, cls_targs, cls_to_logits)
+        # TODO is false only for Hierarchy dataset
         if feature_targs is None:
             return cls_loss
 
+        # TODO runs Hierarchy dataset
         sorted_targs, indices = torch.sort(feature_targs)
         sorted_logits = logits[indices]
         feature_to_logits = defaultdict(list)

@@ -320,7 +320,7 @@ class RecallAtKTrainer(BasicTrainer):
                 del x
                 torch.cuda.empty_cache()
             if self.objective.mixup:
-                output_mixup = pos_mixup(output, self.objective.num_id)
+                output_mixup = pos_mixup(output, self.objective.cls_per_batch_count)
                 num_samples = output_mixup.shape[0]
             else:
                 num_samples = output.shape[0]
